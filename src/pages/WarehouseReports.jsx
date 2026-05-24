@@ -221,7 +221,13 @@ export default function WarehouseReports() {
               </Row>
             </Card.Header>
             <Card.Body className="p-0">
-              <DataTable columns={stockColumns} data={stockData} progressPending={loading} striped highlightOnHover dense />
+              <DataTable className="modern-datatable" columns={stockColumns} data={stockData} progressPending={loading} striped highlightOnHover dense progressComponent={<div className="p-4 text-center"><div className="spinner-border spinner-border-sm me-2"></div>Loading...</div>} / progressComponent={<div className="p-4 text-center"><div className="spinner-border spinner-border-sm me-2"></div>Loading...</div>} noDataComponent={
+              <div className="p-5 text-center">
+                <i className="fas fa-folder-open text-muted mb-3" style={{ fontSize: 48, opacity: 0.4 }}></i>
+                <div className="fw-semibold text-secondary mb-1">No data found</div>
+                <div className="small text-muted">Try adjusting your filters or check back later</div>
+              </div>
+            }>
             </Card.Body>
           </Card>
         </Tab>
@@ -233,7 +239,13 @@ export default function WarehouseReports() {
               <Button variant="outline-primary" size="sm" onClick={loadWarehouseSummary}>Refresh</Button>
             </Card.Header>
             <Card.Body className="p-0">
-              <DataTable columns={summaryColumns} data={summaryData} progressPending={loading} striped highlightOnHover dense />
+              <DataTable className="modern-datatable" columns={summaryColumns} data={summaryData} progressPending={loading} striped highlightOnHover dense progressComponent={<div className="p-4 text-center"><div className="spinner-border spinner-border-sm me-2"></div>Loading...</div>} / progressComponent={<div className="p-4 text-center"><div className="spinner-border spinner-border-sm me-2"></div>Loading...</div>} noDataComponent={
+              <div className="p-5 text-center">
+                <i className="fas fa-folder-open text-muted mb-3" style={{ fontSize: 48, opacity: 0.4 }}></i>
+                <div className="fw-semibold text-secondary mb-1">No data found</div>
+                <div className="small text-muted">Try adjusting your filters or check back later</div>
+              </div>
+            }>
             </Card.Body>
           </Card>
         </Tab>
@@ -260,7 +272,13 @@ export default function WarehouseReports() {
               </Row>
             </Card.Header>
             <Card.Body className="p-0">
-              <DataTable columns={ledgerColumns} data={ledgerData} progressPending={loading} striped highlightOnHover dense />
+              <DataTable className="modern-datatable" columns={ledgerColumns} data={ledgerData} progressPending={loading} striped highlightOnHover dense progressComponent={<div className="p-4 text-center"><div className="spinner-border spinner-border-sm me-2"></div>Loading...</div>} / progressComponent={<div className="p-4 text-center"><div className="spinner-border spinner-border-sm me-2"></div>Loading...</div>} noDataComponent={
+              <div className="p-5 text-center">
+                <i className="fas fa-folder-open text-muted mb-3" style={{ fontSize: 48, opacity: 0.4 }}></i>
+                <div className="fw-semibold text-secondary mb-1">No data found</div>
+                <div className="small text-muted">Try adjusting your filters or check back later</div>
+              </div>
+            }>
             </Card.Body>
           </Card>
         </Tab>
@@ -287,7 +305,13 @@ export default function WarehouseReports() {
               </Row>
             </Card.Header>
             <Card.Body className="p-0">
-              <DataTable columns={transferColumns} data={transferData} progressPending={loading} striped highlightOnHover dense />
+              <DataTable className="modern-datatable" columns={transferColumns} data={transferData} progressPending={loading} striped highlightOnHover dense progressComponent={<div className="p-4 text-center"><div className="spinner-border spinner-border-sm me-2"></div>Loading...</div>} / progressComponent={<div className="p-4 text-center"><div className="spinner-border spinner-border-sm me-2"></div>Loading...</div>} noDataComponent={
+              <div className="p-5 text-center">
+                <i className="fas fa-folder-open text-muted mb-3" style={{ fontSize: 48, opacity: 0.4 }}></i>
+                <div className="fw-semibold text-secondary mb-1">No data found</div>
+                <div className="small text-muted">Try adjusting your filters or check back later</div>
+              </div>
+            }>
             </Card.Body>
           </Card>
         </Tab>
@@ -299,7 +323,13 @@ export default function WarehouseReports() {
               <Button variant="outline-primary" size="sm" onClick={loadLowStock}>Refresh</Button>
             </Card.Header>
             <Card.Body className="p-0">
-              <DataTable columns={lowStockColumns} data={lowStockData} progressPending={loading} striped highlightOnHover dense />
+              <DataTable className="modern-datatable" columns={lowStockColumns} data={lowStockData} progressPending={loading} striped highlightOnHover dense progressComponent={<div className="p-4 text-center"><div className="spinner-border spinner-border-sm me-2"></div>Loading...</div>} / progressComponent={<div className="p-4 text-center"><div className="spinner-border spinner-border-sm me-2"></div>Loading...</div>} noDataComponent={
+              <div className="p-5 text-center">
+                <i className="fas fa-folder-open text-muted mb-3" style={{ fontSize: 48, opacity: 0.4 }}></i>
+                <div className="fw-semibold text-secondary mb-1">No data found</div>
+                <div className="small text-muted">Try adjusting your filters or check back later</div>
+              </div>
+            }>
             </Card.Body>
           </Card>
         </Tab>

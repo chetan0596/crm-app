@@ -1,77 +1,805 @@
+/* =====================================================================
+   CRM Theme — Minimal Neutral + Indigo
+   Lightweight overrides on top of Bootstrap 5 + AdminLTE 3.
+   All tokens live in :root so colors stay consistent across the app.
+   ===================================================================== */
+
 :root {
-    font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
+    /* Brand */
+    --c-primary:        #4f46e5; /* indigo-600 */
+    --c-primary-hover:  #4338ca; /* indigo-700 */
+    --c-primary-soft:   #eef2ff; /* indigo-50  */
+    --c-primary-text:   #3730a3; /* indigo-800 */
+
+    /* Neutrals (slate) */
+    --c-bg:        #f6f8fb;
+    --c-surface:   #ffffff;
+    --c-border:    #e5e7eb;
+    --c-border-strong: #d1d5db;
+    --c-text:      #0f172a;
+    --c-text-muted:#64748b;
+    --c-text-soft: #94a3b8;
+
+    /* Status */
+    --c-success: #16a34a;
+    --c-warning: #f59e0b;
+    --c-danger:  #ef4444;
+    --c-info:    #0ea5e9;
+
+    /* Sidebar */
+    --c-sidebar-bg:        #111827;
+    --c-sidebar-bg-hover:  #1f2937;
+    --c-sidebar-text:      #cbd5e1;
+    --c-sidebar-text-active:#ffffff;
+    --c-sidebar-active-bg: #4f46e5;
+
+    /* Misc */
+    --radius-sm: 6px;
+    --radius:    8px;
+    --radius-lg: 12px;
+    --shadow-xs: 0 1px 2px rgba(15, 23, 42, .04);
+    --shadow-sm: 0 1px 2px rgba(15, 23, 42, .04), 0 1px 3px rgba(15, 23, 42, .06);
+    --shadow-md: 0 4px 12px rgba(15, 23, 42, .06);
+
+    font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
     line-height: 1.5;
-    font-weight: 400;
-    color-scheme: light dark;
-    color: rgba(255, 255, 255, 0.87);
-    background-color: #242424;
+    font-size: 14px;
+    color: var(--c-text);
+    background-color: var(--c-bg);
     font-synthesis: none;
     text-rendering: optimizeLegibility;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
 }
 
-a {
-    font-weight: 500;
-    color: #646cff;
-    text-decoration: inherit;
-}
-
-a:hover {
-    color: #535bf2;
-}
-
+/* Reset Vite default body (was flex-centered which broke admin layout) */
 body {
     margin: 0;
-    display: flex;
-    place-items: center;
-    min-width: 320px;
     min-height: 100vh;
+    background-color: var(--c-bg);
+    color: var(--c-text);
 }
 
-h1 {
-    font-size: 3.2em;
-    line-height: 1.1;
+a {
+    color: var(--c-primary);
+    text-decoration: none;
+}
+a:hover { color: var(--c-primary-hover); }
+
+h1, h2, h3, h4, h5, h6 {
+    color: var(--c-text);
+    font-weight: 600;
+    letter-spacing: -0.01em;
 }
 
-button {
-    border-radius: 8px;
-    border: 1px solid transparent;
-    padding: 0.6em 1.2em;
-    font-size: 1em;
+/* =======================================================
+   BUTTONS — Professional, flat, subtle shadow
+   ======================================================= */
+
+.btn {
+    border-radius: var(--radius-sm);
     font-weight: 500;
+    font-size: .875rem;
+    padding: .45rem .9rem;
+    line-height: 1.45;
+    letter-spacing: .005em;
+    border-width: 1px;
+    transition: background-color .15s ease, border-color .15s ease,
+                color .15s ease, box-shadow .15s ease, transform .05s ease;
+    box-shadow: var(--shadow-xs);
+}
+.btn:active { transform: translateY(1px); }
+.btn:focus, .btn:focus-visible {
+    box-shadow: 0 0 0 3px rgba(79, 70, 229, .18);
+    outline: 0;
+}
+.btn-sm { padding: .3rem .65rem; font-size: .8rem; border-radius: var(--radius-sm); }
+.btn-lg { padding: .6rem 1.15rem; font-size: .95rem; }
+
+/* Solid colored buttons */
+.btn-primary {
+    background-color: var(--c-primary);
+    border-color: var(--c-primary);
+    color: #fff;
+}
+.btn-primary:hover, .btn-primary:focus, .btn-primary:active,
+.btn-primary:not(:disabled):not(.disabled):active {
+    background-color: var(--c-primary-hover) !important;
+    border-color: var(--c-primary-hover) !important;
+    color: #fff !important;
+    box-shadow: 0 1px 2px rgba(79, 70, 229, .25), 0 0 0 3px rgba(79, 70, 229, .18) !important;
+}
+
+.btn-success {
+    background-color: var(--c-success);
+    border-color: var(--c-success);
+    color: #fff;
+}
+.btn-success:hover, .btn-success:focus, .btn-success:active {
+    background-color: #15803d !important;
+    border-color: #15803d !important;
+    color: #fff !important;
+    box-shadow: 0 0 0 3px rgba(22, 163, 74, .18) !important;
+}
+
+.btn-danger {
+    background-color: var(--c-danger);
+    border-color: var(--c-danger);
+    color: #fff;
+}
+.btn-danger:hover, .btn-danger:focus, .btn-danger:active {
+    background-color: #dc2626 !important;
+    border-color: #dc2626 !important;
+    color: #fff !important;
+    box-shadow: 0 0 0 3px rgba(239, 68, 68, .18) !important;
+}
+
+.btn-warning {
+    background-color: var(--c-warning);
+    border-color: var(--c-warning);
+    color: #78350f;
+}
+.btn-warning:hover, .btn-warning:focus, .btn-warning:active {
+    background-color: #d97706 !important;
+    border-color: #d97706 !important;
+    color: #fff !important;
+    box-shadow: 0 0 0 3px rgba(245, 158, 11, .25) !important;
+}
+
+.btn-info {
+    background-color: var(--c-info);
+    border-color: var(--c-info);
+    color: #fff;
+}
+.btn-info:hover, .btn-info:focus, .btn-info:active {
+    background-color: #0284c7 !important;
+    border-color: #0284c7 !important;
+    color: #fff !important;
+    box-shadow: 0 0 0 3px rgba(14, 165, 233, .2) !important;
+}
+
+.btn-secondary {
+    background-color: #475569;
+    border-color: #475569;
+    color: #fff;
+}
+.btn-secondary:hover, .btn-secondary:focus, .btn-secondary:active {
+    background-color: #334155 !important;
+    border-color: #334155 !important;
+    color: #fff !important;
+}
+
+/* Light & neutral default buttons */
+.btn-light, .btn-default {
+    background-color: var(--c-surface);
+    border-color: var(--c-border-strong);
+    color: var(--c-text);
+}
+.btn-light:hover, .btn-default:hover {
+    background-color: #f1f5f9 !important;
+    border-color: #cbd5e1 !important;
+    color: var(--c-text) !important;
+}
+
+.btn-dark {
+    background-color: #1f2937;
+    border-color: #1f2937;
+    color: #fff;
+}
+.btn-dark:hover, .btn-dark:focus, .btn-dark:active {
+    background-color: #111827 !important;
+    border-color: #111827 !important;
+    color: #fff !important;
+}
+
+/* Outline buttons */
+.btn-outline-primary { color: var(--c-primary); border-color: var(--c-primary); background: transparent; }
+.btn-outline-primary:hover, .btn-outline-primary:focus, .btn-outline-primary:active,
+.btn-outline-primary:not(:disabled):not(.disabled):active {
+    background-color: var(--c-primary) !important;
+    border-color: var(--c-primary) !important;
+    color: #fff !important;
+}
+
+.btn-outline-success { color: var(--c-success); border-color: var(--c-success); background: transparent; }
+.btn-outline-success:hover { background-color: var(--c-success) !important; border-color: var(--c-success) !important; color: #fff !important; }
+
+.btn-outline-danger { color: var(--c-danger); border-color: var(--c-danger); background: transparent; }
+.btn-outline-danger:hover { background-color: var(--c-danger) !important; border-color: var(--c-danger) !important; color: #fff !important; }
+
+.btn-outline-warning { color: #b45309; border-color: var(--c-warning); background: transparent; }
+.btn-outline-warning:hover { background-color: var(--c-warning) !important; border-color: var(--c-warning) !important; color: #78350f !important; }
+
+.btn-outline-info { color: var(--c-info); border-color: var(--c-info); background: transparent; }
+.btn-outline-info:hover { background-color: var(--c-info) !important; border-color: var(--c-info) !important; color: #fff !important; }
+
+.btn-outline-secondary { color: #475569; border-color: var(--c-border-strong); background: transparent; }
+.btn-outline-secondary:hover { background-color: #f1f5f9 !important; border-color: #cbd5e1 !important; color: var(--c-text) !important; }
+
+/* Disabled */
+.btn:disabled, .btn.disabled {
+    opacity: .55;
+    box-shadow: none;
+    cursor: not-allowed;
+}
+
+/* Icon-only buttons */
+.btn .fa, .btn .fas, .btn .far, .btn .fab, .btn i { font-size: .9em; }
+
+/* Color utilities */
+.text-primary { color: var(--c-primary) !important; }
+.bg-primary   { background-color: var(--c-primary) !important; color: #fff !important; }
+.border-primary { border-color: var(--c-primary) !important; }
+.text-success { color: var(--c-success) !important; }
+.text-danger  { color: var(--c-danger) !important; }
+.text-warning { color: #b45309 !important; }
+.text-info    { color: var(--c-info) !important; }
+
+/* Links inside tables/badges shouldn't be indigo by default */
+.table a { color: var(--c-text); }
+.table a:hover { color: var(--c-primary); }
+
+/* ---------- Cards ---------- */
+.card {
+    border: 1px solid var(--c-border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-xs);
+    background-color: var(--c-surface);
+}
+.card-header {
+    background-color: var(--c-surface);
+    border-bottom: 1px solid var(--c-border);
+    font-weight: 600;
+}
+.card-footer {
+    background-color: var(--c-surface);
+    border-top: 1px solid var(--c-border);
+}
+
+/* ---------- Forms ---------- */
+.form-control, .form-select {
+    border-color: var(--c-border-strong);
+    border-radius: var(--radius-sm);
+    color: var(--c-text);
+    background-color: var(--c-surface);
+}
+.form-control:focus, .form-select:focus {
+    border-color: var(--c-primary);
+    box-shadow: 0 0 0 3px rgba(79, 70, 229, .15);
+}
+.form-label {
+    color: var(--c-text);
+    font-weight: 500;
+    margin-bottom: .35rem;
+}
+.form-text { color: var(--c-text-muted); }
+
+/* ---------- Tables ---------- */
+.table {
+    color: var(--c-text);
+    --bs-table-hover-bg: var(--c-primary-soft);
+}
+.table > :not(caption) > * > * {
+    border-bottom-color: var(--c-border);
+    padding: .75rem .85rem;
+}
+.table thead th {
+    background-color: #f8fafc;
+    color: var(--c-text-muted);
+    text-transform: uppercase;
+    font-size: .72rem;
+    letter-spacing: .04em;
+    font-weight: 600;
+    border-bottom: 1px solid var(--c-border);
+}
+
+/* =======================================================
+   BADGES — Soft pill style, professional & readable
+   ======================================================= */
+.badge {
+    display: inline-flex;
+    align-items: center;
+    gap: .3em;
+    font-weight: 600;
+    padding: .32em .7em;
+    border-radius: 999px;
+    font-size: .7rem;
+    letter-spacing: .02em;
+    text-transform: uppercase;
+    line-height: 1.4;
+    border: 1px solid transparent;
+    vertical-align: middle;
+}
+
+/* Soft variants (lighter background + dark text) */
+.badge.bg-primary,
+.badge-primary {
+    background-color: var(--c-primary-soft) !important;
+    color: var(--c-primary-text) !important;
+    border-color: #c7d2fe;
+}
+.badge.bg-success,
+.badge-success {
+    background-color: #dcfce7 !important;
+    color: #166534 !important;
+    border-color: #bbf7d0;
+}
+.badge.bg-danger,
+.badge-danger {
+    background-color: #fee2e2 !important;
+    color: #991b1b !important;
+    border-color: #fecaca;
+}
+.badge.bg-warning,
+.badge-warning {
+    background-color: #fef3c7 !important;
+    color: #92400e !important;
+    border-color: #fde68a;
+}
+.badge.bg-info,
+.badge-info {
+    background-color: #e0f2fe !important;
+    color: #075985 !important;
+    border-color: #bae6fd;
+}
+.badge.bg-secondary,
+.badge-secondary {
+    background-color: #f1f5f9 !important;
+    color: #475569 !important;
+    border-color: #e2e8f0;
+}
+.badge.bg-dark,
+.badge-dark {
+    background-color: #1f2937 !important;
+    color: #fff !important;
+    border-color: #1f2937;
+}
+.badge.bg-light,
+.badge-light {
+    background-color: #f8fafc !important;
+    color: var(--c-text) !important;
+    border-color: var(--c-border);
+}
+
+/* Solid badges (for emphasis, e.g. counts) */
+.badge.badge-solid-primary { background: var(--c-primary) !important; color: #fff !important; border-color: var(--c-primary); }
+.badge.badge-solid-success { background: var(--c-success) !important; color: #fff !important; border-color: var(--c-success); }
+.badge.badge-solid-danger  { background: var(--c-danger)  !important; color: #fff !important; border-color: var(--c-danger); }
+
+/* Dot indicator inside a badge: <span class="badge bg-success"><i class="dot"></i> Active</span> */
+.badge .dot {
+    width: 6px; height: 6px;
+    border-radius: 999px;
+    background: currentColor;
+    display: inline-block;
+    opacity: .85;
+}
+
+/* ---------- Modals ---------- */
+.modal-content {
+    border: 1px solid var(--c-border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-md);
+}
+.modal-header { border-bottom: 1px solid var(--c-border); }
+.modal-footer { border-top: 1px solid var(--c-border); }
+.modal { z-index: 1055; }
+.modal-backdrop { z-index: 1050; }
+
+/* ---------- Alerts ---------- */
+.alert { border: 1px solid transparent; border-radius: var(--radius); }
+.alert-info {
+    background-color: #ecfeff;
+    border-color: #a5f3fc;
+    color: #155e75;
+}
+.alert-warning {
+    background-color: #fffbeb;
+    border-color: #fde68a;
+    color: #92400e;
+}
+.alert-danger {
+    background-color: #fef2f2;
+    border-color: #fecaca;
+    color: #991b1b;
+}
+.alert-success {
+    background-color: #f0fdf4;
+    border-color: #bbf7d0;
+    color: #166534;
+}
+
+/* ---------- AdminLTE: navbar (top header) ---------- */
+.main-header.navbar {
+    background-color: var(--c-surface) !important;
+    border-bottom: 1px solid var(--c-border) !important;
+    box-shadow: none !important;
+    height: 60px;
+}
+.main-header .nav-link { color: var(--c-text-muted) !important; }
+.main-header .nav-link:hover { color: var(--c-primary) !important; }
+
+/* ---------- AdminLTE: sidebar ---------- */
+.main-sidebar,
+.main-sidebar.sidebar-dark-primary {
+    background-color: var(--c-sidebar-bg) !important;
+    box-shadow: none !important;
+}
+.main-sidebar .brand-link {
+    border-bottom: 1px solid rgba(255,255,255,.06);
+    background-color: transparent !important;
+    color: #fff !important;
+    padding: 0.9rem 1rem;
+    font-weight: 600;
+    letter-spacing: .02em;
+}
+
+.sidebar .nav-sidebar .nav-item .nav-link {
+    color: var(--c-sidebar-text) !important;
+    border-radius: var(--radius);
+    margin: 2px 8px;
+    padding: .55rem .75rem;
+    transition: background-color .15s ease, color .15s ease;
+}
+.sidebar .nav-sidebar .nav-item .nav-link:hover {
+    background-color: var(--c-sidebar-bg-hover) !important;
+    color: var(--c-sidebar-text-active) !important;
+}
+.sidebar .nav-sidebar .nav-item .nav-link.active {
+    background-color: var(--c-sidebar-active-bg) !important;
+    color: var(--c-sidebar-text-active) !important;
+    box-shadow: 0 1px 2px rgba(79, 70, 229, .35);
+}
+.sidebar .nav-sidebar .nav-link p { font-weight: 500; }
+.sidebar .nav-sidebar .nav-icon { color: inherit; opacity: .9; }
+
+/* Treeview submenu */
+.sidebar .nav-treeview > .nav-item > .nav-link {
+    margin-left: 18px;
+    font-size: .85rem;
+    opacity: .85;
+}
+
+/* ---------- AdminLTE: content area ---------- */
+.content-wrapper {
+    background-color: var(--c-bg) !important;
+    min-height: calc(100vh - 60px);
+}
+.content-header h1, .content-header h2 { font-size: 1.35rem; }
+
+/* ---------- Buttons reset (override Vite defaults) ---------- */
+button { font-family: inherit; cursor: pointer; }
+button:focus, button:focus-visible {
+    outline: 0;
+}
+
+/* ---------- Toastify ---------- */
+.Toastify__toast {
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-md);
     font-family: inherit;
-    background-color: #1a1a1a;
-    cursor: pointer;
-    transition: border-color 0.25s;
+    font-size: .9rem;
 }
 
-button:hover {
-    border-color: #646cff;
+/* ---------- Utility helpers ---------- */
+.text-muted { color: var(--c-text-muted) !important; }
+.text-soft  { color: var(--c-text-soft) !important; }
+.bg-soft    { background-color: var(--c-primary-soft) !important; }
+.shadow-xs  { box-shadow: var(--shadow-xs) !important; }
+.shadow-sm  { box-shadow: var(--shadow-sm) !important; }
+.rounded-lg { border-radius: var(--radius-lg) !important; }
+
+/* =======================================================
+   RESPONSIVE — Mobile & Tablet
+   Breakpoints (Bootstrap 5):
+     xs  <576px   — phones
+     sm  ≥576px   — landscape phones
+     md  ≥768px   — tablets
+     lg  ≥992px   — desktops
+     xl  ≥1200px  — wide
+   ======================================================= */
+
+/* All tables become horizontally scrollable when overflow.
+   Wrap any large table in <div class="table-responsive">…</div>
+   This ensures it never breaks the layout. */
+.table-responsive {
+    -webkit-overflow-scrolling: touch;
+    overflow-x: auto;
+    border-radius: var(--radius);
+}
+.table-responsive .table {
+    margin-bottom: 0;
+    min-width: 600px; /* gives columns enough room before scrolling kicks in */
+    white-space: nowrap;
+}
+.table-responsive .table td,
+.table-responsive .table th {
+    white-space: nowrap;
 }
 
-button:focus,
-button:focus-visible {
-    outline: 4px auto -webkit-focus-ring-color;
-}
+/* Cards adapt margins on small screens */
+@media (max-width: 991.98px) {
+    /* Tablet & below */
+    :root { font-size: 13.5px; }
 
-@media (prefers-color-scheme: light) {
-     :root {
-        color: #213547;
-        background-color: #ffffff;
+    /* Override AdminLTE: full-width content on mobile */
+    body .content-wrapper,
+    body .main-header,
+    body .main-footer {
+        margin-left: 0 !important;
     }
-    a:hover {
-        color: #747bff;
+
+    /* Sidebar as off-canvas overlay (high specificity to beat AdminLTE) */
+    body .main-sidebar,
+    body .main-sidebar.sidebar-dark-primary,
+    .wrapper .main-sidebar {
+        position: fixed !important;
+        top: 0 !important;
+        left: 0 !important;
+        bottom: 0 !important;
+        width: 250px !important;
+        min-height: 100vh !important;
+        height: 100vh !important;
+        margin-left: 0 !important;
+        z-index: 1045 !important;
+        transform: translate3d(-100%, 0, 0) !important;
+        transition: transform .25s ease !important;
+        overflow-y: auto;
+        overflow-x: hidden;
     }
-    button {
-        background-color: #f9f9f9;
+
+    /* Open state — toggled on body via JS */
+    body.sidebar-open .main-sidebar,
+    body.sidebar-open .wrapper .main-sidebar {
+        transform: translate3d(0, 0, 0) !important;
+        box-shadow: 4px 0 24px rgba(15, 23, 42, .25) !important;
     }
+
+    /* Backdrop when sidebar is open on mobile */
+    body.sidebar-open::after {
+        content: "";
+        position: fixed;
+        inset: 0;
+        background: rgba(15, 23, 42, .5);
+        z-index: 1040;
+        animation: fadeIn .2s ease;
+    }
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+    /* Prevent body scroll when mobile sidebar is open */
+    body.sidebar-open { overflow: hidden; }
+
+    .main-header.navbar { padding: 0 .75rem; }
+
+    .container-fluid { padding-left: 1rem; padding-right: 1rem; }
+
+    .card-header, .card-body, .card-footer { padding: .9rem 1rem; }
+
+    /* Page titles smaller */
+    .content-header h1, .content-header h2, h1.page-title, .page-title { font-size: 1.15rem; }
+
+    /* Auto-make tables horizontally scrollable on mobile/tablet.
+       Only affects card-body that actually contains a table — keeps
+       overflow visible for dropdowns/tooltips elsewhere. */
+    .card-body:has(> .table),
+    .card-body:has(> .table-responsive) {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+    .table:not(.table-fixed) {
+        white-space: nowrap;
+        min-width: 100%;
+    }
+    .table-responsive { overflow-x: auto !important; -webkit-overflow-scrolling: touch; }
+    .table-responsive > .table { white-space: nowrap; min-width: 600px; }
+
+    /* Fallback for browsers without :has() support — wrap tables manually
+       in <div class="table-responsive"> for guaranteed scroll. */
+
+    /* Forms: full-width inputs in row layouts */
+    .row > [class*="col-"] { margin-bottom: .5rem; }
+
+    /* Buttons in a row of actions wrap nicely OUTSIDE tables.
+       Inside table cells, always stay single-row (handled below). */
+    .btn-group:not(.table td .btn-group),
+    .btn-toolbar:not(.table td .btn-toolbar) {
+        flex-wrap: wrap;
+        gap: .35rem;
+    }
+    .table td .btn-group,
+    .table td .btn-toolbar,
+    .table td .d-flex {
+        flex-wrap: nowrap !important;
+        white-space: nowrap;
+    }
+
+    /* Stat / KPI cards stack tighter */
+    .stat-card { padding: .8rem .9rem; }
+    .stat-card .stat-value { font-size: 1.25rem; }
+
+    /* Modals fill more of the screen */
+    .modal-dialog {
+        margin: .75rem;
+        max-width: calc(100% - 1.5rem);
+    }
+    .modal-body { padding: 1rem; }
+
+    /* Tabs scroll horizontally instead of wrapping */
+    .nav-tabs {
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+    .nav-tabs .nav-link { white-space: nowrap; }
+
+    /* Hide AdminLTE pushmenu icon click area refinement */
+    .main-header .nav-link { padding: .5rem .65rem; }
 }
 
-.modal {
-    z-index: 1055;
+/* Phones */
+@media (max-width: 575.98px) {
+    :root { font-size: 13px; }
+
+    .container-fluid { padding-left: .75rem; padding-right: .75rem; }
+
+    .card { border-radius: var(--radius); }
+    .card-header, .card-body, .card-footer { padding: .75rem .85rem; }
+
+    /* Buttons: full-width primary actions, ONLY when explicitly opted-in */
+    .btn-block-mobile { width: 100%; display: block; }
+
+    /* Action button groups inside table cells must stay single-row & compact */
+    .table td .d-flex,
+    .table td .btn-group,
+    .table td .btn-toolbar,
+    td .action-buttons,
+    .action-buttons {
+        display: inline-flex !important;
+        flex-wrap: nowrap !important;
+        gap: .25rem !important;
+        align-items: center;
+    }
+    .table td .btn,
+    td .action-buttons .btn,
+    .action-buttons .btn {
+        flex: 0 0 auto !important;
+        padding: .3rem .5rem;
+        min-width: 32px;
+        min-height: 32px;
+        font-size: .8rem;
+    }
+
+    /* Smaller table cells */
+    .table > :not(caption) > * > * { padding: .55rem .6rem; font-size: .82rem; }
+    .table thead th { font-size: .65rem; }
+
+    /* Modal full screen on tiny phones */
+    .modal-dialog {
+        margin: .5rem;
+        max-width: calc(100% - 1rem);
+    }
+    .modal-content { border-radius: var(--radius); }
+    .modal-header, .modal-footer { padding: .85rem 1rem; }
+    .modal-title { font-size: 1rem; }
+
+    /* Hide non-essential text in nav */
+    .navbar-brand .brand-text-mobile-hide { display: none; }
+
+    /* Stats stack vertically (use Bootstrap col-12 on small) */
+    .stat-card .stat-value { font-size: 1.15rem; }
+
+    /* Page header row stacks: use Bootstrap d-flex flex-column flex-sm-row */
+    .page-header-actions { flex-wrap: wrap; gap: .5rem; }
+
+    /* Reports / Charts: ensure recharts containers are responsive */
+    .recharts-responsive-container { min-height: 240px !important; }
 }
 
-.modal-backdrop {
-    z-index: 1050;
+/* Tablets specific (768–991px) */
+@media (min-width: 768px) and (max-width: 991.98px) {
+    .row.row-cols-md-3 > * { flex: 0 0 50%; max-width: 50%; }
+    .stat-card .stat-value { font-size: 1.35rem; }
 }
+
+/* Touch-friendly: larger tap targets on touch devices */
+@media (hover: none) and (pointer: coarse) {
+    .btn { min-height: 38px; }
+    .btn-sm { min-height: 32px; }
+    .form-control, .form-select { min-height: 38px; }
+    .nav-link { padding: .65rem .85rem; }
+}
+
+/* Print: simplify layout */
+@media print {
+    .main-sidebar, .main-header, .no-print { display: none !important; }
+    .content-wrapper { margin-left: 0 !important; }
+    .card { box-shadow: none !important; border: 1px solid #ddd; }
+    body { background: #fff !important; }
+}
+
+/* ---------- Report UI Utilities ---------- */
+.text-slate-800 { color: #1e293b !important; }
+.text-blue { color: #2563eb !important; }
+.text-amber { color: #d97706 !important; }
+.text-green { color: #059669 !important; }
+
+/* Stat cards */
+.stat-card-green { background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%); }
+.stat-card-blue { background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%); }
+.stat-card-amber { background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%); }
+.stat-card-slate { background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%); }
+.stat-card-dark { background: linear-gradient(135deg, #1e293b 0%, #334155 100%); }
+
+.stat-icon {
+    width: 44px;
+    height: 44px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.1rem;
+    flex-shrink: 0;
+}
+.stat-icon-green { background: #059669; color: #fff; }
+.stat-icon-blue { background: #2563eb; color: #fff; }
+.stat-icon-amber { background: #d97706; color: #fff; }
+.stat-icon-slate { background: #64748b; color: #fff; }
+.stat-icon-dark { background: #0f172a; color: #fff; }
+
+/* Report table */
+.report-table thead th {
+    background-color: #f8fafc;
+    color: #64748b;
+    font-weight: 600;
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid #e2e8f0;
+    white-space: nowrap;
+}
+.report-table tbody td {
+    padding: 0.7rem 1rem;
+    border-bottom: 1px solid #f1f5f9;
+    vertical-align: middle;
+    font-size: 0.875rem;
+}
+.report-table tbody tr:hover { background-color: #f8fafc; }
+.report-table tbody tr:last-child td { border-bottom: none; }
+
+/* Skeleton loading */
+.skeleton-row {
+    height: 52px;
+    background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
+    background-size: 200% 100%;
+    animation: skeleton-shimmer 1.4s ease-in-out infinite;
+    margin: 4px 0;
+    border-radius: 4px;
+}
+@keyframes skeleton-shimmer {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+}
+
+/* Empty state */
+.empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 2rem 1rem;
+}
+.empty-state-icon {
+    font-size: 2.5rem;
+    color: #cbd5e1;
+    margin-bottom: 0.5rem;
+}
+
+/* ---------- Scrollbar (subtle) ---------- */
+*::-webkit-scrollbar { width: 8px; height: 8px; }
+*::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 999px;
+}
+*::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+*::-webkit-scrollbar-track { background: transparent; }

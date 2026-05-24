@@ -125,10 +125,16 @@ export default function Reports() {
   const fetchSettings = async () => {
     try {
       const res = await api.get("/settings/report-stages");
+
       setWonStages(res.data.data.won_stages || []);
       setLostStages(res.data.data.lost_stages || []);
     } catch (e) {
-      // ignore
+      // Silently ignore if settings endpoint doesn't exist or fails
+      // This prevents page load issues when settings table doesn't exist
+      console.warn("Settings endpoint not available:", e.response?.status === 404 ? "Not found" : e.message);
+      // Set default values
+      setWonStages([]);
+      setLostStages([]);
     }
   };
 

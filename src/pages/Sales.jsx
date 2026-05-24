@@ -517,10 +517,19 @@ export default function Sales() {
 
       <div className="card-body p-0">
         <DataTable columns={columns} data={rows} progressPending={loading} persistTableHead
+          className="modern-datatable"
           pagination paginationServer paginationTotalRows={total} paginationPerPage={table.perPage}
           onChangePage={(p) => p !== table.page && dispatch({ type: "PAGE", page: p })}
           onChangeRowsPerPage={(n) => n !== table.perPage && dispatch({ type: "PER_PAGE", perPage: n })}
           sortServer onSort={(col, dir) => col.sortField && dispatch({ type: "SORT", field: col.sortField, dir })}
+          progressComponent={<div className="p-4 text-center"><div className="spinner-border spinner-border-sm me-2"></div>Loading...</div>}
+          noDataComponent={
+            <div className="p-5 text-center">
+              <i className="fas fa-folder-open text-muted mb-3" style={{ fontSize: 48, opacity: 0.4 }}></i>
+              <div className="fw-semibold text-secondary mb-1">No data found</div>
+              <div className="small text-muted">Try adjusting your filters or check back later</div>
+            </div>
+          }
           striped highlightOnHover dense keyField="id" />
       </div>
 
@@ -631,8 +640,15 @@ export default function Sales() {
                       checked={form.gst_type === 'CGST/SGST'}
                       onChange={e => setForm(f => ({ ...f, gst_type: e.target.value }))}
                       disabled={form.invoice_type === 'Retail'}
+          progressComponent={<div className="p-4 text-center"><div className="spinner-border spinner-border-sm me-2"></div>Loading...</div>}
+          noDataComponent={
+            <div className="p-5 text-center">
+              <i className="fas fa-folder-open text-muted mb-3" style={{ fontSize: 48, opacity: 0.4 }}></i>
+              <div className="fw-semibold text-secondary mb-1">No data found</div>
+              <div className="small text-muted">Try adjusting your filters or check back later</div>
+            </div>
+          }
                     />
-                    <Form.Check 
                       type="radio" 
                       label="IGST" 
                       name="gst_type" 

@@ -34,7 +34,6 @@ export default function ItemLedger() {
       if (toDate) params.to = toDate;
 
       const res = await api.get("/item-ledger", { params });
-      console.log('ItemLedger Response:', res.data);
       setItems(res.data.items || []);
       setTransactions(res.data.transactions || []);
       setSummary(res.data.summary || { total_in: 0, total_out: 0, closing_balance: 0 });

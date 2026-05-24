@@ -1,93 +1,104 @@
-// import PrivateRoute from "./routes/PrivateRoute";
-// import { Routes, Route } from "react-router-dom";
-// import AdminLayout from "./layouts/AdminLayout";
-// import LeadCategory from "./pages/LeadCategory";
-
-// function Dashboard() {
-//   return <h2>Dashboard</h2>;
-// }
-
-// export default function App() {
-//   return (
-//     <AdminLayout>
-//       <Routes>
-//         <Route path="/" element={<Dashboard />} />
-//         <Route path="/lead-categories" element={<LeadCategory />} />
-//       </Routes>
-//     </AdminLayout>
-//   );
-// }
 import { Routes, Route } from "react-router-dom";
+import { lazy, Suspense, useEffect } from "react";
+import { refreshPermissions } from "./utils/permissions";
+import useFcmToken from "./hooks/useFcmToken";
+import useFcmForeground from "./hooks/useFcmForeground";
 
 import PrivateRoute from "./routes/PrivateRoute";
 import PublicRoute from "./routes/PublicRoute";
+import PermissionRoute from "./routes/PermissionRoute";
 import AdminLayout from "./layouts/AdminLayout";
 
-import LeadCategory from "./pages/LeadCategory";
-import LeadSubcategoryPage from "./pages/LeadSubcategoryPage";
-import LeadSubcategory from "./pages/LeadSubcategory";
-import Login from "./pages/Login";
-import Register from "./pages/Register";
-import LeadCategoryActivity from "./pages/LeadCategoryActivity";
+// Lazy loaded components
+const LeadCategory = lazy(() => import("./pages/LeadCategory"));
+const LeadSubcategoryPage = lazy(() => import("./pages/LeadSubcategoryPage"));
+const LeadSubcategory = lazy(() => import("./pages/LeadSubcategory"));
+const Login = lazy(() => import("./pages/Login"));
+const Register = lazy(() => import("./pages/Register"));
+const LeadCategoryActivity = lazy(() => import("./pages/LeadCategoryActivity"));
 
 // Inventory imports
-import InventoryDashboard from "./pages/InventoryDashboard";
-import UnitMaster from "./pages/UnitMaster";
-import TaxMaster from "./pages/TaxMaster";
-import ItemMaster from "./pages/ItemMaster";
-import CustomerMaster from "./pages/CustomerMaster";
-import VendorMaster from "./pages/VendorMaster";
-import Purchase from "./pages/Purchase";
-import Sales from "./pages/Sales";
-import WarehouseMaster from "./pages/WarehouseMaster";
-import StockTransfer from "./pages/StockTransfer";
-import WarehouseReports from "./pages/WarehouseReports";
+const InventoryDashboard = lazy(() => import("./pages/InventoryDashboard"));
+const UnitMaster = lazy(() => import("./pages/UnitMaster"));
+const TaxMaster = lazy(() => import("./pages/TaxMaster"));
+const ItemMaster = lazy(() => import("./pages/ItemMaster"));
+const CustomerMaster = lazy(() => import("./pages/CustomerMaster"));
+const VendorMaster = lazy(() => import("./pages/VendorMaster"));
+const Purchase = lazy(() => import("./pages/Purchase"));
+const Sales = lazy(() => import("./pages/Sales"));
+const WarehouseMaster = lazy(() => import("./pages/WarehouseMaster"));
+const StockTransfer = lazy(() => import("./pages/StockTransfer"));
+const WarehouseReports = lazy(() => import("./pages/WarehouseReports"));
 
 // User Management imports
-import Users from "./pages/Users";
-import Roles from "./pages/Roles";
-import Permissions from "./pages/Permissions";
-import Dashboard from "./pages/Dashboard";
-import ItemLedger from "./pages/reports/ItemLedger";
-import SalesReport from "./pages/reports/SalesReport";
-import PurchaseReport from "./pages/reports/PurchaseReport";
-import InventoryReport from "./pages/reports/InventoryReport";
-import CustomerReport from "./pages/reports/CustomerReport";
-import VendorReport from "./pages/reports/VendorReport";
-import PaymentsReport from "./pages/reports/PaymentsReport";
-import QuotationsReport from "./pages/reports/QuotationsReport";
-import CreditNotesReport from "./pages/reports/CreditNotesReport";
-import DebitNotesReport from "./pages/reports/DebitNotesReport";
-import Payments from "./pages/Payments";
-import Quotations from "./pages/Quotations";
-import CreditNotes from "./pages/CreditNotes";
-import DebitNotes from "./pages/DebitNotes";
-import Leads from "./pages/Leads";
-import LeadDetails from "./pages/LeadDetails";
-import LeadSources from "./pages/LeadSources";
-import LeadStages from "./pages/LeadStages";
-import LeadTags from "./pages/LeadTags";
-import City from "./pages/City";
-import Reports from "./pages/Reports";
-import FollowUps from "./pages/FollowUps";
-import LeadSourceIntegrations from "./pages/LeadSourceIntegrations";
+const Users = lazy(() => import("./pages/Users"));
+const Roles = lazy(() => import("./pages/Roles"));
+const Permissions = lazy(() => import("./pages/Permissions"));
+const PermissionManager = lazy(() => import("./pages/PermissionManager"));
+const Dashboard = lazy(() => import("./pages/Dashboard"));
+const ItemLedger = lazy(() => import("./pages/reports/ItemLedger"));
+const SalesReport = lazy(() => import("./pages/reports/SalesReport"));
+const PurchaseReport = lazy(() => import("./pages/reports/PurchaseReport"));
+const InventoryReport = lazy(() => import("./pages/reports/InventoryReport"));
+const CustomerReport = lazy(() => import("./pages/reports/CustomerReport"));
+const VendorReport = lazy(() => import("./pages/reports/VendorReport"));
+const PaymentsReport = lazy(() => import("./pages/reports/PaymentsReport"));
+const QuotationsReport = lazy(() => import("./pages/reports/QuotationsReport"));
+const CreditNotesReport = lazy(() => import("./pages/reports/CreditNotesReport"));
+const DebitNotesReport = lazy(() => import("./pages/reports/DebitNotesReport"));
+const Payments = lazy(() => import("./pages/Payments"));
+const Quotations = lazy(() => import("./pages/Quotations"));
+const CreditNotes = lazy(() => import("./pages/CreditNotes"));
+const DebitNotes = lazy(() => import("./pages/DebitNotes"));
+const Leads = lazy(() => import("./pages/Leads"));
+const LeadDetails = lazy(() => import("./pages/LeadDetails"));
+const LeadSources = lazy(() => import("./pages/LeadSources"));
+const LeadStages = lazy(() => import("./pages/LeadStages"));
+const LeadTags = lazy(() => import("./pages/LeadTags"));
+const City = lazy(() => import("./pages/City"));
+const Reports = lazy(() => import("./pages/Reports"));
+const FollowUps = lazy(() => import("./pages/FollowUps"));
+const LeadSourceIntegrations = lazy(() => import("./pages/LeadSourceIntegrations"));
+const Webhooks = lazy(() => import("./pages/Webhooks"));
+const GoogleSheetsImport = lazy(() => import("./pages/GoogleSheetsImport"));
+
+// Loading component
+const LoadingSpinner = () => (
+  <div className="d-flex justify-content-center align-items-center" style={{ height: '200px' }}>
+    <div className="spinner-border text-primary" role="status">
+      <span className="sr-only">Loading...</span>
+    </div>
+  </div>
+);
 
 export default function App() {
+  useFcmToken();
+  useFcmForeground();
+
+  // Refresh permissions silently when user returns to the tab
+  useEffect(() => {
+    const onFocus = () => refreshPermissions();
+    window.addEventListener('focus', onFocus);
+    return () => window.removeEventListener('focus', onFocus);
+  }, []);
 
   return (
     <Routes>
 
-      {/* ---------- PUBLIC ---------- */}
-      {/* <Route path="/login" element={<Login />} /> */}
+        {/* ---------- PUBLIC ---------- */}
 
-      <Route path="/login" element={
+        <Route path="/login" element={
         <PublicRoute>
-          <Login />
+          <Suspense fallback={<LoadingSpinner />}>
+            <Login />
+          </Suspense>
         </PublicRoute>
       } />
       <Route path="/register" element={
         <PublicRoute>
-          <Register />
+          <Suspense fallback={<LoadingSpinner />}>
+            <Register />
+          </Suspense>
         </PublicRoute>
       } />
       {/* ---------- PROTECTED ---------- */}
@@ -97,55 +108,326 @@ export default function App() {
         </PrivateRoute>
       }>
 
-        <Route path="/" element={<Dashboard />} />
-        <Route path="/lead-categories" element={<LeadCategory />} />
-        <Route path="/lead-categories/:id/activity" element={<LeadCategoryActivity />}/>
-        <Route path="/lead-categories/:id/subcategories" element={<LeadSubcategoryPage />} />
-        <Route path="/lead-subcategories" element={<LeadSubcategory />} />
+        <Route path="/" element={
+          <Suspense fallback={<LoadingSpinner />}>
+            <Dashboard />
+          </Suspense>
+        } />
+        <Route path="/lead-categories" element={
+          <PermissionRoute permission="lead-categories-view">
+            <Suspense fallback={<LoadingSpinner />}>
+              <LeadCategory />
+            </Suspense>
+          </PermissionRoute>
+        }/>
+        <Route path="/lead-categories/:id/activity" element={
+          <PermissionRoute permission="lead-categories-view">
+            <Suspense fallback={<LoadingSpinner />}>
+              <LeadCategoryActivity />
+            </Suspense>
+          </PermissionRoute>
+        }/>
+        <Route path="/lead-categories/:id/subcategories" element={
+          <PermissionRoute permission="lead-subcategories-view">
+            <Suspense fallback={<LoadingSpinner />}>
+              <LeadSubcategoryPage />
+            </Suspense>
+          </PermissionRoute>
+        } />
+        <Route path="/lead-subcategories" element={
+          <PermissionRoute permission="lead-subcategories-view">
+            <Suspense fallback={<LoadingSpinner />}>
+              <LeadSubcategory />
+            </Suspense>
+          </PermissionRoute>
+        } />
 
-        <Route path="/leads" element={<Leads />} />
-        <Route path="/leads/:id" element={<LeadDetails />} />
-        <Route path="/lead-sources" element={<LeadSources />} />
-        <Route path="/lead-stages" element={<LeadStages />} />
-        <Route path="/lead-tags" element={<LeadTags />} />
-        <Route path="/cities" element={<City />} />
-        <Route path="/reports/leads" element={<Reports />} />
-        <Route path="/follow-ups" element={<FollowUps />} />
-        <Route path="/lead-source-integrations" element={<LeadSourceIntegrations />} />
+        <Route path="/leads" element={
+          <PermissionRoute permission="leads-view">
+            <Suspense fallback={<LoadingSpinner />}>
+              <Leads />
+            </Suspense>
+          </PermissionRoute>
+        } />
+        <Route path="/leads/:id" element={
+          <PermissionRoute permission="leads-view">
+            <Suspense fallback={<LoadingSpinner />}>
+              <LeadDetails />
+            </Suspense>
+          </PermissionRoute>
+        } />
+        <Route path="/leads/import" element={
+          <PermissionRoute permission="leads-import">
+            <Suspense fallback={<LoadingSpinner />}>
+              <GoogleSheetsImport />
+            </Suspense>
+          </PermissionRoute>
+        } />
+        <Route path="/lead-sources" element={
+          <PermissionRoute permission="lead-sources-view">
+            <Suspense fallback={<LoadingSpinner />}>
+              <LeadSources />
+            </Suspense>
+          </PermissionRoute>
+        } />
+        <Route path="/lead-stages" element={
+          <PermissionRoute permission="lead-stages-view">
+            <Suspense fallback={<LoadingSpinner />}>
+              <LeadStages />
+            </Suspense>
+          </PermissionRoute>
+        } />
+        <Route path="/lead-tags" element={
+          <PermissionRoute permission="lead-tags-view">
+            <Suspense fallback={<LoadingSpinner />}>
+              <LeadTags />
+            </Suspense>
+          </PermissionRoute>
+        } />
+        <Route path="/cities" element={
+          <PermissionRoute permission="cities-view">
+            <Suspense fallback={<LoadingSpinner />}>
+              <City />
+            </Suspense>
+          </PermissionRoute>
+        } />
+        <Route path="/reports/leads" element={
+          <PermissionRoute permission="leads-view">
+            <Suspense fallback={<LoadingSpinner />}>
+              <Reports />
+            </Suspense>
+          </PermissionRoute>
+        } />
+        <Route path="/follow-ups" element={
+          <PermissionRoute permission="follow-ups-view">
+            <Suspense fallback={<LoadingSpinner />}>
+              <FollowUps />
+            </Suspense>
+          </PermissionRoute>
+        } />
+        <Route path="/lead-source-integrations" element={
+          <PermissionRoute permission="lead-integrations-view">
+            <Suspense fallback={<LoadingSpinner />}>
+              <LeadSourceIntegrations />
+            </Suspense>
+          </PermissionRoute>
+        } />
+        <Route path="/webhooks" element={
+          <PermissionRoute permission="webhooks-view">
+            <Suspense fallback={<LoadingSpinner />}>
+              <Webhooks />
+            </Suspense>
+          </PermissionRoute>
+        } />
 
         {/* Inventory Routes */}
-        <Route path="/inventory" element={<InventoryDashboard />} />
-        <Route path="/inventory/units" element={<UnitMaster />} />
-        <Route path="/inventory/taxes" element={<TaxMaster />} />
-        <Route path="/inventory/items" element={<ItemMaster />} />
-        <Route path="/inventory/customers" element={<CustomerMaster />} />
-        <Route path="/inventory/vendors" element={<VendorMaster />} />
-        <Route path="/inventory/purchases" element={<Purchase />} />
-        <Route path="/inventory/sales" element={<Sales />} />
-        <Route path="/inventory/warehouses" element={<WarehouseMaster />} />
-        <Route path="/inventory/stock-transfers" element={<StockTransfer />} />
-        <Route path="/payments" element={<Payments />} />
-        <Route path="/quotations" element={<Quotations />} />
-        <Route path="/credit-notes" element={<CreditNotes />} />
-        <Route path="/debit-notes" element={<DebitNotes />} />
+        <Route path="/inventory" element={
+          <PermissionRoute permission="items-view">
+            <Suspense fallback={<LoadingSpinner />}>
+              <InventoryDashboard />
+            </Suspense>
+          </PermissionRoute>
+        } />
+        <Route path="/inventory/units" element={
+          <PermissionRoute permission="units-view">
+            <Suspense fallback={<LoadingSpinner />}>
+              <UnitMaster />
+            </Suspense>
+          </PermissionRoute>
+        } />
+        <Route path="/inventory/taxes" element={
+          <PermissionRoute permission="taxes-view">
+            <Suspense fallback={<LoadingSpinner />}>
+              <TaxMaster />
+            </Suspense>
+          </PermissionRoute>
+        } />
+        <Route path="/inventory/items" element={
+          <PermissionRoute permission="items-view">
+            <Suspense fallback={<LoadingSpinner />}>
+              <ItemMaster />
+            </Suspense>
+          </PermissionRoute>
+        } />
+        <Route path="/inventory/customers" element={
+          <PermissionRoute permission="customers-view">
+            <Suspense fallback={<LoadingSpinner />}>
+              <CustomerMaster />
+            </Suspense>
+          </PermissionRoute>
+        } />
+        <Route path="/inventory/vendors" element={
+          <PermissionRoute permission="vendors-view">
+            <Suspense fallback={<LoadingSpinner />}>
+              <VendorMaster />
+            </Suspense>
+          </PermissionRoute>
+        } />
+        <Route path="/inventory/purchases" element={
+          <PermissionRoute permission="purchases-view">
+            <Suspense fallback={<LoadingSpinner />}>
+              <Purchase />
+            </Suspense>
+          </PermissionRoute>
+        } />
+        <Route path="/inventory/sales" element={
+          <PermissionRoute permission="sales-view">
+            <Suspense fallback={<LoadingSpinner />}>
+              <Sales />
+            </Suspense>
+          </PermissionRoute>
+        } />
+        <Route path="/inventory/warehouses" element={
+          <PermissionRoute permission="warehouses-view">
+            <Suspense fallback={<LoadingSpinner />}>
+              <WarehouseMaster />
+            </Suspense>
+          </PermissionRoute>
+        } />
+        <Route path="/inventory/stock-transfers" element={
+          <PermissionRoute permission="stock-transfers-view">
+            <Suspense fallback={<LoadingSpinner />}>
+              <StockTransfer />
+            </Suspense>
+          </PermissionRoute>
+        } />
+        <Route path="/payments" element={
+          <PermissionRoute permission="payments-view">
+            <Suspense fallback={<LoadingSpinner />}>
+              <Payments />
+            </Suspense>
+          </PermissionRoute>
+        } />
+        <Route path="/quotations" element={
+          <PermissionRoute permission="quotations-view">
+            <Suspense fallback={<LoadingSpinner />}>
+              <Quotations />
+            </Suspense>
+          </PermissionRoute>
+        } />
+        <Route path="/credit-notes" element={
+          <PermissionRoute permission="credit-notes-view">
+            <Suspense fallback={<LoadingSpinner />}>
+              <CreditNotes />
+            </Suspense>
+          </PermissionRoute>
+        } />
+        <Route path="/debit-notes" element={
+          <PermissionRoute permission="debit-notes-view">
+            <Suspense fallback={<LoadingSpinner />}>
+              <DebitNotes />
+            </Suspense>
+          </PermissionRoute>
+        } />
 
         {/* User Management Routes */}
-        <Route path="/users" element={<Users />} />
-        <Route path="/roles" element={<Roles />} />
-        <Route path="/permissions" element={<Permissions />} />
+        <Route path="/users" element={
+          <PermissionRoute permission="users-view">
+            <Suspense fallback={<LoadingSpinner />}>
+              <Users />
+            </Suspense>
+          </PermissionRoute>
+        } />
+        <Route path="/roles" element={
+          <PermissionRoute permission="roles-view">
+            <Suspense fallback={<LoadingSpinner />}>
+              <Roles />
+            </Suspense>
+          </PermissionRoute>
+        } />
+        <Route path="/permissions" element={
+          <PermissionRoute permission="permissions-view">
+            <Suspense fallback={<LoadingSpinner />}>
+              <Permissions />
+            </Suspense>
+          </PermissionRoute>
+        } />
+        <Route path="/permission-manager" element={
+          <PermissionRoute permission="roles-view">
+            <Suspense fallback={<LoadingSpinner />}>
+              <PermissionManager />
+            </Suspense>
+          </PermissionRoute>
+        } />
 
         {/* Report Routes */}
-        <Route path="/reports/warehouse" element={<WarehouseReports />} />
-        <Route path="/reports/item-ledger" element={<ItemLedger />} />
-        <Route path="/reports/sales" element={<SalesReport />} />
-        <Route path="/reports/purchases" element={<PurchaseReport />} />
-        <Route path="/reports/inventory" element={<InventoryReport />} />
-        <Route path="/reports/customers" element={<CustomerReport />} />
-        <Route path="/reports/vendors" element={<VendorReport />} />
-        <Route path="/reports/payments" element={<PaymentsReport />} />
-        <Route path="/reports/quotations" element={<QuotationsReport />} />
-        <Route path="/reports/credit-notes" element={<CreditNotesReport />} />
-        <Route path="/reports/debit-notes" element={<DebitNotesReport />} />
+        <Route path="/reports/warehouse" element={
+          <PermissionRoute permission="warehouses-view">
+            <Suspense fallback={<LoadingSpinner />}>
+              <WarehouseReports />
+            </Suspense>
+          </PermissionRoute>
+        } />
+        <Route path="/reports/item-ledger" element={
+          <PermissionRoute permission="item-ledger-view">
+            <Suspense fallback={<LoadingSpinner />}>
+              <ItemLedger />
+            </Suspense>
+          </PermissionRoute>
+        } />
+        <Route path="/reports/sales" element={
+          <PermissionRoute permission="sales-report-view">
+            <Suspense fallback={<LoadingSpinner />}>
+              <SalesReport />
+            </Suspense>
+          </PermissionRoute>
+        } />
+        <Route path="/reports/purchases" element={
+          <PermissionRoute permission="purchases-report-view">
+            <Suspense fallback={<LoadingSpinner />}>
+              <PurchaseReport />
+            </Suspense>
+          </PermissionRoute>
+        } />
+        <Route path="/reports/inventory" element={
+          <PermissionRoute permission="inventory-report-view">
+            <Suspense fallback={<LoadingSpinner />}>
+              <InventoryReport />
+            </Suspense>
+          </PermissionRoute>
+        } />
+        <Route path="/reports/customers" element={
+          <PermissionRoute permission="customer-report-view">
+            <Suspense fallback={<LoadingSpinner />}>
+              <CustomerReport />
+            </Suspense>
+          </PermissionRoute>
+        } />
+        <Route path="/reports/vendors" element={
+          <PermissionRoute permission="vendor-report-view">
+            <Suspense fallback={<LoadingSpinner />}>
+              <VendorReport />
+            </Suspense>
+          </PermissionRoute>
+        } />
+        <Route path="/reports/payments" element={
+          <PermissionRoute permission="payments-report-view">
+            <Suspense fallback={<LoadingSpinner />}>
+              <PaymentsReport />
+            </Suspense>
+          </PermissionRoute>
+        } />
+        <Route path="/reports/quotations" element={
+          <PermissionRoute permission="quotations-report-view">
+            <Suspense fallback={<LoadingSpinner />}>
+              <QuotationsReport />
+            </Suspense>
+          </PermissionRoute>
+        } />
+        <Route path="/reports/credit-notes" element={
+          <PermissionRoute permission="credit-notes-report-view">
+            <Suspense fallback={<LoadingSpinner />}>
+              <CreditNotesReport />
+            </Suspense>
+          </PermissionRoute>
+        } />
+        <Route path="/reports/debit-notes" element={
+          <PermissionRoute permission="debit-notes-report-view">
+            <Suspense fallback={<LoadingSpinner />}>
+              <DebitNotesReport />
+            </Suspense>
+          </PermissionRoute>
+        } />
       </Route>
 
     </Routes>

@@ -1,11 +1,39 @@
 import { useEffect, useState } from "react";
-import { Card, Row, Col, Form, Table, Badge, Button } from "react-bootstrap";
+import { Card, Row, Col, Form, Table, Badge, Button, Dropdown } from "react-bootstrap";
 import api from "../../api";
 import { canView } from "../../utils/permissions";
 
 const formatMoney = (v) => {
   const n = Number(v || 0);
   return n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+};
+
+const dateRanges = {
+  today: () => {
+    const d = new Date().toISOString().split("T")[0];
+    return { from: d, to: d };
+  },
+  thisWeek: () => {
+    const now = new Date();
+    const start = new Date(now);
+    start.setDate(now.getDate() - now.getDay());
+    return { from: start.toISOString().split("T")[0], to: now.toISOString().split("T")[0] };
+  },
+  thisMonth: () => {
+    const now = new Date();
+    const start = new Date(now.getFullYear(), now.getMonth(), 1);
+    return { from: start.toISOString().split("T")[0], to: now.toISOString().split("T")[0] };
+  },
+  lastMonth: () => {
+    const now = new Date();
+    const start = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const end = new Date(now.getFullYear(), now.getMonth(), 0);
+    return { from: start.toISOString().split("T")[0], to: end.toISOString().split("T")[0] };
+  },
+  thisYear: () => {
+    const now = new Date();
+    return { from: `${now.getFullYear()}-01-01`, to: now.toISOString().split("T")[0] };
+  },
 };
 
 export default function PurchaseReport() {
@@ -128,9 +156,15 @@ export default function PurchaseReport() {
       to: today.toISOString().split("T")[0],
       vendor_id: "",
       item_id: "",
+      warehouse_id: "",
       group_by: "date",
     });
     loadData();
+  };
+
+  const applyRange = (key) => {
+    const range = dateRanges[key]();
+    setFilters((prev) => ({ ...prev, ...range }));
   };
 
   if (!canViewReport) {
@@ -149,235 +183,261 @@ export default function PurchaseReport() {
 
   return (
     <div className="p-4">
-      <div className="mb-4">
-        <h4 className="fw-semibold mb-1" style={{ color: "#1e293b" }}>Purchase Report</h4>
-        <div className="text-secondary small">Detailed purchase analysis with grouping options</div>
+      <div className="d-flex flex-wrap align-items-center justify-content-between mb-4 gap-2">
+        <div>
+          <h4 className="fw-bold mb-1 text-slate-800">Purchase Report</h4>
+          <p className="text-secondary small mb-0">Analyze purchases by date, vendor, or item</p>
+        </div>
+        <div className="d-flex gap-2">
+          <Dropdown>
+            <Dropdown.Toggle variant="outline-secondary" size="sm" id="purchase-export-dd" disabled={loading}>
+              <i className="fas fa-download me-1"></i> Export
+            </Dropdown.Toggle>
+            <Dropdown.Menu>
+              <Dropdown.Item onClick={handleDownloadPDF}><i className="fas fa-file-pdf text-danger me-2"></i>Download PDF</Dropdown.Item>
+            </Dropdown.Menu>
+          </Dropdown>
+        </div>
       </div>
 
-      <Card className="mb-4 border" style={{ borderColor: "#e2e8f0" }}>
-        <Card.Body className="p-4">
+      <Card className="mb-4 shadow-sm border-0">
+        <Card.Body className="p-3">
           <Form onSubmit={handleFilter}>
-            <Row className="g-3 align-items-end">
-              <Col md={2}>
-                <Form.Label className="small text-secondary mb-1">From Date</Form.Label>
+            <Row className="g-2 align-items-end">
+              <Col xs={12} md={6} lg={2}>
+                <Form.Label className="small text-muted fw-medium mb-1">From</Form.Label>
                 <Form.Control
                   type="date"
+                  size="sm"
                   value={filters.from}
                   onChange={(e) => setFilters({ ...filters, from: e.target.value })}
-                  style={{ borderColor: "#e2e8f0" }}
                 />
               </Col>
-              <Col md={2}>
-                <Form.Label className="small text-secondary mb-1">To Date</Form.Label>
+              <Col xs={12} md={6} lg={2}>
+                <Form.Label className="small text-muted fw-medium mb-1">To</Form.Label>
                 <Form.Control
                   type="date"
+                  size="sm"
                   value={filters.to}
                   onChange={(e) => setFilters({ ...filters, to: e.target.value })}
-                  style={{ borderColor: "#e2e8f0" }}
                 />
               </Col>
-              <Col md={2}>
-                <Form.Label className="small text-secondary mb-1">Vendor</Form.Label>
-                <Form.Select
-                  value={filters.vendor_id}
-                  onChange={(e) => setFilters({ ...filters, vendor_id: e.target.value })}
-                  style={{ borderColor: "#e2e8f0" }}
-                >
+              <Col xs={12} md={6} lg={2}>
+                <Form.Label className="small text-muted fw-medium mb-1">Vendor</Form.Label>
+                <Form.Select size="sm" value={filters.vendor_id} onChange={(e) => setFilters({ ...filters, vendor_id: e.target.value })}>
                   <option value="">All Vendors</option>
                   {vendors.map((v) => (
                     <option key={v.id} value={v.id}>{v.name}</option>
                   ))}
                 </Form.Select>
               </Col>
-              <Col md={2}>
-                <Form.Label className="small text-secondary mb-1">Item</Form.Label>
-                <Form.Select
-                  value={filters.item_id}
-                  onChange={(e) => setFilters({ ...filters, item_id: e.target.value })}
-                  style={{ borderColor: "#e2e8f0" }}
-                >
+              <Col xs={12} md={6} lg={2}>
+                <Form.Label className="small text-muted fw-medium mb-1">Item</Form.Label>
+                <Form.Select size="sm" value={filters.item_id} onChange={(e) => setFilters({ ...filters, item_id: e.target.value })}>
                   <option value="">All Items</option>
                   {items.map((i) => (
                     <option key={i.id} value={i.id}>{i.name}</option>
                   ))}
                 </Form.Select>
               </Col>
-              <Col md={2}>
-                <Form.Label className="small text-secondary mb-1">Warehouse</Form.Label>
-                <Form.Select
-                  value={filters.warehouse_id}
-                  onChange={(e) => setFilters({ ...filters, warehouse_id: e.target.value })}
-                  style={{ borderColor: "#e2e8f0" }}
-                >
-                  <option value="">All Warehouses</option>
-                  {warehouses.map((w) => (
-                    <option key={w.id} value={w.id}>{w.name}</option>
-                  ))}
-                </Form.Select>
-              </Col>
-              <Col md={2}>
-                <Form.Label className="small text-secondary mb-1">Group By</Form.Label>
-                <Form.Select
-                  value={filters.group_by}
-                  onChange={(e) => setFilters({ ...filters, group_by: e.target.value })}
-                  style={{ borderColor: "#e2e8f0" }}
-                >
+              <Col xs={12} md={6} lg={2}>
+                <Form.Label className="small text-muted fw-medium mb-1">Group By</Form.Label>
+                <Form.Select size="sm" value={filters.group_by} onChange={(e) => setFilters({ ...filters, group_by: e.target.value })}>
                   <option value="date">Date</option>
                   <option value="vendor">Vendor</option>
                   <option value="item">Item</option>
                 </Form.Select>
               </Col>
-              <Col md="auto">
+              <Col xs={12} md={6} lg={2}>
                 <div className="d-flex gap-2">
-                  <Button type="submit" variant="primary" disabled={loading}>
-                    {loading ? "Loading..." : "Apply Filters"}
+                  <Button type="submit" variant="primary" size="sm" disabled={loading} className="flex-fill">
+                    {loading ? <i className="fas fa-spinner fa-spin"></i> : <i className="fas fa-search me-1"></i>}
+                    {loading ? " " : "Apply"}
                   </Button>
-                  <Button type="button" variant="outline-secondary" onClick={handleClear} disabled={loading}>
-                    Clear
-                  </Button>
-                  <Button type="button" variant="success" onClick={handleDownloadPDF} disabled={loading}>
-                    <i className="fas fa-file-pdf me-1"></i> PDF
+                  <Button type="button" variant="outline-secondary" size="sm" onClick={handleClear} disabled={loading}>
+                    <i className="fas fa-undo"></i>
                   </Button>
                 </div>
               </Col>
             </Row>
+            <div className="d-flex flex-wrap gap-2 mt-3">
+              {Object.entries({ today: "Today", thisWeek: "This Week", thisMonth: "This Month", lastMonth: "Last Month", thisYear: "This Year" }).map(([key, label]) => (
+                <Button
+                  key={key}
+                  variant="outline-light"
+                  size="sm"
+                  className="text-secondary border"
+                  onClick={() => applyRange(key)}
+                >
+                  {label}
+                </Button>
+              ))}
+            </div>
           </Form>
         </Card.Body>
       </Card>
 
-      <Row className="g-4 mb-4">
-        <Col md={2}>
-          <Card className="border h-100" style={{ borderColor: "#e2e8f0" }}>
-            <Card.Body className="p-3">
-              <div className="small text-secondary mb-1">Total Purchases</div>
-              <div className="h5 mb-0 fw-semibold" style={{ color: "#059669" }}>₹{formatMoney(summary.total_purchases)}</div>
+      <Row className="g-3 mb-4">
+        <Col xs={6} md={4} lg>
+          <Card className="border-0 shadow-sm h-100 stat-card-green">
+            <Card.Body className="p-3 d-flex align-items-center gap-3">
+              <div className="stat-icon stat-icon-green"><i className="fas fa-shopping-cart"></i></div>
+              <div>
+                <div className="small text-muted">Total Purchases</div>
+                <div className="h5 mb-0 fw-bold">₹{formatMoney(summary.total_purchases)}</div>
+              </div>
             </Card.Body>
           </Card>
         </Col>
-        <Col md={2}>
-          <Card className="border h-100" style={{ borderColor: "#e2e8f0" }}>
-            <Card.Body className="p-3">
-              <div className="small text-secondary mb-1">Total Quantity</div>
-              <div className="h5 mb-0 fw-semibold" style={{ color: "#2563eb" }}>{summary.total_quantity.toFixed(3)}</div>
+        <Col xs={6} md={4} lg>
+          <Card className="border-0 shadow-sm h-100 stat-card-blue">
+            <Card.Body className="p-3 d-flex align-items-center gap-3">
+              <div className="stat-icon stat-icon-blue"><i className="fas fa-cubes"></i></div>
+              <div>
+                <div className="small text-muted">Total Quantity</div>
+                <div className="h5 mb-0 fw-bold">{summary.total_quantity.toFixed(3)}</div>
+              </div>
             </Card.Body>
           </Card>
         </Col>
-        <Col md={2}>
-          <Card className="border h-100" style={{ borderColor: "#e2e8f0" }}>
-            <Card.Body className="p-3">
-              <div className="small text-secondary mb-1">Total Discount</div>
-              <div className="h5 mb-0 fw-semibold" style={{ color: "#d97706" }}>₹{formatMoney(summary.total_discount)}</div>
+        <Col xs={6} md={4} lg>
+          <Card className="border-0 shadow-sm h-100 stat-card-amber">
+            <Card.Body className="p-3 d-flex align-items-center gap-3">
+              <div className="stat-icon stat-icon-amber"><i className="fas fa-tag"></i></div>
+              <div>
+                <div className="small text-muted">Total Discount</div>
+                <div className="h5 mb-0 fw-bold">₹{formatMoney(summary.total_discount)}</div>
+              </div>
             </Card.Body>
           </Card>
         </Col>
-        <Col md={2}>
-          <Card className="border h-100" style={{ borderColor: "#e2e8f0" }}>
-            <Card.Body className="p-3">
-              <div className="small text-secondary mb-1">Total Tax</div>
-              <div className="h5 mb-0 fw-semibold" style={{ color: "#64748b" }}>₹{formatMoney(summary.total_tax)}</div>
+        <Col xs={6} md={6} lg>
+          <Card className="border-0 shadow-sm h-100 stat-card-slate">
+            <Card.Body className="p-3 d-flex align-items-center gap-3">
+              <div className="stat-icon stat-icon-slate"><i className="fas fa-receipt"></i></div>
+              <div>
+                <div className="small text-muted">Total Tax</div>
+                <div className="h5 mb-0 fw-bold">₹{formatMoney(summary.total_tax)}</div>
+              </div>
             </Card.Body>
           </Card>
         </Col>
-        <Col md={4}>
-          <Card className="border h-100" style={{ borderColor: "#e2e8f0", backgroundColor: "#f8fafc" }}>
-            <Card.Body className="p-3">
-              <div className="small text-secondary mb-1">Grand Total</div>
-              <div className="h4 mb-0 fw-bold" style={{ color: "#1e293b" }}>₹{formatMoney(summary.grand_total)}</div>
+        <Col xs={12} md={6} lg>
+          <Card className="border-0 shadow-sm h-100 stat-card-dark">
+            <Card.Body className="p-3 d-flex align-items-center gap-3">
+              <div className="stat-icon stat-icon-dark"><i className="fas fa-wallet"></i></div>
+              <div>
+                <div className="small text-white-50">Grand Total</div>
+                <div className="h5 mb-0 fw-bold text-white">₹{formatMoney(summary.grand_total)}</div>
+              </div>
             </Card.Body>
           </Card>
         </Col>
       </Row>
 
-      <Card className="border" style={{ borderColor: "#e2e8f0" }}>
-        <Card.Header className="bg-white border-bottom py-3" style={{ borderColor: "#e2e8f0" }}>
-          <div className="fw-semibold" style={{ color: "#1e293b" }}>
+      <Card className="border-0 shadow-sm">
+        <Card.Header className="bg-white border-bottom py-3 d-flex align-items-center justify-content-between">
+          <div className="fw-semibold text-slate-800">
             {isGrouped ? `Grouped by ${filters.group_by.charAt(0).toUpperCase() + filters.group_by.slice(1)}` : "Transaction Details"}
           </div>
+          <Badge bg="light" text="dark" className="border">{data.length} records</Badge>
         </Card.Header>
         <Card.Body className="p-0">
-          <Table responsive hover className="mb-0">
-            <thead style={{ backgroundColor: "#f8fafc" }}>
-              <tr>
-                {!isGrouped && (
-                  <>
-                    <th style={{ color: "#64748b", fontWeight: 500, fontSize: "0.75rem", textTransform: "uppercase", letterSpacing: "0.5px" }}>Date</th>
-                    <th style={{ color: "#64748b", fontWeight: 500, fontSize: "0.75rem", textTransform: "uppercase", letterSpacing: "0.5px" }}>Bill</th>
-                    <th style={{ color: "#64748b", fontWeight: 500, fontSize: "0.75rem", textTransform: "uppercase", letterSpacing: "0.5px" }}>Vendor</th>
-                    <th style={{ color: "#64748b", fontWeight: 500, fontSize: "0.75rem", textTransform: "uppercase", letterSpacing: "0.5px" }}>Warehouse</th>
-                    <th style={{ color: "#64748b", fontWeight: 500, fontSize: "0.75rem", textTransform: "uppercase", letterSpacing: "0.5px" }}>Item</th>
-                    <th className="text-end" style={{ color: "#64748b", fontWeight: 500, fontSize: "0.75rem", textTransform: "uppercase", letterSpacing: "0.5px" }}>Qty</th>
-                    <th className="text-end" style={{ color: "#64748b", fontWeight: 500, fontSize: "0.75rem", textTransform: "uppercase", letterSpacing: "0.5px" }}>Rate</th>
-                    <th className="text-end" style={{ color: "#64748b", fontWeight: 500, fontSize: "0.75rem", textTransform: "uppercase", letterSpacing: "0.5px" }}>Discount</th>
-                    <th className="text-end" style={{ color: "#64748b", fontWeight: 500, fontSize: "0.75rem", textTransform: "uppercase", letterSpacing: "0.5px" }}>Tax</th>
-                    <th className="text-end" style={{ color: "#64748b", fontWeight: 500, fontSize: "0.75rem", textTransform: "uppercase", letterSpacing: "0.5px" }}>Total</th>
-                  </>
-                )}
-                {isGrouped && filters.group_by === "vendor" && (
-                  <>
-                    <th style={{ color: "#64748b", fontWeight: 500, fontSize: "0.75rem", textTransform: "uppercase", letterSpacing: "0.5px" }}>Vendor</th>
-                    <th className="text-center" style={{ color: "#64748b", fontWeight: 500, fontSize: "0.75rem", textTransform: "uppercase", letterSpacing: "0.5px" }}>Transactions</th>
-                    <th className="text-end" style={{ color: "#64748b", fontWeight: 500, fontSize: "0.75rem", textTransform: "uppercase", letterSpacing: "0.5px" }}>Total Qty</th>
-                    <th className="text-end" style={{ color: "#64748b", fontWeight: 500, fontSize: "0.75rem", textTransform: "uppercase", letterSpacing: "0.5px" }}>Total Amount</th>
-                  </>
-                )}
-                {isGrouped && filters.group_by === "item" && (
-                  <>
-                    <th style={{ color: "#64748b", fontWeight: 500, fontSize: "0.75rem", textTransform: "uppercase", letterSpacing: "0.5px" }}>Item</th>
-                    <th style={{ color: "#64748b", fontWeight: 500, fontSize: "0.75rem", textTransform: "uppercase", letterSpacing: "0.5px" }}>SKU</th>
-                    <th className="text-center" style={{ color: "#64748b", fontWeight: 500, fontSize: "0.75rem", textTransform: "uppercase", letterSpacing: "0.5px" }}>Transactions</th>
-                    <th className="text-end" style={{ color: "#64748b", fontWeight: 500, fontSize: "0.75rem", textTransform: "uppercase", letterSpacing: "0.5px" }}>Total Qty</th>
-                    <th className="text-end" style={{ color: "#64748b", fontWeight: 500, fontSize: "0.75rem", textTransform: "uppercase", letterSpacing: "0.5px" }}>Total Amount</th>
-                  </>
-                )}
-              </tr>
-            </thead>
-            <tbody>
-              {loading ? (
-                <tr><td colSpan={10} className="text-center text-secondary py-4">Loading...</td></tr>
-              ) : data.length === 0 ? (
-                <tr><td colSpan={10} className="text-center text-secondary py-4">No data found</td></tr>
-              ) : (
-                data.map((row, index) => (
-                  <tr key={index} style={{ borderColor: "#f1f5f9" }}>
-                    {!isGrouped && (
-                      <>
-                        <td style={{ color: "#475569" }}>{row.date}</td>
-                        <td><Badge bg="light" text="dark" className="border" style={{ backgroundColor: "#f8fafc", borderColor: "#e2e8f0" }}>{row.bill_number}</Badge></td>
-                        <td style={{ color: "#1e293b" }}>{row.vendor_name}</td>
-                        <td style={{ color: "#475569" }}>{row.warehouse_name}</td>
-                        <td style={{ color: "#475569" }}>
-                          <div className="small">{row.item_name}</div>
-                          <div className="small text-secondary">{row.item_sku}</div>
-                        </td>
-                        <td className="text-end fw-medium" style={{ color: "#2563eb" }}>{row.quantity.toFixed(3)}</td>
-                        <td className="text-end" style={{ color: "#475569" }}>₹{formatMoney(row.rate)}</td>
-                        <td className="text-end" style={{ color: "#d97706" }}>₹{formatMoney(row.discount)}</td>
-                        <td className="text-end" style={{ color: "#64748b" }}>₹{formatMoney(row.tax_amount)}</td>
-                        <td className="text-end fw-semibold" style={{ color: "#059669" }}>₹{formatMoney(row.total)}</td>
-                      </>
-                    )}
-                    {isGrouped && filters.group_by === "vendor" && (
-                      <>
-                        <td style={{ color: "#1e293b" }} className="fw-medium">{row.vendor_name}</td>
-                        <td className="text-center"><Badge bg="info">{row.transaction_count}</Badge></td>
-                        <td className="text-end fw-medium" style={{ color: "#2563eb" }}>{row.total_quantity.toFixed(3)}</td>
-                        <td className="text-end fw-semibold" style={{ color: "#059669" }}>₹{formatMoney(row.total_amount)}</td>
-                      </>
-                    )}
-                    {isGrouped && filters.group_by === "item" && (
-                      <>
-                        <td style={{ color: "#1e293b" }} className="fw-medium">{row.item_name}</td>
-                        <td style={{ color: "#475569" }}><Badge bg="light" text="dark" className="border">{row.item_sku}</Badge></td>
-                        <td className="text-center"><Badge bg="info">{row.transaction_count}</Badge></td>
-                        <td className="text-end fw-medium" style={{ color: "#2563eb" }}>{row.total_quantity.toFixed(3)}</td>
-                        <td className="text-end fw-semibold" style={{ color: "#059669" }}>₹{formatMoney(row.total_amount)}</td>
-                      </>
-                    )}
+          <div className="table-responsive">
+            <Table hover className="mb-0 align-middle report-table">
+              <thead>
+                <tr>
+                  {!isGrouped && (
+                    <>
+                      <th>Date</th>
+                      <th>Bill</th>
+                      <th>Vendor</th>
+                      <th className="d-none d-lg-table-cell">Warehouse</th>
+                      <th>Item</th>
+                      <th className="text-end">Qty</th>
+                      <th className="text-end d-none d-md-table-cell">Rate</th>
+                      <th className="text-end d-none d-md-table-cell">Discount</th>
+                      <th className="text-end d-none d-lg-table-cell">Tax</th>
+                      <th className="text-end">Total</th>
+                    </>
+                  )}
+                  {isGrouped && filters.group_by === "vendor" && (
+                    <>
+                      <th>Vendor</th>
+                      <th className="text-center">Transactions</th>
+                      <th className="text-end">Total Qty</th>
+                      <th className="text-end">Total Amount</th>
+                    </>
+                  )}
+                  {isGrouped && filters.group_by === "item" && (
+                    <>
+                      <th>Item</th>
+                      <th className="d-none d-md-table-cell">SKU</th>
+                      <th className="text-center">Transactions</th>
+                      <th className="text-end">Total Qty</th>
+                      <th className="text-end">Total Amount</th>
+                    </>
+                  )}
+                </tr>
+              </thead>
+              <tbody>
+                {loading ? (
+                  Array.from({ length: 6 }).map((_, i) => (
+                    <tr key={i}><td colSpan={10} className="p-0"><div className="skeleton-row" /></td></tr>
+                  ))
+                ) : data.length === 0 ? (
+                  <tr>
+                    <td colSpan={10} className="text-center py-5">
+                      <div className="empty-state">
+                        <i className="fas fa-inbox empty-state-icon"></i>
+                        <div className="fw-semibold text-secondary">No data found</div>
+                        <div className="small text-muted">Try adjusting your date range or filters</div>
+                      </div>
+                    </td>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </Table>
+                ) : (
+                  data.map((row, index) => (
+                    <tr key={index}>
+                      {!isGrouped && (
+                        <>
+                          <td><span className="text-muted small">{row.date}</span></td>
+                          <td><Badge bg="light" text="dark" className="border fw-medium">{row.bill_number}</Badge></td>
+                          <td className="fw-medium">{row.vendor_name}</td>
+                          <td className="d-none d-lg-table-cell text-muted small">{row.warehouse_name}</td>
+                          <td>
+                            <div className="small fw-medium">{row.item_name}</div>
+                            <div className="small text-muted">{row.item_sku}</div>
+                          </td>
+                          <td className="text-end fw-medium text-blue">{row.quantity.toFixed(3)}</td>
+                          <td className="text-end d-none d-md-table-cell text-muted">₹{formatMoney(row.rate)}</td>
+                          <td className="text-end d-none d-md-table-cell text-amber">₹{formatMoney(row.discount)}</td>
+                          <td className="text-end d-none d-lg-table-cell text-muted">₹{formatMoney(row.tax_amount)}</td>
+                          <td className="text-end fw-semibold text-green">₹{formatMoney(row.total)}</td>
+                        </>
+                      )}
+                      {isGrouped && filters.group_by === "vendor" && (
+                        <>
+                          <td className="fw-medium">{row.vendor_name}</td>
+                          <td className="text-center"><Badge bg="info" className="fw-medium">{row.transaction_count}</Badge></td>
+                          <td className="text-end fw-medium text-blue">{row.total_quantity.toFixed(3)}</td>
+                          <td className="text-end fw-semibold text-green">₹{formatMoney(row.total_amount)}</td>
+                        </>
+                      )}
+                      {isGrouped && filters.group_by === "item" && (
+                        <>
+                          <td className="fw-medium">{row.item_name}</td>
+                          <td className="d-none d-md-table-cell"><Badge bg="light" text="dark" className="border">{row.item_sku}</Badge></td>
+                          <td className="text-center"><Badge bg="info" className="fw-medium">{row.transaction_count}</Badge></td>
+                          <td className="text-end fw-medium text-blue">{row.total_quantity.toFixed(3)}</td>
+                          <td className="text-end fw-semibold text-green">₹{formatMoney(row.total_amount)}</td>
+                        </>
+                      )}
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </Table>
+          </div>
         </Card.Body>
       </Card>
     </div>

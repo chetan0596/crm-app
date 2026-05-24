@@ -13,6 +13,16 @@ function getNum(v, d) {
   return Number.isFinite(n) && n > 0 ? n : d;
 }
 
+function fmtDateForInput(v) {
+  if (!v) return "";
+  const d = new Date(v);
+  if (Number.isNaN(d.getTime())) return "";
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
 function tableReducer(state, action) {
   switch (action.type) {
     case "PAGE":
@@ -26,7 +36,7 @@ function tableReducer(state, action) {
     case "FILTERS":
       return { ...state, filters: { ...state.filters, ...action.filters }, page: 1 };
     case "RESET_FILTERS":
-      return { ...state, filters: { stage: "", source: "", tags: [], assigned_to: "" }, page: 1 };
+      return { ...state, filters: { stage: "", source: "", tags: [], assigned_to: "", created_by: "" }, page: 1 };
     default:
       return state;
   }
@@ -72,6 +82,7 @@ export default function Leads() {
       source: params.get("source") || "",
       tags: params.get("tags") ? params.get("tags").split(",") : [],
       assigned_to: params.get("assigned_to") || "",
+      created_by: params.get("created_by") || "",
       created_from: params.get("created_from") || "",
       created_to: params.get("created_to") || "",
       activity_from: params.get("activity_from") || "",
@@ -104,6 +115,7 @@ export default function Leads() {
   const [filterSource, setFilterSource] = useState(initialTable.filters.source);
   const [filterTags, setFilterTags] = useState(initialTable.filters.tags);
   const [filterAssignee, setFilterAssignee] = useState(initialTable.filters.assigned_to);
+  const [filterCreatedBy, setFilterCreatedBy] = useState(initialTable.filters.created_by);
   const [filterCreatedFrom, setFilterCreatedFrom] = useState(initialTable.filters.created_from);
   const [filterCreatedTo, setFilterCreatedTo] = useState(initialTable.filters.created_to);
   const [filterActivityFrom, setFilterActivityFrom] = useState(initialTable.filters.activity_from);
@@ -146,6 +158,8 @@ export default function Leads() {
     whatsapp_code: "+91 IN",
     whatsapp: "",
     email: "",
+    website: "",
+    company_name: "",
     lead_category_id: "",
     lead_subcategory_id: "",
     source: "",
@@ -163,6 +177,8 @@ export default function Leads() {
     assigned_to: "",
     expected_close_date: "",
     expected_value: "",
+    budget: "",
+    priority: "medium",
     notes: "",
     industry: "",
     company_size: "",
@@ -214,6 +230,7 @@ export default function Leads() {
       ...(table.filters.source && { source: table.filters.source }),
       ...(table.filters.tags.length && { tags: table.filters.tags.join(",") }),
       ...(table.filters.assigned_to && { assigned_to: table.filters.assigned_to }),
+      ...(table.filters.created_by && { created_by: table.filters.created_by }),
       ...(table.filters.created_from && { created_from: table.filters.created_from }),
       ...(table.filters.created_to && { created_to: table.filters.created_to }),
       ...(table.filters.activity_from && { activity_from: table.filters.activity_from }),
@@ -260,6 +277,7 @@ export default function Leads() {
           source: table.filters.source,
           tags: table.filters.tags.join(","),
           assigned_to: table.filters.assigned_to,
+          created_by: table.filters.created_by,
           created_from: table.filters.created_from,
           created_to: table.filters.created_to,
           activity_from: table.filters.activity_from,
@@ -327,6 +345,7 @@ export default function Leads() {
         source: filterSource,
         tags: filterTags,
         assigned_to: filterAssignee,
+        created_by: filterCreatedBy,
         created_from: filterCreatedFrom,
         created_to: filterCreatedTo,
         activity_from: filterActivityFrom,
@@ -335,13 +354,15 @@ export default function Leads() {
       const currentFilters = table.filters;
       
       // Check if all filters are empty (reset state)
-      const allEmpty = !newFilters.stage && !newFilters.source && 
+      const allEmpty = !newFilters.stage && !newFilters.source &&
                       !newFilters.tags.length && !newFilters.assigned_to &&
+                      !newFilters.created_by &&
                       !newFilters.created_from && !newFilters.created_to &&
                       !newFilters.activity_from && !newFilters.activity_to;
       
       const currentEmpty = !currentFilters.stage && !currentFilters.source &&
                          !currentFilters.tags.length && !currentFilters.assigned_to &&
+                         !currentFilters.created_by &&
                          !currentFilters.created_from && !currentFilters.created_to &&
                          !currentFilters.activity_from && !currentFilters.activity_to;
       
@@ -353,6 +374,7 @@ export default function Leads() {
         newFilters.source !== currentFilters.source ||
         JSON.stringify(newFilters.tags) !== JSON.stringify(currentFilters.tags) ||
         newFilters.assigned_to !== currentFilters.assigned_to ||
+        newFilters.created_by !== currentFilters.created_by ||
         newFilters.created_from !== currentFilters.created_from ||
         newFilters.created_to !== currentFilters.created_to ||
         newFilters.activity_from !== currentFilters.activity_from ||
@@ -363,7 +385,7 @@ export default function Leads() {
     }, 400);
 
     return () => clearTimeout(t);
-  }, [filterStage, filterSource, filterTags, filterAssignee, filterCreatedFrom, filterCreatedTo, filterActivityFrom, filterActivityTo, table.filters]);
+  }, [filterStage, filterSource, filterTags, filterAssignee, filterCreatedBy, filterCreatedFrom, filterCreatedTo, filterActivityFrom, filterActivityTo, table.filters]);
 
   useEffect(() => {
     const loadCities = async () => {
@@ -447,6 +469,8 @@ export default function Leads() {
       whatsapp_code: "+91 IN",
       whatsapp: "",
       email: "",
+      website: "",
+      company_name: "",
       lead_category_id: "",
       lead_subcategory_id: "",
       source: "",
@@ -464,6 +488,8 @@ export default function Leads() {
       assigned_to: "",
       expected_close_date: "",
       expected_value: "",
+      budget: "",
+      priority: "medium",
       notes: "",
       industry: "",
       company_size: "",
@@ -484,6 +510,8 @@ export default function Leads() {
       whatsapp_code: r.whatsapp_code || "+91 IN",
       whatsapp: r.whatsapp || "",
       email: r.email || "",
+      website: r.website || "",
+      company_name: r.company_name || "",
       lead_category_id: r.lead_category_id || "",
       lead_subcategory_id: r.lead_subcategory_id || "",
       source: r.source || "",
@@ -497,10 +525,12 @@ export default function Leads() {
       city_id: r.city_id || "",
       gstin: r.gstin || "",
       status: r.status || "open",
-      next_follow_up_date: r.next_follow_up_date || "",
+      next_follow_up_date: fmtDateForInput(r.next_follow_up_date),
       assigned_to: r.assigned_to || "",
-      expected_close_date: r.expected_close_date || "",
+      expected_close_date: fmtDateForInput(r.expected_close_date),
       expected_value: r.expected_value || "",
+      budget: r.budget || "",
+      priority: r.priority || "medium",
       notes: r.notes || "",
       industry: r.industry || "",
       company_size: r.company_size || "",
@@ -631,6 +661,7 @@ export default function Leads() {
     setFilterSource("");
     setFilterTags([]);
     setFilterAssignee("");
+    setFilterCreatedBy("");
     setFilterCreatedFrom("");
     setFilterCreatedTo("");
     setFilterActivityFrom("");
@@ -639,7 +670,7 @@ export default function Leads() {
     dispatch({ type: "RESET_FILTERS" });
   };
 
-  const hasActiveFilters = filterStage || filterSource || filterTags.length || filterAssignee || filterCreatedFrom || filterCreatedTo || filterActivityFrom || filterActivityTo;
+  const hasActiveFilters = filterStage || filterSource || filterTags.length || filterAssignee || filterCreatedBy || filterCreatedFrom || filterCreatedTo || filterActivityFrom || filterActivityTo;
 
   // ================= TABLE =================
 
@@ -853,6 +884,19 @@ export default function Leads() {
                       </Form.Select>
                     </div>
                     <div className="mb-2">
+                      <label className="small fw-semibold text-muted">Created By</label>
+                      <Form.Select
+                        size="sm"
+                        value={filterCreatedBy}
+                        onChange={(e) => setFilterCreatedBy(e.target.value)}
+                      >
+                        <option value="">All Creators</option>
+                        {users.map((u) => (
+                          <option key={u.id} value={u.id}>{u.name}</option>
+                        ))}
+                      </Form.Select>
+                    </div>
+                    <div className="mb-2">
                       <label className="small fw-semibold text-muted">Tags</label>
                       <Form.Select
                         size="sm"
@@ -940,17 +984,18 @@ export default function Leads() {
             <Dropdown>
               <Dropdown.Toggle variant="outline-secondary btn-sm" id="leadscol-toggle">
                 <i className="fas fa-columns me-1"></i>
-                {[
-                  visibleCols.id && 'ID',
-                  visibleCols.name && 'Name',
-                  visibleCols.phone && 'Phone',
-                  visibleCols.lead_stage && 'Stage',
-                  visibleCols.lead_source && 'Source',
-                  visibleCols.tags && 'Tags',
-                  visibleCols.last_activity && 'Activity',
-                  visibleCols.assignee && 'Assignee',
-                  visibleCols.action && 'Action'
-                ].filter(Boolean).join(', ') || 'None'}
+                {(() => {
+                  const allCols = [
+                    visibleCols.id, visibleCols.name, visibleCols.phone,
+                    visibleCols.lead_stage, visibleCols.lead_source, visibleCols.tags,
+                    visibleCols.last_activity, visibleCols.assignee, visibleCols.action,
+                  ];
+                  const total = allCols.length;
+                  const shown = allCols.filter(Boolean).length;
+                  if (shown === 0) return 'No columns';
+                  if (shown === total) return `All columns (${total})`;
+                  return `${shown} of ${total} columns`;
+                })()}
               </Dropdown.Toggle>
 
               <Dropdown.Menu>
@@ -1060,9 +1105,13 @@ export default function Leads() {
           highlightOnHover
           pointerOnHover
           responsive
-          noDataComponent={<div className="p-4 text-center text-muted">No leads found</div>}
-          progressComponent={<div className="p-4 text-center"><div className="spinner-border spinner-border-sm me-2"></div>Loading...</div>}
-          className="modern-datatable"
+          noDataComponent={
+            <div className="p-5 text-center">
+              <i className="fas fa-folder-open text-muted mb-3" style={{ fontSize: 48, opacity: 0.4 }}></i>
+              <div className="fw-semibold text-secondary mb-1">No leads found</div>
+              <div className="small text-muted">Try adjusting your search or filters</div>
+            </div>
+          }
           customStyles={{
             rows: {
               style: {
@@ -1267,7 +1316,20 @@ export default function Leads() {
                     />
                   </Form.Group>
                 </div>
+                <div className="col-12 col-md-6">
+                  <Form.Group className="mb-3">
+                    <Form.Label className="fw-semibold text-muted small">Website</Form.Label>
+                    <Form.Control
+                      type="url"
+                      placeholder="https://example.com"
+                      value={form.website}
+                      onChange={(e) => setForm({ ...form, website: e.target.value })}
+                    />
+                  </Form.Group>
+                </div>
+              </div>
 
+              <div className="row g-2">
                 <div className="col-12 col-md-6">
                   <Form.Group className="mb-3">
                     <Form.Label className="fw-semibold text-muted small">Company</Form.Label>
@@ -1399,6 +1461,37 @@ export default function Leads() {
                     />
                   </Form.Group>
                 </div>
+              </div>
+
+              <div className="row g-2">
+                <div className="col-12 col-md-6">
+                  <Form.Group className="mb-3">
+                    <Form.Label>Budget</Form.Label>
+                    <Form.Control
+                      type="number"
+                      step="0.01"
+                      placeholder="Enter budget"
+                      value={form.budget}
+                      onChange={(e) => setForm({ ...form, budget: e.target.value })}
+                    />
+                  </Form.Group>
+                </div>
+                <div className="col-12 col-md-6">
+                  <Form.Group className="mb-3">
+                    <Form.Label>Priority</Form.Label>
+                    <Form.Select
+                      value={form.priority}
+                      onChange={(e) => setForm({ ...form, priority: e.target.value })}
+                    >
+                      <option value="low">Low</option>
+                      <option value="medium">Medium</option>
+                      <option value="high">High</option>
+                    </Form.Select>
+                  </Form.Group>
+                </div>
+              </div>
+
+              <div className="row g-2">
                 <div className="col-12 col-md-6">
                   <Form.Group className="mb-3">
                     <Form.Label>Tags</Form.Label>

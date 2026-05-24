@@ -22,6 +22,29 @@ const getNum = (v, fallback = 1) => {
   return isNaN(n) || n < 1 ? fallback : n;
 };
 
+const ACTION_META = {
+  view:   { label: "View",   color: "info",      icon: "fa-eye" },
+  create: { label: "Create", color: "success",   icon: "fa-plus" },
+  edit:   { label: "Edit",   color: "warning",   icon: "fa-edit" },
+  delete: { label: "Delete", color: "danger",    icon: "fa-trash" },
+};
+
+const getActionMeta = (permName) => {
+  const action = permName.split("-").pop();
+  return ACTION_META[action] || { label: action, color: "secondary", icon: "fa-check" };
+};
+
+const getScopeLabel = (permName) => {
+  const parts = permName.split("-");
+  const action = parts.pop();
+  if (ACTION_META[action]) {
+    if (parts[0] === "lead") parts.shift();
+    if (parts[0] === "leads") parts.shift();
+    return parts.map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(" ") || "Leads";
+  }
+  return parts.join("-").replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+};
+
 export default function Roles() {
   const [params, setParams] = useSearchParams();
   const initialTable = {
@@ -176,29 +199,33 @@ export default function Roles() {
     }));
   };
 
-  // Friendly labels and icons for permissions
-  const getPermissionMeta = (permName) => {
-    const action = permName.split('-').pop();
-    const meta = {
-      view: { label: 'View', icon: 'fa-eye', color: 'info', bg: '#e3f2fd' },
-      create: { label: 'Create', icon: 'fa-plus', color: 'success', bg: '#e8f5e9' },
-      edit: { label: 'Edit', icon: 'fa-edit', color: 'warning', bg: '#fff3e0' },
-      delete: { label: 'Delete', icon: 'fa-trash', color: 'danger', bg: '#ffebee' },
-    };
-    return meta[action] || { label: action, icon: 'fa-check', color: 'secondary', bg: '#f5f5f5' };
-  };
-
-  // Group permissions by prefix
+  // Group permissions by prefix and sort by action priority
   const groupedPermissions = useMemo(() => {
     const groups = {};
+    const order = ["view", "create", "edit", "delete"];
     permissions.forEach(p => {
       const parts = p.name.split('-');
       const group = parts[0] || 'general';
       if (!groups[group]) groups[group] = [];
       groups[group].push(p);
     });
-    return groups;
+    Object.keys(groups).forEach((g) => {
+      groups[g].sort((a, b) => {
+        const ai = order.indexOf(a.name.split("-").pop());
+        const bi = order.indexOf(b.name.split("-").pop());
+        return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi);
+      });
+    });
+    return Object.fromEntries(Object.entries(groups).sort(([a], [b]) => a.localeCompare(b)));
   }, [permissions]);
+
+  const toggleGroup = (groupPerms, allChecked) => {
+    setForm(f => {
+      const next = new Set(f.permissions);
+      groupPerms.forEach((p) => (allChecked ? next.delete(p.id) : next.add(p.id)));
+      return { ...f, permissions: Array.from(next) };
+    });
+  };
 
   const columns = useMemo(() => [
     { name: "ID", selector: r => r.id, sortable: true, sortField: "id", width: "70px" },
@@ -248,10 +275,19 @@ export default function Roles() {
 
       <div className="card-body p-0">
         <DataTable columns={columns} data={rows} progressPending={loading} persistTableHead
+          className="modern-datatable"
           pagination paginationServer paginationTotalRows={total} paginationPerPage={table.perPage}
           onChangePage={(p) => p !== table.page && dispatch({ type: "PAGE", page: p })}
           onChangeRowsPerPage={(n) => n !== table.perPage && dispatch({ type: "PER_PAGE", perPage: n })}
           sortServer onSort={(col, dir) => col.sortField && dispatch({ type: "SORT", field: col.sortField, dir })}
+          progressComponent={<div className="p-4 text-center"><div className="spinner-border spinner-border-sm me-2"></div>Loading...</div>}
+          noDataComponent={
+            <div className="p-5 text-center">
+              <i className="fas fa-folder-open text-muted mb-3" style={{ fontSize: 48, opacity: 0.4 }}></i>
+              <div className="fw-semibold text-secondary mb-1">No data found</div>
+              <div className="small text-muted">Try adjusting your filters or check back later</div>
+            </div>
+          }
           striped highlightOnHover dense keyField="id" />
       </div>
 
@@ -272,55 +308,100 @@ export default function Roles() {
           </Form.Group>
           <Form.Group>
             <Form.Label className="fw-bold">Permissions</Form.Label>
-            <div className="bg-light p-3 rounded border" style={{ maxHeight: 400, overflow: 'auto' }}>
-              {Object.entries(groupedPermissions).map(([group, perms]) => (
-                <div key={group} className="mb-4">
-                  <div className="d-flex align-items-center gap-2 mb-2 pb-2 border-bottom">
-                    <span className="text-primary fw-bold text-capitalize fs-6">
-                      <i className={`fas fa-folder me-2`}></i>
-                      {group.replace(/-/g, ' ')}
-                    </span>
-                    <Badge bg="secondary" className="ms-auto">{perms.length} permissions</Badge>
-                  </div>
-                  <div className="row g-2">
-                    {perms.map(p => {
-                      const meta = getPermissionMeta(p.name);
-                      const isChecked = form.permissions.includes(p.id);
-                      return (
-                        <div key={p.id} className="col-md-3 col-sm-6">
-                          <div 
-                            className={`p-2 rounded border cursor-pointer transition ${isChecked ? 'border-primary shadow-sm' : 'border-light'}`}
-                            style={{ 
-                              cursor: 'pointer', 
-                              backgroundColor: isChecked ? meta.bg : '#fff',
-                              transition: 'all 0.2s'
-                            }}
-                            onClick={() => togglePermission(p.id)}
-                          >
-                            <div className="d-flex align-items-center gap-2">
-                              <div 
-                                className={`d-flex align-items-center justify-content-center rounded`}
-                                style={{ 
-                                  width: 32, 
-                                  height: 32, 
-                                  backgroundColor: isChecked ? '#fff' : meta.bg,
-                                  border: `2px solid ${isChecked ? '#0d6efd' : 'transparent'}`
-                                }}
-                              >
-                                <i className={`fas ${meta.icon} text-${meta.color}`}></i>
-                              </div>
-                              <span className={`fw-medium ${isChecked ? 'text-primary' : 'text-dark'}`}>
-                                {meta.label}
-                              </span>
-                              {isChecked && <i className="fas fa-check-circle text-primary ms-auto"></i>}
-                            </div>
-                          </div>
+            <div className="p-0" style={{ maxHeight: 420, overflow: 'auto' }}>
+              {Object.entries(groupedPermissions).map(([group, perms]) => {
+                const selectedCount = perms.filter((p) => form.permissions.includes(p.id)).length;
+                const allChecked = perms.every((p) => form.permissions.includes(p.id));
+                const someChecked = perms.some((p) => form.permissions.includes(p.id));
+                return (
+                  <div key={group} className="mb-3" style={{ border: "1px solid #e2e8f0", borderRadius: 10, overflow: "hidden" }}>
+                    {/* Module Header */}
+                    <div className="d-flex align-items-center gap-2 px-3 py-2" style={{ background: "#f8fafc", borderBottom: "1px solid #e2e8f0" }}>
+                      <div className="d-flex align-items-center justify-content-center rounded" style={{ width: 28, height: 28, background: "#e0e7ff", color: "#4f46e5", fontSize: 12 }}>
+                        <i className="fas fa-layer-group" />
+                      </div>
+                      <div className="flex-grow-1">
+                        <div className="d-flex align-items-center gap-2">
+                          <span className="fw-semibold small" style={{ color: "#1e293b", textTransform: "capitalize" }}>
+                            {group.replace(/-/g, " ")}
+                          </span>
+                          <Badge bg="light" text="dark" className="border fw-medium small">
+                            {selectedCount} / {perms.length}
+                          </Badge>
                         </div>
-                      );
-                    })}
+                        <div className="progress mt-1" style={{ height: 3, maxWidth: 160 }}>
+                          <div className="progress-bar bg-primary" style={{ width: `${perms.length ? (selectedCount / perms.length) * 100 : 0}%` }} />
+                        </div>
+                      </div>
+                      <div
+                        className="flex-shrink-0 d-flex align-items-center justify-content-center"
+                        onClick={() => toggleGroup(perms, allChecked)}
+                        title={allChecked ? "Uncheck all" : "Check all"}
+                        style={{ cursor: "pointer", width: 20, height: 20 }}
+                      >
+                        {allChecked ? (
+                          <i className="fas fa-check-square text-primary" style={{ fontSize: 18 }}></i>
+                        ) : someChecked ? (
+                          <i className="fas fa-minus-square text-primary" style={{ fontSize: 18 }}></i>
+                        ) : (
+                          <i className="far fa-square text-muted" style={{ fontSize: 18 }}></i>
+                        )}
+                      </div>
+                    </div>
+                    {/* Permission Chips */}
+                    <div className="p-3">
+                      <div className="row g-2">
+                        {perms.map((p) => {
+                          const checked = form.permissions.includes(p.id);
+                          const meta = getActionMeta(p.name);
+                          return (
+                            <div key={p.id} className="col-12 col-sm-6 col-md-4 col-lg-3">
+                              <div
+                                className="d-flex align-items-center gap-2 p-2 rounded border"
+                                style={{
+                                  cursor: "pointer",
+                                  backgroundColor: checked ? "#eff6ff" : "#fff",
+                                  borderColor: checked ? "#3b82f6" : "#e2e8f0",
+                                  transition: "all 0.15s ease",
+                                  minHeight: 44,
+                                }}
+                                onClick={() => togglePermission(p.id)}
+                                role="button"
+                              >
+                                <div className="flex-shrink-0" style={{ width: 16, textAlign: "center" }}>
+                                  {checked ? (
+                                    <i className="fas fa-check-square text-primary" style={{ fontSize: 14 }}></i>
+                                  ) : (
+                                    <i className="far fa-square text-muted" style={{ fontSize: 14 }}></i>
+                                  )}
+                                </div>
+                                <div
+                                  className="d-flex align-items-center justify-content-center rounded-circle flex-shrink-0"
+                                  style={{
+                                    width: 28,
+                                    height: 28,
+                                    backgroundColor: checked ? "#fff" : `#${meta.color === "info" ? "e0f2fe" : meta.color === "success" ? "dcfce7" : meta.color === "warning" ? "fef3c7" : meta.color === "danger" ? "fee2e2" : "f1f5f9"}`,
+                                    color: `#${meta.color === "info" ? "0284c7" : meta.color === "success" ? "16a34a" : meta.color === "warning" ? "d97706" : meta.color === "danger" ? "dc2626" : "64748b"}`,
+                                    fontSize: 11,
+                                  }}
+                                >
+                                  <i className={`fas ${meta.icon}`} />
+                                </div>
+                                <span className="small fw-medium text-truncate flex-grow-1" title={p.name} style={{ color: checked ? "#1e40af" : "#334155", fontSize: "0.8rem" }}>
+                                  <span style={{ color: "#94a3b8" }}>{getScopeLabel(p.name)}</span>
+                                  <span className="mx-1" style={{ color: "#cbd5e1" }}>·</span>
+                                  {meta.label}
+                                </span>
+                                {checked && <i className="fas fa-check-circle text-primary ms-auto flex-shrink-0" style={{ fontSize: 14 }}></i>}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </Form.Group>
         </Modal.Body>

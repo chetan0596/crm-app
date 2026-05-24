@@ -46,6 +46,29 @@ export default function Users() {
   const [saving, setSaving] = useState(false);
   const [editingId, setEditingId] = useState(null);
 
+  // Transfer modal state
+  const [transferShow, setTransferShow] = useState(false);
+  const [transferUser, setTransferUser] = useState(null);
+  const [transferToUserId, setTransferToUserId] = useState("");
+  const [transferPreview, setTransferPreview] = useState(null);
+  const [transferLoading, setTransferLoading] = useState(false);
+  const [transferConfirming, setTransferConfirming] = useState(false);
+  const [transferOptions, setTransferOptions] = useState({
+    transfer_assigned_leads: true,
+    transfer_created_leads: false,
+    transfer_activities: false,
+    transfer_notifications: true,
+    transfer_source_integrations: true,
+    transfer_caller_responses: true,
+    transfer_meta_connections: true,
+    transfer_meta_form_users: true,
+    transfer_inverters: true,
+    transfer_plant_infos: true,
+    transfer_stock_transfers: false,
+    transfer_subordinates: true,
+    delete_after_transfer: false,
+  });
+
   useEffect(() => {
     const newParams = new URLSearchParams({
       page: table.page, perPage: table.perPage, search: table.search,
@@ -143,6 +166,48 @@ export default function Users() {
     });
   };
 
+  const openTransfer = (row) => {
+    setTransferUser(row);
+    setTransferToUserId("");
+    setTransferPreview(null);
+    setTransferShow(true);
+  };
+
+  const loadTransferPreview = async () => {
+    if (!transferToUserId) { toast.warning("Select a target user"); return; }
+    try {
+      setTransferLoading(true);
+      const res = await api.post(`/users/${transferUser.id}/transfer-preview`, { to_user_id: transferToUserId });
+      setTransferPreview(res.data?.data?.preview || {});
+    } catch (e) {
+      toast.error(e.response?.data?.message || "Preview failed");
+    } finally {
+      setTransferLoading(false);
+    }
+  };
+
+  const executeTransfer = async () => {
+    if (!transferToUserId) { toast.warning("Select a target user"); return; }
+    try {
+      setTransferConfirming(true);
+      const res = await api.post(`/users/${transferUser.id}/transfer`, {
+        to_user_id: transferToUserId,
+        options: transferOptions,
+      });
+      toast.success("User data transferred successfully");
+      setTransferShow(false);
+      setReloadKey(k => k + 1);
+    } catch (e) {
+      toast.error(e.response?.data?.message || "Transfer failed");
+    } finally {
+      setTransferConfirming(false);
+    }
+  };
+
+  const toggleOption = (key) => {
+    setTransferOptions(prev => ({ ...prev, [key]: !prev[key] }));
+  };
+
   const toggleRole = (roleId) => {
     setForm(f => ({
       ...f,
@@ -176,14 +241,17 @@ export default function Users() {
     )},
     { name: "Created", selector: r => new Date(r.created_at).toLocaleDateString(), width: "110px" },
     {
-      name: "Action", width: "120px",
+      name: "Action", width: "160px",
       cell: row => (
         <div className="btn-group btn-group-sm">
           {canEdit('users') && (
-            <button className="btn btn-outline-primary" onClick={() => openEdit(row)}><i className="fas fa-edit"></i></button>
+            <button className="btn btn-outline-primary" onClick={() => openEdit(row)} title="Edit"><i className="fas fa-edit"></i></button>
+          )}
+          {canEdit('users') && (
+            <button className="btn btn-outline-warning" onClick={() => openTransfer(row)} title="Transfer Data"><i className="fas fa-people-arrows"></i></button>
           )}
           {canDelete('users') && (
-            <button className="btn btn-outline-danger" onClick={() => deleteUser(row)}><i className="fas fa-trash"></i></button>
+            <button className="btn btn-outline-danger" onClick={() => deleteUser(row)} title="Delete"><i className="fas fa-trash"></i></button>
           )}
         </div>
       ),
@@ -209,10 +277,19 @@ export default function Users() {
 
       <div className="card-body p-0">
         <DataTable columns={columns} data={rows} progressPending={loading} persistTableHead
+          className="modern-datatable"
           pagination paginationServer paginationTotalRows={total} paginationPerPage={table.perPage}
           onChangePage={(p) => p !== table.page && dispatch({ type: "PAGE", page: p })}
           onChangeRowsPerPage={(n) => n !== table.perPage && dispatch({ type: "PER_PAGE", perPage: n })}
           sortServer onSort={(col, dir) => col.sortField && dispatch({ type: "SORT", field: col.sortField, dir })}
+          progressComponent={<div className="p-4 text-center"><div className="spinner-border spinner-border-sm me-2"></div>Loading...</div>}
+          noDataComponent={
+            <div className="p-5 text-center">
+              <i className="fas fa-folder-open text-muted mb-3" style={{ fontSize: 48, opacity: 0.4 }}></i>
+              <div className="fw-semibold text-secondary mb-1">No data found</div>
+              <div className="small text-muted">Try adjusting your filters or check back later</div>
+            </div>
+          }
           striped highlightOnHover dense keyField="id" />
       </div>
 
@@ -306,6 +383,161 @@ export default function Users() {
           <Button variant="secondary" size="sm" onClick={() => setShow(false)}>Cancel</Button>
           <Button variant="primary" size="sm" onClick={save} disabled={saving}>
             {saving && <span className="spinner-border spinner-border-sm me-2"></span>} {editingId ? 'Update User' : 'Save User'}
+          </Button>
+        </Modal.Footer>
+      </Modal>
+
+      {/* Transfer Data Modal */}
+      <Modal show={transferShow} onHide={() => setTransferShow(false)} backdrop="static" size="lg">
+        <Modal.Header closeButton>
+          <Modal.Title>
+            <i className="fas fa-people-arrows me-2"></i>
+            Transfer User Data
+          </Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          {transferUser && (
+            <div className="alert alert-info">
+              <strong>From:</strong> {transferUser.name} ({transferUser.email})
+            </div>
+          )}
+
+          {/* Target User Selection */}
+          <Form.Group className="mb-3">
+            <Form.Label className="fw-bold small">Transfer To (Target User) <span className="text-danger">*</span></Form.Label>
+            <Form.Select
+              size="sm"
+              value={transferToUserId}
+              onChange={e => { setTransferToUserId(e.target.value); setTransferPreview(null); }}
+            >
+              <option value="">-- Select User --</option>
+              {users.filter(u => u.id !== transferUser?.id).map(u => (
+                <option key={u.id} value={u.id}>{u.name} ({u.email})</option>
+              ))}
+            </Form.Select>
+          </Form.Group>
+
+          <div className="d-flex gap-2 mb-3">
+            <Button variant="outline-primary" size="sm" onClick={loadTransferPreview} disabled={transferLoading || !transferToUserId}>
+              <i className={`fas fa-${transferLoading ? "spinner fa-spin" : "search"} me-1`}></i>
+              {transferLoading ? "Loading..." : "Preview Transfer"}
+            </Button>
+          </div>
+
+          {/* Preview */}
+          {transferPreview && (
+            <div className="mb-3">
+              <h6 className="fw-semibold small mb-2">Data Preview</h6>
+              <div className="table-responsive">
+                <table className="table table-sm table-bordered">
+                  <tbody>
+                    {transferPreview.assigned_leads > 0 && (
+                      <tr><td>Assigned Leads</td><td className="fw-bold">{transferPreview.assigned_leads}</td></tr>
+                    )}
+                    {transferPreview.created_leads > 0 && (
+                      <tr><td>Created Leads</td><td className="fw-bold">{transferPreview.created_leads}</td></tr>
+                    )}
+                    {transferPreview.lead_assignments_to > 0 && (
+                      <tr><td>Lead Assignments (as recipient)</td><td className="fw-bold">{transferPreview.lead_assignments_to}</td></tr>
+                    )}
+                    {transferPreview.lead_assignments_from > 0 && (
+                      <tr><td>Lead Assignments (as sender)</td><td className="fw-bold">{transferPreview.lead_assignments_from}</td></tr>
+                    )}
+                    {transferPreview.activities > 0 && (
+                      <tr><td>Activities</td><td className="fw-bold">{transferPreview.activities}</td></tr>
+                    )}
+                    {transferPreview.notifications > 0 && (
+                      <tr><td>Notifications</td><td className="fw-bold">{transferPreview.notifications}</td></tr>
+                    )}
+                    {transferPreview.source_integrations_fixed > 0 && (
+                      <tr><td>Source Integrations (Fixed User)</td><td className="fw-bold">{transferPreview.source_integrations_fixed}</td></tr>
+                    )}
+                    {transferPreview.source_integrations_round_robin > 0 && (
+                      <tr><td>Source Integrations (Round Robin)</td><td className="fw-bold">{transferPreview.source_integrations_round_robin}</td></tr>
+                    )}
+                    {transferPreview.caller_responses > 0 && (
+                      <tr><td>IndiaMART Caller Responses</td><td className="fw-bold">{transferPreview.caller_responses}</td></tr>
+                    )}
+                    {transferPreview.meta_connections > 0 && (
+                      <tr><td>Meta Connections</td><td className="fw-bold">{transferPreview.meta_connections}</td></tr>
+                    )}
+                    {transferPreview.meta_form_users > 0 && (
+                      <tr><td>Meta Lead Form Users</td><td className="fw-bold">{transferPreview.meta_form_users}</td></tr>
+                    )}
+                    {transferPreview.inverters > 0 && (
+                      <tr><td>Inverters</td><td className="fw-bold">{transferPreview.inverters}</td></tr>
+                    )}
+                    {transferPreview.inverter_details > 0 && (
+                      <tr><td>Inverter Details</td><td className="fw-bold">{transferPreview.inverter_details}</td></tr>
+                    )}
+                    {transferPreview.inverter_faults > 0 && (
+                      <tr><td>Inverter Faults</td><td className="fw-bold">{transferPreview.inverter_faults}</td></tr>
+                    )}
+                    {transferPreview.plant_infos > 0 && (
+                      <tr><td>Plant Infos</td><td className="fw-bold">{transferPreview.plant_infos}</td></tr>
+                    )}
+                    {transferPreview.stock_transfers > 0 && (
+                      <tr><td>Stock Transfers</td><td className="fw-bold">{transferPreview.stock_transfers}</td></tr>
+                    )}
+                    {transferPreview.subordinates > 0 && (
+                      <tr><td>Subordinates (reports to)</td><td className="fw-bold">{transferPreview.subordinates}</td></tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {/* Transfer Options */}
+          {transferPreview && (
+            <div className="mb-3">
+              <h6 className="fw-semibold small mb-2">Transfer Options</h6>
+              <div className="row g-2">
+                {[
+                  { key: 'transfer_assigned_leads', label: 'Assigned Leads', desc: 'Move active lead ownership' },
+                  { key: 'transfer_created_leads', label: 'Created Leads', desc: 'Change lead creator (historical)' },
+                  { key: 'transfer_activities', label: 'Activities', desc: 'Change activity creator (historical)' },
+                  { key: 'transfer_notifications', label: 'Notifications', desc: 'Move unread notifications' },
+                  { key: 'transfer_source_integrations', label: 'Source Integrations', desc: 'Fixed user & round-robin lists' },
+                  { key: 'transfer_caller_responses', label: 'IndiaMART Responses', desc: 'Caller response assignments' },
+                  { key: 'transfer_meta_connections', label: 'Meta Connections', desc: 'Facebook/Meta integrations' },
+                  { key: 'transfer_meta_form_users', label: 'Meta Form Users', desc: 'Lead form user assignments' },
+                  { key: 'transfer_inverters', label: 'Inverters & Faults', desc: 'All inverter-related data' },
+                  { key: 'transfer_plant_infos', label: 'Plant Infos', desc: 'Solar plant monitoring data' },
+                  { key: 'transfer_stock_transfers', label: 'Stock Transfers', desc: 'Warehouse transfers (historical)' },
+                  { key: 'transfer_subordinates', label: 'Subordinates', desc: 'Team members who report to this user' },
+                  { key: 'delete_after_transfer', label: 'Delete Old User', desc: 'Remove user after transfer' },
+                ].map(opt => (
+                  <div key={opt.key} className="col-md-6">
+                    <div className="form-check">
+                      <input
+                        className="form-check-input"
+                        type="checkbox"
+                        id={opt.key}
+                        checked={transferOptions[opt.key]}
+                        onChange={() => toggleOption(opt.key)}
+                      />
+                      <label className="form-check-label small" htmlFor={opt.key}>
+                        <strong>{opt.label}</strong>
+                        <div className="text-muted" style={{ fontSize: '0.75rem' }}>{opt.desc}</div>
+                      </label>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="secondary" size="sm" onClick={() => setTransferShow(false)}>Cancel</Button>
+          <Button
+            variant="warning"
+            size="sm"
+            onClick={executeTransfer}
+            disabled={transferConfirming || !transferPreview}
+          >
+            <i className={`fas fa-${transferConfirming ? "spinner fa-spin" : "people-arrows"} me-1`}></i>
+            {transferConfirming ? "Transferring..." : "Transfer Data"}
           </Button>
         </Modal.Footer>
       </Modal>

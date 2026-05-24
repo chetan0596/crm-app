@@ -433,11 +433,11 @@ export default function FollowUps() {
   );
 
   const bucketCards = [
-    { key: "today", label: "Today", value: summary.today, variant: "primary" },
-    { key: "upcoming", label: `Upcoming (${upcomingDays}d)`, value: summary.upcoming, variant: "info" },
-    { key: "overdue", label: "Overdue", value: summary.overdue, variant: "danger" },
-    { key: "not_scheduled", label: "Not Scheduled", value: summary.not_scheduled, variant: "secondary" },
-    { key: "never_follow_up", label: "Never Follow-up", value: summary.never_follow_up, variant: "warning" },
+    { key: "today", label: "Today", value: summary.today, icon: "fa-calendar-day", color: "#3b82f6", bg: "rgba(59,130,246,0.08)" },
+    { key: "upcoming", label: `Upcoming (${upcomingDays}d)`, value: summary.upcoming, icon: "fa-calendar-week", color: "#06b6d4", bg: "rgba(6,182,212,0.08)" },
+    { key: "overdue", label: "Overdue", value: summary.overdue, icon: "fa-exclamation-circle", color: "#ef4444", bg: "rgba(239,68,68,0.08)" },
+    { key: "not_scheduled", label: "Not Scheduled", value: summary.not_scheduled, icon: "fa-calendar-xmark", color: "#64748b", bg: "rgba(100,116,139,0.08)" },
+    { key: "never_follow_up", label: "Never Follow-up", value: summary.never_follow_up, icon: "fa-ban", color: "#f59e0b", bg: "rgba(245,158,11,0.08)" },
   ];
 
   const titleByBucket = {
@@ -451,22 +451,25 @@ export default function FollowUps() {
   return (
     <div className="container-fluid py-3">
       <div className="d-flex justify-content-between align-items-center mb-3">
-        <h4 className="m-0">Follow-ups</h4>
+        <div>
+          <h4 className="m-0 fw-bold" style={{ color: "#1e293b" }}>Follow-ups</h4>
+          <div className="small text-muted">Manage and track all your lead follow-ups</div>
+        </div>
         <div className="d-flex align-items-center gap-2">
           <Form.Select
             size="sm"
             value={upcomingDays}
-            style={{ width: 140 }}
+            style={{ width: 150, borderRadius: 8 }}
             onChange={(e) => setUpcomingDays(parseInt(e.target.value || "7", 10))}
           >
             <option value={7}>Upcoming: 7 days</option>
             <option value={15}>Upcoming: 15 days</option>
             <option value={30}>Upcoming: 30 days</option>
           </Form.Select>
-          <Button variant="outline-secondary" size="sm" onClick={() => setReloadKey(k => k + 1)} disabled={loading}>
+          <Button variant="outline-secondary" size="sm" onClick={() => setReloadKey(k => k + 1)} disabled={loading} style={{ borderRadius: 8 }}>
             <i className="fas fa-sync-alt me-1"></i> Refresh
           </Button>
-          <Button variant="outline-secondary" size="sm" onClick={loadSummary} disabled={summaryLoading}>
+          <Button variant="outline-secondary" size="sm" onClick={loadSummary} disabled={summaryLoading} style={{ borderRadius: 8 }}>
             {summaryLoading ? "Loading..." : "Refresh Summary"}
           </Button>
         </div>
@@ -478,12 +481,32 @@ export default function FollowUps() {
             <Card
               role="button"
               onClick={() => setBucket(c.key)}
-              className={bucket === c.key ? "border border-2 border-primary" : ""}
+              className={`border-0 shadow-sm ${bucket === c.key ? "ring-2" : ""}`}
+              style={{
+                background: c.bg,
+                border: bucket === c.key ? `2px solid ${c.color}` : "2px solid transparent",
+                transition: "all 0.2s ease",
+                cursor: "pointer",
+              }}
             >
-              <Card.Body className="py-2">
+              <Card.Body className="py-2 px-3">
                 <div className="d-flex justify-content-between align-items-center">
-                  <div className="fw-semibold">{c.label}</div>
-                  <Badge bg={c.variant}>{c.value}</Badge>
+                  <div>
+                    <div className="small text-muted mb-1" style={{ fontSize: 12 }}>{c.label}</div>
+                    <div className="fw-bold" style={{ fontSize: 20, color: c.color }}>{c.value}</div>
+                  </div>
+                  <div
+                    className="d-flex align-items-center justify-content-center rounded-circle"
+                    style={{
+                      width: 36,
+                      height: 36,
+                      background: c.color,
+                      color: "#fff",
+                      fontSize: 14,
+                    }}
+                  >
+                    <i className={`fas ${c.icon}`} />
+                  </div>
                 </div>
               </Card.Body>
             </Card>
@@ -491,187 +514,198 @@ export default function FollowUps() {
         ))}
       </Row>
 
-      <Card>
-        <Card.Header className="d-flex justify-content-between align-items-center">
-          <div className="fw-semibold">{titleByBucket[bucket] || "Follow-ups"}</div>
-          <div className="d-flex gap-2 align-items-center">
-            <div className="input-group input-group-sm" style={{ maxWidth: 280 }}>
-              <span className="input-group-text">
-                <i className="fas fa-search"></i>
-              </span>
-              <input
-                className="form-control"
-                placeholder="Search name, phone, email"
-                value={searchInput}
-                onChange={(e) => setSearchInput(e.target.value)}
-              />
+      <div className="card card-outline card-primary">
+        <div className="card-header" style={{ background: "#f8fafc", borderBottom: "1px solid #e2e8f0" }}>
+          <div className="d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <div className="d-flex align-items-center gap-2">
+              <i className="fas fa-list-ul text-primary small"></i>
+              <span className="fw-semibold" style={{ color: "#1e293b" }}>{titleByBucket[bucket] || "Follow-ups"}</span>
             </div>
+            <div className="d-flex gap-2 align-items-center">
+              <div className="input-group input-group-sm" style={{ maxWidth: 260 }}>
+                <span className="input-group-text bg-white" style={{ borderColor: "#cbd5e1" }}>
+                  <i className="fas fa-search text-muted" style={{ fontSize: 12 }}></i>
+                </span>
+                <input
+                  className="form-control bg-white"
+                  placeholder="Search name, phone, email..."
+                  value={searchInput}
+                  onChange={(e) => setSearchInput(e.target.value)}
+                  style={{ borderColor: "#cbd5e1", fontSize: "0.85rem" }}
+                />
+              </div>
 
-            <Button variant="outline-success" size="sm" onClick={exportToCSV}>
-              <i className="fas fa-file-export me-1"></i> Export
-            </Button>
+              <Button variant="success" size="sm" onClick={exportToCSV} className="d-flex align-items-center gap-1" style={{ borderRadius: 6, fontWeight: 500, fontSize: "0.8rem" }}>
+                <i className="fas fa-file-csv" style={{ fontSize: 12 }}></i>
+                <span>Export</span>
+              </Button>
 
-            <Dropdown>
-              <Dropdown.Toggle variant="outline-secondary btn-sm" id="followups-columns-toggle">
-                <i className="fas fa-columns me-1"></i> Columns
-              </Dropdown.Toggle>
-              <Dropdown.Menu>
-                <Dropdown.Item active={visibleCols.id} onClick={() => setVisibleCols(v => ({ ...v, id: !v.id }))}>
-                  <i className={`fas ${visibleCols.id ? 'fa-check-square text-primary' : 'fa-square'} me-2`}></i> ID
-                </Dropdown.Item>
-                <Dropdown.Item active={visibleCols.name} onClick={() => setVisibleCols(v => ({ ...v, name: !v.name }))}>
-                  <i className={`fas ${visibleCols.name ? 'fa-check-square text-primary' : 'fa-square'} me-2`}></i> Name
-                </Dropdown.Item>
-                <Dropdown.Item active={visibleCols.phone} onClick={() => setVisibleCols(v => ({ ...v, phone: !v.phone }))}>
-                  <i className={`fas ${visibleCols.phone ? 'fa-check-square text-primary' : 'fa-square'} me-2`}></i> Phone
-                </Dropdown.Item>
-                <Dropdown.Item active={visibleCols.stage} onClick={() => setVisibleCols(v => ({ ...v, stage: !v.stage }))}>
-                  <i className={`fas ${visibleCols.stage ? 'fa-check-square text-primary' : 'fa-square'} me-2`}></i> Stage
-                </Dropdown.Item>
-                <Dropdown.Item active={visibleCols.source} onClick={() => setVisibleCols(v => ({ ...v, source: !v.source }))}>
-                  <i className={`fas ${visibleCols.source ? 'fa-check-square text-primary' : 'fa-square'} me-2`}></i> Source
-                </Dropdown.Item>
-                <Dropdown.Item active={visibleCols.tags} onClick={() => setVisibleCols(v => ({ ...v, tags: !v.tags }))}>
-                  <i className={`fas ${visibleCols.tags ? 'fa-check-square text-primary' : 'fa-square'} me-2`}></i> Tags
-                </Dropdown.Item>
-                <Dropdown.Item active={visibleCols.last_activity} onClick={() => setVisibleCols(v => ({ ...v, last_activity: !v.last_activity }))}>
-                  <i className={`fas ${visibleCols.last_activity ? 'fa-check-square text-primary' : 'fa-square'} me-2`}></i> Last Activity
-                </Dropdown.Item>
-                <Dropdown.Item active={visibleCols.assignee} onClick={() => setVisibleCols(v => ({ ...v, assignee: !v.assignee }))}>
-                  <i className={`fas ${visibleCols.assignee ? 'fa-check-square text-primary' : 'fa-square'} me-2`}></i> Assignee
-                </Dropdown.Item>
-                <Dropdown.Item active={visibleCols.next_follow_up} onClick={() => setVisibleCols(v => ({ ...v, next_follow_up: !v.next_follow_up }))}>
-                  <i className={`fas ${visibleCols.next_follow_up ? 'fa-check-square text-primary' : 'fa-square'} me-2`}></i> Next Follow-up
-                </Dropdown.Item>
-                <Dropdown.Item active={visibleCols.action} onClick={() => setVisibleCols(v => ({ ...v, action: !v.action }))}>
-                  <i className={`fas ${visibleCols.action ? 'fa-check-square text-primary' : 'fa-square'} me-2`}></i> Action
-                </Dropdown.Item>
-              </Dropdown.Menu>
-            </Dropdown>
+              <Dropdown>
+                <Dropdown.Toggle variant="outline-secondary btn-sm" id="followups-columns-toggle" style={{ borderRadius: 6, fontSize: "0.8rem" }}>
+                  <i className="fas fa-columns" style={{ fontSize: 12 }}></i>
+                  <span className="ms-1">Columns</span>
+                </Dropdown.Toggle>
+                <Dropdown.Menu>
+                  <Dropdown.Item active={visibleCols.id} onClick={() => setVisibleCols(v => ({ ...v, id: !v.id }))}>
+                    <i className={`fas ${visibleCols.id ? 'fa-check-square text-primary' : 'fa-square'} me-2`}></i> ID
+                  </Dropdown.Item>
+                  <Dropdown.Item active={visibleCols.name} onClick={() => setVisibleCols(v => ({ ...v, name: !v.name }))}>
+                    <i className={`fas ${visibleCols.name ? 'fa-check-square text-primary' : 'fa-square'} me-2`}></i> Name
+                  </Dropdown.Item>
+                  <Dropdown.Item active={visibleCols.phone} onClick={() => setVisibleCols(v => ({ ...v, phone: !v.phone }))}>
+                    <i className={`fas ${visibleCols.phone ? 'fa-check-square text-primary' : 'fa-square'} me-2`}></i> Phone
+                  </Dropdown.Item>
+                  <Dropdown.Item active={visibleCols.stage} onClick={() => setVisibleCols(v => ({ ...v, stage: !v.stage }))}>
+                    <i className={`fas ${visibleCols.stage ? 'fa-check-square text-primary' : 'fa-square'} me-2`}></i> Stage
+                  </Dropdown.Item>
+                  <Dropdown.Item active={visibleCols.source} onClick={() => setVisibleCols(v => ({ ...v, source: !v.source }))}>
+                    <i className={`fas ${visibleCols.source ? 'fa-check-square text-primary' : 'fa-square'} me-2`}></i> Source
+                  </Dropdown.Item>
+                  <Dropdown.Item active={visibleCols.tags} onClick={() => setVisibleCols(v => ({ ...v, tags: !v.tags }))}>
+                    <i className={`fas ${visibleCols.tags ? 'fa-check-square text-primary' : 'fa-square'} me-2`}></i> Tags
+                  </Dropdown.Item>
+                  <Dropdown.Item active={visibleCols.last_activity} onClick={() => setVisibleCols(v => ({ ...v, last_activity: !v.last_activity }))}>
+                    <i className={`fas ${visibleCols.last_activity ? 'fa-check-square text-primary' : 'fa-square'} me-2`}></i> Last Activity
+                  </Dropdown.Item>
+                  <Dropdown.Item active={visibleCols.assignee} onClick={() => setVisibleCols(v => ({ ...v, assignee: !v.assignee }))}>
+                    <i className={`fas ${visibleCols.assignee ? 'fa-check-square text-primary' : 'fa-square'} me-2`}></i> Assignee
+                  </Dropdown.Item>
+                  <Dropdown.Item active={visibleCols.next_follow_up} onClick={() => setVisibleCols(v => ({ ...v, next_follow_up: !v.next_follow_up }))}>
+                    <i className={`fas ${visibleCols.next_follow_up ? 'fa-check-square text-primary' : 'fa-square'} me-2`}></i> Next Follow-up
+                  </Dropdown.Item>
+                  <Dropdown.Item active={visibleCols.action} onClick={() => setVisibleCols(v => ({ ...v, action: !v.action }))}>
+                    <i className={`fas ${visibleCols.action ? 'fa-check-square text-primary' : 'fa-square'} me-2`}></i> Action
+                  </Dropdown.Item>
+                </Dropdown.Menu>
+              </Dropdown>
 
-            <Dropdown>
-              <Dropdown.Toggle variant="outline-secondary btn-sm" id="followups-filter-toggle">
-                <i className="fas fa-filter me-1"></i>
-                Filters
-                {hasActiveFilters && <span className="badge bg-primary ms-1">●</span>}
-              </Dropdown.Toggle>
-              <Dropdown.Menu style={{ minWidth: 280 }}>
-                <div className="px-3 py-2">
-                  <div className="mb-2">
-                    <label className="small fw-semibold text-muted">Stage</label>
-                    <Form.Select size="sm" value={filterStage} onChange={(e) => setFilterStage(e.target.value)}>
-                      <option value="">All Stages</option>
-                      {leadStages.map((s) => (
-                        <option key={s.id ?? s.name} value={s.name}>
-                          {s.name}
-                        </option>
-                      ))}
-                    </Form.Select>
-                  </div>
-
-                  <div className="mb-2">
-                    <label className="small fw-semibold text-muted">Source</label>
-                    <Form.Select size="sm" value={filterSource} onChange={(e) => setFilterSource(e.target.value)}>
-                      <option value="">All Sources</option>
-                      {leadSources.map((s) => (
-                        <option key={s.id ?? s.name} value={s.name}>
-                          {s.name}
-                        </option>
-                      ))}
-                    </Form.Select>
-                  </div>
-
-                  <div className="mb-2">
-                    <label className="small fw-semibold text-muted">Assignee</label>
-                    <Form.Select size="sm" value={filterAssignee} onChange={(e) => setFilterAssignee(e.target.value)}>
-                      <option value="">All Assignees</option>
-                      {users.map((u) => (
-                        <option key={u.id} value={u.id}>
-                          {u.name}
-                        </option>
-                      ))}
-                    </Form.Select>
-                  </div>
-
-                  <div className="mb-2">
-                    <label className="small fw-semibold text-muted">Tags</label>
-                    <Form.Select
-                      size="sm"
-                      multiple
-                      style={{ minHeight: 60 }}
-                      value={filterTags}
-                      onChange={(e) => {
-                        const selected = Array.from(e.target.selectedOptions, (o) => o.value);
-                        setFilterTags(selected);
-                      }}
-                    >
-                      {tags.map((t) => (
-                        <option key={t.id} value={t.id}>
-                          {t.name}
-                        </option>
-                      ))}
-                    </Form.Select>
-                    <small className="text-muted">Hold Ctrl to select multiple</small>
-                  </div>
-
-                  <div className="mb-2">
-                    <label className="small fw-semibold text-muted">Created Date</label>
-                    <div className="d-flex gap-1">
-                      <Form.Control
-                        type="date"
-                        size="sm"
-                        placeholder="From"
-                        value={filterCreatedFrom}
-                        onChange={(e) => setFilterCreatedFrom(e.target.value)}
-                      />
-                      <Form.Control
-                        type="date"
-                        size="sm"
-                        placeholder="To"
-                        value={filterCreatedTo}
-                        onChange={(e) => setFilterCreatedTo(e.target.value)}
-                      />
+              <Dropdown>
+                <Dropdown.Toggle variant="outline-secondary btn-sm" id="followups-filter-toggle" style={{ borderRadius: 6, fontSize: "0.8rem" }}>
+                  <i className="fas fa-filter" style={{ fontSize: 12 }}></i>
+                  <span className="ms-1">Filters</span>
+                  {hasActiveFilters && <span className="badge bg-primary ms-1" style={{ fontSize: 8, width: 8, height: 8, padding: 0, borderRadius: "50%" }}> </span>}
+                </Dropdown.Toggle>
+                <Dropdown.Menu style={{ minWidth: 280 }}>
+                  <div className="px-3 py-2">
+                    <div className="mb-2">
+                      <label className="small fw-semibold text-muted">Stage</label>
+                      <Form.Select size="sm" value={filterStage} onChange={(e) => setFilterStage(e.target.value)}>
+                        <option value="">All Stages</option>
+                        {leadStages.map((s) => (
+                          <option key={s.id ?? s.name} value={s.name}>
+                            {s.name}
+                          </option>
+                        ))}
+                      </Form.Select>
                     </div>
-                  </div>
 
-                  <div className="mb-2">
-                    <label className="small fw-semibold text-muted">Last Activity Date</label>
-                    <div className="d-flex gap-1">
-                      <Form.Control
-                        type="date"
-                        size="sm"
-                        placeholder="From"
-                        value={filterActivityFrom}
-                        onChange={(e) => setFilterActivityFrom(e.target.value)}
-                      />
-                      <Form.Control
-                        type="date"
-                        size="sm"
-                        placeholder="To"
-                        value={filterActivityTo}
-                        onChange={(e) => setFilterActivityTo(e.target.value)}
-                      />
+                    <div className="mb-2">
+                      <label className="small fw-semibold text-muted">Source</label>
+                      <Form.Select size="sm" value={filterSource} onChange={(e) => setFilterSource(e.target.value)}>
+                        <option value="">All Sources</option>
+                        {leadSources.map((s) => (
+                          <option key={s.id ?? s.name} value={s.name}>
+                            {s.name}
+                          </option>
+                        ))}
+                      </Form.Select>
                     </div>
-                  </div>
 
-                  {hasActiveFilters && (
-                    <div className="d-flex justify-content-end mt-2">
-                      <button className="btn btn-outline-secondary btn-sm" onClick={clearFilters}>
-                        <i className="fas fa-times me-1"></i> Clear
-                      </button>
+                    <div className="mb-2">
+                      <label className="small fw-semibold text-muted">Assignee</label>
+                      <Form.Select size="sm" value={filterAssignee} onChange={(e) => setFilterAssignee(e.target.value)}>
+                        <option value="">All Assignees</option>
+                        {users.map((u) => (
+                          <option key={u.id} value={u.id}>
+                            {u.name}
+                          </option>
+                        ))}
+                      </Form.Select>
                     </div>
-                  )}
-                </div>
-              </Dropdown.Menu>
-            </Dropdown>
+
+                    <div className="mb-2">
+                      <label className="small fw-semibold text-muted">Tags</label>
+                      <Form.Select
+                        size="sm"
+                        multiple
+                        style={{ minHeight: 60 }}
+                        value={filterTags}
+                        onChange={(e) => {
+                          const selected = Array.from(e.target.selectedOptions, (o) => o.value);
+                          setFilterTags(selected);
+                        }}
+                      >
+                        {tags.map((t) => (
+                          <option key={t.id} value={t.id}>
+                            {t.name}
+                          </option>
+                        ))}
+                      </Form.Select>
+                      <small className="text-muted">Hold Ctrl to select multiple</small>
+                    </div>
+
+                    <div className="mb-2">
+                      <label className="small fw-semibold text-muted">Created Date</label>
+                      <div className="d-flex gap-1">
+                        <Form.Control
+                          type="date"
+                          size="sm"
+                          placeholder="From"
+                          value={filterCreatedFrom}
+                          onChange={(e) => setFilterCreatedFrom(e.target.value)}
+                        />
+                        <Form.Control
+                          type="date"
+                          size="sm"
+                          placeholder="To"
+                          value={filterCreatedTo}
+                          onChange={(e) => setFilterCreatedTo(e.target.value)}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="mb-2">
+                      <label className="small fw-semibold text-muted">Last Activity Date</label>
+                      <div className="d-flex gap-1">
+                        <Form.Control
+                          type="date"
+                          size="sm"
+                          placeholder="From"
+                          value={filterActivityFrom}
+                          onChange={(e) => setFilterActivityFrom(e.target.value)}
+                        />
+                        <Form.Control
+                          type="date"
+                          size="sm"
+                          placeholder="To"
+                          value={filterActivityTo}
+                          onChange={(e) => setFilterActivityTo(e.target.value)}
+                        />
+                      </div>
+                    </div>
+
+                    {hasActiveFilters && (
+                      <div className="d-flex justify-content-end mt-2">
+                        <button className="btn btn-outline-secondary btn-sm" onClick={clearFilters}>
+                          <i className="fas fa-times me-1"></i> Clear
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </Dropdown.Menu>
+              </Dropdown>
+            </div>
           </div>
-        </Card.Header>
-        <Card.Body>
+        </div>
+        <div className="card-body p-0">
           {selectedRows.length > 0 && canDeleteLeads && (
-            <div className="mb-2 d-flex justify-content-between align-items-center bg-light p-2 rounded">
-              <span className="small fw-semibold">{selectedRows.length} selected</span>
-              <Button variant="danger" size="sm" onClick={bulkDelete}>
-                <i className="fas fa-trash me-1"></i> Delete Selected
+            <div className="d-flex justify-content-between align-items-center p-2 mx-3 mt-2 mb-2" style={{ background: "#fef2f2", border: "1px solid #fecaca", borderRadius: 8 }}>
+              <div className="d-flex align-items-center gap-2">
+                <i className="fas fa-check-circle text-success small"></i>
+                <span className="small fw-semibold" style={{ color: "#1e293b" }}>{selectedRows.length} selected</span>
+              </div>
+              <Button variant="outline-danger" size="sm" onClick={bulkDelete} style={{ borderRadius: 6, fontSize: "0.8rem" }}>
+                <i className="fas fa-trash-alt me-1" style={{ fontSize: 11 }}></i> Delete
               </Button>
             </div>
           )}
@@ -694,34 +728,63 @@ export default function FollowUps() {
                 setSortDir(dir);
               }
             }}
+            className="modern-datatable"
             selectableRows={canDeleteLeads}
             onSelectedRowsChange={({ selectedRows }) => setSelectedRows(selectedRows)}
             clearSelectedRows={selectedRows.length === 0}
             highlightOnHover
             dense
-            noDataComponent={canViewLeads ? "No leads found" : "No permission"}
             persistTableHead
             striped
             pointerOnHover
             responsive
+            progressComponent={
+              <div className="p-4 text-center">
+                <div className="spinner-border spinner-border-sm me-2 text-primary" role="status"></div>
+                <span className="text-muted small">Loading follow-ups...</span>
+              </div>
+            }
+            noDataComponent={
+              <div className="p-5 text-center">
+                <i className="fas fa-folder-open text-muted mb-3" style={{ fontSize: 48, opacity: 0.4 }}></i>
+                <div className="fw-semibold text-secondary mb-1">No leads found</div>
+                <div className="small text-muted">Try adjusting your filters or check back later</div>
+              </div>
+            }
             customStyles={{
               rows: {
                 style: {
                   fontSize: '0.875rem',
+                  minHeight: '48px',
                 },
               },
               headCells: {
                 style: {
                   fontWeight: '600',
-                  fontSize: '0.8rem',
+                  fontSize: '0.75rem',
                   textTransform: 'uppercase',
                   letterSpacing: '0.5px',
+                  color: '#64748b',
+                  backgroundColor: '#f8fafc',
+                  borderBottom: '1px solid #e2e8f0',
+                },
+              },
+              cells: {
+                style: {
+                  paddingLeft: '16px',
+                  paddingRight: '16px',
+                },
+              },
+              pagination: {
+                style: {
+                  borderTop: '1px solid #e2e8f0',
+                  backgroundColor: '#f8fafc',
                 },
               },
             }}
           />
-        </Card.Body>
-      </Card>
+        </div>
+      </div>
     </div>
   );
 }

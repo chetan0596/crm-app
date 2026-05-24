@@ -224,10 +224,12 @@ export default function WarehouseMaster() {
         </Card.Header>
         <Card.Body className="p-0">
           <DataTable
+          className="modern-datatable"
             columns={columns}
             data={warehouses}
             progressPending={loading}
-            persistTableHead
+          progressComponent={<div className="p-4 text-center"><div className="spinner-border spinner-border-sm me-2"></div>Loading...</div>}
+persistTableHead
             pagination
             paginationServer
             paginationTotalRows={total}
@@ -238,8 +240,14 @@ export default function WarehouseMaster() {
             striped
             dense
             keyField="id"
+          noDataComponent={
+            <div className="p-5 text-center">
+              <i className="fas fa-folder-open text-muted mb-3" style={{ fontSize: 48, opacity: 0.4 }}></i>
+              <div className="fw-semibold text-secondary mb-1">No data found</div>
+              <div className="small text-muted">Try adjusting your filters or check back later</div>
+            </div>
+          }
           />
-        </Card.Body>
       </Card>
 
       {/* Add/Edit Modal */}
