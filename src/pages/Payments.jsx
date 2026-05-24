@@ -577,6 +577,7 @@ persistTableHead
             </div>
           }
             />
+          ) : (
             <DataTable
               columns={outstandingColumns}
               data={outstanding}

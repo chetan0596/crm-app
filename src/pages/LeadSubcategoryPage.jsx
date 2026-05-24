@@ -363,6 +363,7 @@ export default function LeadSubcategoryPage() {
             </div>
           }
           />
+        </div>
       </div>
 
       <Modal show={show} onHide={() => setShow(false)} backdrop="static">

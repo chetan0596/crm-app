@@ -248,6 +248,7 @@ persistTableHead
             </div>
           }
           />
+        </Card.Body>
       </Card>
 
       {/* Add/Edit Modal */}

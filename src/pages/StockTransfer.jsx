@@ -317,6 +317,7 @@ persistTableHead
             </div>
           }
           />
+        </Card.Body>
       </Card>
 
       {/* Create Transfer Modal */}
