@@ -36,7 +36,7 @@ function tableReducer(state, action) {
     case "FILTERS":
       return { ...state, filters: { ...state.filters, ...action.filters }, page: 1 };
     case "RESET_FILTERS":
-      return { ...state, filters: { stage: "", source: "", tags: [], assigned_to: "", created_by: "" }, page: 1 };
+      return { ...state, filters: { stage: "", source: "", product_name: "", tags: [], assigned_to: "", created_by: "" }, page: 1 };
     default:
       return state;
   }
@@ -80,6 +80,7 @@ export default function Leads() {
     filters: {
       stage: params.get("stage") || "",
       source: params.get("source") || "",
+      product_name: params.get("product_name") || "",
       tags: params.get("tags") ? params.get("tags").split(",") : [],
       assigned_to: params.get("assigned_to") || "",
       created_by: params.get("created_by") || "",
@@ -113,6 +114,7 @@ export default function Leads() {
   // Filter inputs state
   const [filterStage, setFilterStage] = useState(initialTable.filters.stage);
   const [filterSource, setFilterSource] = useState(initialTable.filters.source);
+  const [filterProductName, setFilterProductName] = useState(initialTable.filters.product_name);
   const [filterTags, setFilterTags] = useState(initialTable.filters.tags);
   const [filterAssignee, setFilterAssignee] = useState(initialTable.filters.assigned_to);
   const [filterCreatedBy, setFilterCreatedBy] = useState(initialTable.filters.created_by);
@@ -228,6 +230,7 @@ export default function Leads() {
       dir: table.sortDir,
       ...(table.filters.stage && { stage: table.filters.stage }),
       ...(table.filters.source && { source: table.filters.source }),
+      ...(table.filters.product_name && { product_name: table.filters.product_name }),
       ...(table.filters.tags.length && { tags: table.filters.tags.join(",") }),
       ...(table.filters.assigned_to && { assigned_to: table.filters.assigned_to }),
       ...(table.filters.created_by && { created_by: table.filters.created_by }),
@@ -253,28 +256,27 @@ export default function Leads() {
     return () => clearTimeout(t);
   }, [searchInput, table.search]);
 
-  const load = async (signal) => {
+  const buildWithQuery = useMemo(() => {
+    const withParts = ['tags', 'activities'];
+    if (visibleCols.category) withParts.push('category');
+    if (visibleCols.subcategory) withParts.push('subcategory');
+    if (visibleCols.state) withParts.push('state');
+    if (visibleCols.city) withParts.push('city');
+    if (visibleCols.stage) withParts.push('leadStage');
+    if (visibleCols.source) withParts.push('leadSource');
+    return withParts.join(',');
+  }, [visibleCols.category, visibleCols.subcategory, visibleCols.state, visibleCols.city, visibleCols.stage, visibleCols.source]);
+
+  const loadTable = async (signal) => {
     if (!canViewLeads) return;
-    
     try {
       setLoading(true);
-
-      // Build optional eager loads based on visible columns
-      const withParts = ['tags', 'activities']; // always include tags and activities for modals and last activity column
-      if (visibleCols.category) withParts.push('category');
-      if (visibleCols.subcategory) withParts.push('subcategory');
-      if (visibleCols.state) withParts.push('state');
-      if (visibleCols.city) withParts.push('city');
-      if (visibleCols.stage) withParts.push('leadStage');
-      if (visibleCols.source) withParts.push('leadSource');
-      // Always include assignee and creator (base)
-      const withQuery = withParts.join(',');
-
       const r = await api.get('/leads', {
         params: {
           ...table,
           stage: table.filters.stage,
           source: table.filters.source,
+          product_name: table.filters.product_name,
           tags: table.filters.tags.join(","),
           assigned_to: table.filters.assigned_to,
           created_by: table.filters.created_by,
@@ -282,60 +284,51 @@ export default function Leads() {
           created_to: table.filters.created_to,
           activity_from: table.filters.activity_from,
           activity_to: table.filters.activity_to,
-          with: withQuery,
+          with: buildWithQuery,
         },
         signal,
       });
 
       const payload = r.data;
-
       if (payload && Array.isArray(payload.data)) {
-        setServerMode(true);
-        setRows(payload.data);
-        setTotal(Number(payload.total) || 0);
-        setRawRows([]);
+        setServerMode(true); setRows(payload.data); setTotal(Number(payload.total) || 0); setRawRows([]);
       } else if (payload && Array.isArray(payload.data?.data)) {
-        setServerMode(true);
-        setRows(payload.data.data);
-        setTotal(Number(payload.data.total) || 0);
-        setRawRows([]);
+        setServerMode(true); setRows(payload.data.data); setTotal(Number(payload.data.total) || 0); setRawRows([]);
       } else if (Array.isArray(payload?.data)) {
-        setServerMode(false);
-        setRawRows(payload.data);
+        setServerMode(false); setRawRows(payload.data);
       } else if (Array.isArray(payload)) {
-        setServerMode(false);
-        setRawRows(payload);
+        setServerMode(false); setRawRows(payload);
       } else {
-        setServerMode(false);
-        setRawRows([]);
+        setServerMode(false); setRawRows([]);
       }
-
-      // Parallel master data fetch with cache
-      await Promise.allSettled([
-        fetchWithCache('categories', '/lead-categories?perPage=200', setCategories),
-        fetchWithCache('subcategories', '/lead-subcategories?perPage=200', setSubcategories),
-        fetchWithCache('leadSources', '/lead-sources?perPage=200', setLeadSources),
-        fetchWithCache('leadStages', '/lead-stages?perPage=200', setLeadStages),
-        fetchWithCache('users', '/leads/assignable-users', setUsers), // Only users that can be assigned to
-        fetchWithCache('tags', '/lead-tags?perPage=200', setTags),
-        fetchWithCache('states', '/states?perPage=200', setStates),
-      ]);
-
     } catch {
-      setServerMode(false);
-      setRawRows([]);
-      setRows([]);
-      setTotal(0);
+      setServerMode(false); setRawRows([]); setRows([]); setTotal(0);
     } finally {
       setLoading(false);
     }
   };
 
+  const loadDropdowns = async () => {
+    await Promise.allSettled([
+      fetchWithCache('categories', '/lead-categories?perPage=200', setCategories),
+      fetchWithCache('subcategories', '/lead-subcategories?perPage=200', setSubcategories),
+      fetchWithCache('leadSources', '/lead-sources?perPage=200', setLeadSources),
+      fetchWithCache('leadStages', '/lead-stages?perPage=200', setLeadStages),
+      fetchWithCache('users', '/leads/assignable-users', setUsers),
+      fetchWithCache('tags', '/lead-tags?perPage=200', setTags),
+      fetchWithCache('states', '/states?perPage=200', setStates),
+    ]);
+  };
+
   useEffect(() => {
     const controller = new AbortController();
-    load(controller.signal);
+    loadTable(controller.signal);
     return () => controller.abort();
-  }, [reloadKey, table, canViewLeads, visibleCols]);
+  }, [reloadKey, table, canViewLeads, buildWithQuery]);
+
+  useEffect(() => {
+    loadDropdowns();
+  }, [reloadKey]);
 
   // Debounced filter updates
   useEffect(() => {
@@ -343,6 +336,7 @@ export default function Leads() {
       const newFilters = {
         stage: filterStage,
         source: filterSource,
+        product_name: filterProductName,
         tags: filterTags,
         assigned_to: filterAssignee,
         created_by: filterCreatedBy,
@@ -354,13 +348,13 @@ export default function Leads() {
       const currentFilters = table.filters;
       
       // Check if all filters are empty (reset state)
-      const allEmpty = !newFilters.stage && !newFilters.source &&
+      const allEmpty = !newFilters.stage && !newFilters.source && !newFilters.product_name &&
                       !newFilters.tags.length && !newFilters.assigned_to &&
                       !newFilters.created_by &&
                       !newFilters.created_from && !newFilters.created_to &&
                       !newFilters.activity_from && !newFilters.activity_to;
       
-      const currentEmpty = !currentFilters.stage && !currentFilters.source &&
+      const currentEmpty = !currentFilters.stage && !currentFilters.source && !currentFilters.product_name &&
                          !currentFilters.tags.length && !currentFilters.assigned_to &&
                          !currentFilters.created_by &&
                          !currentFilters.created_from && !currentFilters.created_to &&
@@ -372,6 +366,7 @@ export default function Leads() {
       if (
         newFilters.stage !== currentFilters.stage ||
         newFilters.source !== currentFilters.source ||
+        newFilters.product_name !== currentFilters.product_name ||
         JSON.stringify(newFilters.tags) !== JSON.stringify(currentFilters.tags) ||
         newFilters.assigned_to !== currentFilters.assigned_to ||
         newFilters.created_by !== currentFilters.created_by ||
@@ -385,7 +380,7 @@ export default function Leads() {
     }, 400);
 
     return () => clearTimeout(t);
-  }, [filterStage, filterSource, filterTags, filterAssignee, filterCreatedBy, filterCreatedFrom, filterCreatedTo, filterActivityFrom, filterActivityTo, table.filters]);
+  }, [filterStage, filterSource, filterProductName, filterTags, filterAssignee, filterCreatedBy, filterCreatedFrom, filterCreatedTo, filterActivityFrom, filterActivityTo, table.filters]);
 
   useEffect(() => {
     const loadCities = async () => {
@@ -659,6 +654,7 @@ export default function Leads() {
   const clearFilters = () => {
     setFilterStage("");
     setFilterSource("");
+    setFilterProductName("");
     setFilterTags([]);
     setFilterAssignee("");
     setFilterCreatedBy("");
@@ -670,7 +666,7 @@ export default function Leads() {
     dispatch({ type: "RESET_FILTERS" });
   };
 
-  const hasActiveFilters = filterStage || filterSource || filterTags.length || filterAssignee || filterCreatedBy || filterCreatedFrom || filterCreatedTo || filterActivityFrom || filterActivityTo;
+  const hasActiveFilters = filterStage || filterSource || filterProductName || filterTags.length || filterAssignee || filterCreatedBy || filterCreatedFrom || filterCreatedTo || filterActivityFrom || filterActivityTo;
 
   // ================= TABLE =================
 
@@ -869,6 +865,16 @@ export default function Leads() {
                           <option key={s.id ?? s.name} value={s.name}>{s.name}</option>
                         ))}
                       </Form.Select>
+                    </div>
+                    <div className="mb-2">
+                      <label className="small fw-semibold text-muted">Product</label>
+                      <Form.Control
+                        size="sm"
+                        type="text"
+                        placeholder="Search product..."
+                        value={filterProductName}
+                        onChange={(e) => setFilterProductName(e.target.value)}
+                      />
                     </div>
                     <div className="mb-2">
                       <label className="small fw-semibold text-muted">Assignee</label>

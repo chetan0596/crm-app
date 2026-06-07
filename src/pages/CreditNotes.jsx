@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useReducer, useRef, useState } from "react";
+import { useEffect, useMemo, useReducer, useRef, useState, useCallback } from "react";
 import { useSearchParams } from "react-router-dom";
 import DataTable from "react-data-table-component";
 import { Modal, Button, Form, Badge, Row, Col, Table } from "react-bootstrap";
@@ -66,26 +66,34 @@ export default function CreditNotes() {
     return () => clearTimeout(t);
   }, [searchInput, table.search]);
 
-  const load = async (signal) => {
+  const loadTable = async (signal) => {
     if (!canViewNotes) return;
     setLoading(true);
     try {
-      const [notesRes, salesRes, itemsRes, warehousesRes] = await Promise.all([
-        api.get("/credit-notes", { params: table, signal }),
-        api.get("/sales", { params: { perPage: 1000 }, signal }),
-        api.get("/items", { params: { perPage: 1000 }, signal }),
-        api.get("/warehouses/list", { signal })
-      ]);
-      setRows(notesRes.data.data || []);
-      setTotal(notesRes.data.total || 0);
-      setSales(salesRes.data.data || []);
-      setItems(itemsRes.data.data || []);
-      setWarehouses(warehousesRes.data.data || []);
+      const res = await api.get("/credit-notes", { params: table, signal });
+      setRows(res.data.data || []);
+      setTotal(res.data.total || 0);
     } catch { setRows([]); setTotal(0); }
     finally { setLoading(false); }
   };
 
-  useEffect(() => { const controller = new AbortController(); load(controller.signal); return () => controller.abort(); }, [table, reloadKey, canViewNotes]);
+  const loadDropdowns = async (signal) => {
+    const [salesRes, itemsRes, warehousesRes] = await Promise.allSettled([
+      api.get("/sales", { params: { perPage: 200 }, signal }),
+      api.get("/items", { params: { perPage: 200 }, signal }),
+      api.get("/warehouses/list", { signal })
+    ]);
+    if (salesRes.status === 'fulfilled') setSales(salesRes.value.data.data || []);
+    else { setSales([]); toast.error("Failed to load sales"); }
+    if (itemsRes.status === 'fulfilled') setItems(itemsRes.value.data.data || []);
+    else { setItems([]); toast.error("Failed to load items"); }
+    if (warehousesRes.status === 'fulfilled') setWarehouses(warehousesRes.value.data.data || []);
+    else { setWarehouses([]); toast.error("Failed to load warehouses"); }
+  };
+
+  useEffect(() => { const controller = new AbortController(); loadTable(controller.signal); return () => controller.abort(); }, [table, reloadKey, canViewNotes]);
+
+  useEffect(() => { const controller = new AbortController(); loadDropdowns(controller.signal); return () => controller.abort(); }, [reloadKey]);
 
   const selectSale = (saleId) => {
     const sale = sales.find(s => String(s.id) === String(saleId));

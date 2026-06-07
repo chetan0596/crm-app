@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useReducer, useState } from "react";
+import { useEffect, useMemo, useReducer, useState, useCallback } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import DataTable from "react-data-table-component";
 import { Modal, Button, Form, Dropdown, Row, Col, Table } from "react-bootstrap";
@@ -94,31 +94,55 @@ export default function Purchase() {
     return () => clearTimeout(t);
   }, [searchInput, table.search]);
 
-  const load = async (signal) => {
+  const loadTable = async (signal) => {
     try {
       setLoading(true);
-      const [purchaseRes, vendorRes, itemRes, taxRes, warehouseRes] = await Promise.all([
-        api.get("/purchases", { params: table, signal }),
-        api.get("/vendors", { params: { perPage: 1000 }, signal }),
-        api.get("/items", { params: { perPage: 1000 }, signal }),
-        api.get("/taxes", { params: { perPage: 1000 }, signal }),
-        api.get("/warehouses/list", { signal }),
-      ]);
-      setRows(purchaseRes.data.data || []);
-      setTotal(purchaseRes.data.total || 0);
-      setVendors(vendorRes.data.data || []);
-      setItems(itemRes.data.data || []);
-      setTaxes(taxRes.data.data || []);
-      setWarehouses(warehouseRes.data.data || []);
-    } catch { setRows([]); setTotal(0); }
-    finally { setLoading(false); }
+      const res = await api.get("/purchases", { params: table, signal });
+      setRows(res.data.data || []);
+      setTotal(res.data.total || 0);
+    } catch {
+      setRows([]); setTotal(0);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadDropdowns = async (signal) => {
+    const [vendorRes, itemRes, taxRes, warehouseRes] = await Promise.allSettled([
+      api.get("/vendors", { params: { perPage: 200 }, signal }),
+      api.get("/items", { params: { perPage: 200 }, signal }),
+      api.get("/taxes", { params: { perPage: 200 }, signal }),
+      api.get("/warehouses/list", { signal }),
+    ]);
+
+    if (vendorRes.status === 'fulfilled') {
+      setVendors(vendorRes.value.data.data || []);
+    } else { setVendors([]); toast.error("Failed to load vendors"); }
+
+    if (itemRes.status === 'fulfilled') {
+      setItems(itemRes.value.data.data || []);
+    } else { setItems([]); toast.error("Failed to load items"); }
+
+    if (taxRes.status === 'fulfilled') {
+      setTaxes(taxRes.value.data.data || []);
+    } else { setTaxes([]); toast.error("Failed to load taxes"); }
+
+    if (warehouseRes.status === 'fulfilled') {
+      setWarehouses(warehouseRes.value.data.data || []);
+    } else { setWarehouses([]); toast.error("Failed to load warehouses"); }
   };
 
   useEffect(() => {
     const controller = new AbortController();
-    load(controller.signal);
+    loadTable(controller.signal);
     return () => controller.abort();
   }, [table, reloadKey]);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    loadDropdowns(controller.signal);
+    return () => controller.abort();
+  }, [reloadKey]);
 
   const generateBillNumber = () => {
     if (!rows || rows.length === 0) return 'PUR001';
@@ -153,7 +177,7 @@ export default function Purchase() {
     setShow(true);
   };
 
-  const openEdit = (row) => {
+  const openEdit = useCallback((row) => {
     setEditingId(row.id);
     setForm({
       vendor_id: row.vendor_id || "",
@@ -174,18 +198,30 @@ export default function Purchase() {
       items: row.items?.map(it => ({ item_id: it.item_id, quantity: it.quantity, price: it.price, tax_id: it.tax_id || null, discount: it.discount || 0 })) || [{ item_id: "", quantity: 1, price: 0, tax_id: null, discount: 0 }]
     });
     setShow(true);
-  };
+  }, []);
 
-  const viewPurchase = (row) => {
+  const viewPurchase = useCallback((row) => {
     setViewData(row);
     setViewShow(true);
-  };
+  }, []);
 
-  const handleDownloadPDF = (row) => {
-    const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
-    const url = `${baseUrl}/purchase/${row.id}/download`;
-    window.open(url, '_blank');
-  };
+  const handleDownloadPDF = useCallback(async (row) => {
+    try {
+      const res = await api.get(`/purchases/${row.id}/download-pdf`, {
+        responseType: 'blob',
+      });
+      const blob = new Blob([res.data], { type: 'application/pdf' });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = `purchase-${row.bill_number || row.id}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(link.href);
+    } catch (err) {
+      toast.error('Failed to download PDF');
+    }
+  }, []);
 
   const addItemRow = () => {
     setForm(f => ({ ...f, items: [...f.items, { item_id: "", quantity: 1, price: 0, tax_id: null, discount: 0 }] }));
@@ -331,7 +367,7 @@ export default function Purchase() {
     }
   };
 
-  const deletePurchase = (row) => {
+  const deletePurchase = useCallback((row) => {
     Swal.fire({
       title: "Delete purchase?",
       text: `Bill #${row.bill_number}?`,
@@ -344,7 +380,7 @@ export default function Purchase() {
         toast.success("Purchase deleted");
       } catch { toast.error("Delete failed"); }
     });
-  };
+  }, []);
 
   const columns = useMemo(() => {
     const all = [
@@ -367,10 +403,22 @@ export default function Purchase() {
       },
     ];
     return all.filter(Boolean);
-  }, [visibleCols]);
+  }, [visibleCols, viewPurchase, handleDownloadPDF, openEdit, deletePurchase]);
 
-  const totals = calculateTotals();
+  const totals = useMemo(() => calculateTotals(), [form]);
   const { subtotal, discount, discountPercentage, tax, addlessAmount, grandTotal, cgst, sgst, igst } = totals;
+
+  const progressComponent = useMemo(() => (
+    <div className="p-4 text-center"><div className="spinner-border spinner-border-sm me-2"></div>Loading...</div>
+  ), []);
+
+  const noDataComponent = useMemo(() => (
+    <div className="p-5 text-center">
+      <i className="fas fa-folder-open text-muted mb-3" style={{ fontSize: 48, opacity: 0.4 }}></i>
+      <div className="fw-semibold text-secondary mb-1">No data found</div>
+      <div className="small text-muted">Try adjusting your filters or check back later</div>
+    </div>
+  ), []);
 
   return (
     <div className="card card-outline card-primary">
@@ -414,14 +462,8 @@ export default function Purchase() {
           onChangePage={(p) => p !== table.page && dispatch({ type: "PAGE", page: p })}
           onChangeRowsPerPage={(n) => n !== table.perPage && dispatch({ type: "PER_PAGE", perPage: n })}
           sortServer onSort={(col, dir) => col.sortField && dispatch({ type: "SORT", field: col.sortField, dir })}
-          progressComponent={<div className="p-4 text-center"><div className="spinner-border spinner-border-sm me-2"></div>Loading...</div>}
-          noDataComponent={
-            <div className="p-5 text-center">
-              <i className="fas fa-folder-open text-muted mb-3" style={{ fontSize: 48, opacity: 0.4 }}></i>
-              <div className="fw-semibold text-secondary mb-1">No data found</div>
-              <div className="small text-muted">Try adjusting your filters or check back later</div>
-            </div>
-          }
+          progressComponent={progressComponent}
+          noDataComponent={noDataComponent}
           striped highlightOnHover dense keyField="id" />
       </div>
 
@@ -515,27 +557,20 @@ export default function Purchase() {
                 <Form.Group className="mb-0">
                   <Form.Label className="fw-bold small">Tax (GST) Type</Form.Label>
                   <div className="d-flex gap-3">
-                    <Form.Check 
-                      type="radio" 
-                      label="CGST/SGST" 
-                      name="gst_type" 
-                      value="CGST/SGST" 
+                    <Form.Check
+                      type="radio"
+                      label="CGST/SGST"
+                      name="gst_type"
+                      value="CGST/SGST"
                       checked={form.gst_type === 'CGST/SGST'}
                       onChange={e => setForm(f => ({ ...f, gst_type: e.target.value }))}
                       disabled={form.invoice_type === 'Retail'}
-          progressComponent={<div className="p-4 text-center"><div className="spinner-border spinner-border-sm me-2"></div>Loading...</div>}
-          noDataComponent={
-            <div className="p-5 text-center">
-              <i className="fas fa-folder-open text-muted mb-3" style={{ fontSize: 48, opacity: 0.4 }}></i>
-              <div className="fw-semibold text-secondary mb-1">No data found</div>
-              <div className="small text-muted">Try adjusting your filters or check back later</div>
-            </div>
-          }
                     />
-                      type="radio" 
-                      label="IGST" 
-                      name="gst_type" 
-                      value="IGST" 
+                    <Form.Check
+                      type="radio"
+                      label="IGST"
+                      name="gst_type"
+                      value="IGST"
                       checked={form.gst_type === 'IGST'}
                       onChange={e => setForm(f => ({ ...f, gst_type: e.target.value }))}
                       disabled={form.invoice_type === 'Retail'}

@@ -1,10 +1,11 @@
-import { useEffect, useMemo, useReducer, useState } from "react";
+import { useEffect, useMemo, useReducer, useState, useCallback } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import DataTable from "react-data-table-component";
 import { Modal, Button, Form, Dropdown, Row, Col, Table } from "react-bootstrap";
 import Swal from "sweetalert2";
 import { toast } from "react-toastify";
 import api from "../api";
+import WhatsAppSendModal from "../components/WhatsAppSendModal";
 
 const tableReducer = (state, action) => {
   switch (action.type) {
@@ -46,6 +47,8 @@ export default function Sales() {
   const [show, setShow] = useState(false);
   const [viewShow, setViewShow] = useState(false);
   const [viewData, setViewData] = useState(null);
+  const [waShow, setWaShow] = useState(false);
+  const [waTarget, setWaTarget] = useState(null);
 
   const [form, setForm] = useState({
     customer_id: "", 
@@ -83,31 +86,63 @@ export default function Sales() {
     return () => clearTimeout(t);
   }, [searchInput, table.search]);
 
-  const load = async (signal) => {
+  const loadTable = async (signal) => {
     try {
       setLoading(true);
-      const [salesRes, custRes, itemRes, taxRes, warehouseRes] = await Promise.all([
-        api.get("/sales", { params: table, signal }),
-        api.get("/customers", { params: { perPage: 1000 }, signal }),
-        api.get("/items", { params: { perPage: 1000 }, signal }),
-        api.get("/taxes", { params: { perPage: 1000 }, signal }),
-        api.get("/warehouses/list", { signal })
-      ]);
-      setRows(salesRes.data.data || []);
-      setTotal(salesRes.data.total || 0);
-      setCustomers(custRes.data.data || []);
-      setItems(itemRes.data.data || []);
-      setTaxes(taxRes.data.data || []);
-      setWarehouses(warehouseRes.data.data || []);
-    } catch { setRows([]); setTotal(0); }
-    finally { setLoading(false); }
+      const res = await api.get("/sales", { params: table, signal });
+      setRows(res.data.data || []);
+      setTotal(res.data.total || 0);
+    } catch {
+      setRows([]); setTotal(0);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadDropdowns = async (signal) => {
+    const [custRes, itemRes, taxRes, warehouseRes] = await Promise.allSettled([
+      api.get("/customers", { params: { perPage: 200 }, signal }),
+      api.get("/items", { params: { perPage: 200 }, signal }),
+      api.get("/taxes", { params: { perPage: 200 }, signal }),
+      api.get("/warehouses/list", { signal }),
+    ]);
+
+    if (custRes.status === 'fulfilled') {
+      setCustomers(custRes.value.data.data || []);
+    } else {
+      setCustomers([]); toast.error("Failed to load customers");
+    }
+
+    if (itemRes.status === 'fulfilled') {
+      setItems(itemRes.value.data.data || []);
+    } else {
+      setItems([]); toast.error("Failed to load items");
+    }
+
+    if (taxRes.status === 'fulfilled') {
+      setTaxes(taxRes.value.data.data || []);
+    } else {
+      setTaxes([]); toast.error("Failed to load taxes");
+    }
+
+    if (warehouseRes.status === 'fulfilled') {
+      setWarehouses(warehouseRes.value.data.data || []);
+    } else {
+      setWarehouses([]); toast.error("Failed to load warehouses");
+    }
   };
 
   useEffect(() => {
     const controller = new AbortController();
-    load(controller.signal);
+    loadTable(controller.signal);
     return () => controller.abort();
   }, [table, reloadKey]);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    loadDropdowns(controller.signal);
+    return () => controller.abort();
+  }, [reloadKey]);
 
   // Recalculate tax when tax_type or gst_type changes
   useEffect(() => {
@@ -162,7 +197,7 @@ export default function Sales() {
     setShow(true);
   };
 
-  const openEdit = (row) => {
+  const openEdit = useCallback((row) => {
     setEditingId(row.id);
     setForm({
       customer_id: row.customer_id || "",
@@ -183,18 +218,30 @@ export default function Sales() {
       items: row.items?.map(it => ({ item_id: it.item_id, quantity: it.quantity, price: it.price, tax_id: it.tax_id || null, discount: it.discount || 0 })) || [{ item_id: "", quantity: 1, price: 0, tax_id: null, discount: 0 }]
     });
     setShow(true);
-  };
+  }, []);
 
-  const viewSale = (row) => {
+  const viewSale = useCallback((row) => {
     setViewData(row);
     setViewShow(true);
-  };
+  }, []);
 
-  const handleDownloadPDF = (row) => {
-    const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
-    const url = `${baseUrl}/invoice/${row.id}/download`;
-    window.open(url, '_blank');
-  };
+  const handleDownloadPDF = useCallback(async (row) => {
+    try {
+      const res = await api.get(`/sales/${row.id}/download-pdf`, {
+        responseType: 'blob',
+      });
+      const blob = new Blob([res.data], { type: 'application/pdf' });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = `invoice-${row.bill_number || row.id}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(link.href);
+    } catch (err) {
+      toast.error('Failed to download PDF');
+    }
+  }, []);
 
   const addItemRow = () => {
     setForm(f => ({ ...f, items: [...f.items, { item_id: "", quantity: 1, price: 0, tax_id: null, discount: 0 }] }));
@@ -438,7 +485,7 @@ export default function Sales() {
     }
   };
 
-  const deleteSale = (row) => {
+  const deleteSale = useCallback((row) => {
     Swal.fire({
       title: "Delete sale?",
       text: `Invoice #${row.invoice_number}?`,
@@ -451,7 +498,7 @@ export default function Sales() {
         toast.success("Sale deleted");
       } catch { toast.error("Delete failed"); }
     });
-  };
+  }, []);
 
   const columns = useMemo(() => {
     const all = [
@@ -470,15 +517,32 @@ export default function Sales() {
             <button className="btn btn-outline-success" onClick={() => handleDownloadPDF(row)} title="Download PDF"><i className="fas fa-file-pdf"></i></button>
             <button className="btn btn-outline-primary" onClick={() => openEdit(row)}><i className="fas fa-edit"></i></button>
             <button className="btn btn-outline-danger" onClick={() => deleteSale(row)}><i className="fas fa-trash"></i></button>
+            {row.customer?.phone && (
+              <button className="btn btn-outline-success" onClick={() => { setWaTarget(row); setWaShow(true); }} title="Send WhatsApp">
+                <i className="fab fa-whatsapp"></i>
+              </button>
+            )}
           </div>
         ),
       },
     ];
     return all.filter(Boolean);
-  }, [visibleCols]);
+  }, [visibleCols, viewSale, handleDownloadPDF, openEdit, deleteSale]);
 
-  const totals = calculateTotals();
+  const totals = useMemo(() => calculateTotals(), [form]);
   const { subtotal, discount, discountPercentage, tax, addlessAmount, grandTotal, cgst, sgst, igst } = totals;
+
+  const progressComponent = useMemo(() => (
+    <div className="p-4 text-center"><div className="spinner-border spinner-border-sm me-2"></div>Loading...</div>
+  ), []);
+
+  const noDataComponent = useMemo(() => (
+    <div className="p-5 text-center">
+      <i className="fas fa-folder-open text-muted mb-3" style={{ fontSize: 48, opacity: 0.4 }}></i>
+      <div className="fw-semibold text-secondary mb-1">No data found</div>
+      <div className="small text-muted">Try adjusting your filters or check back later</div>
+    </div>
+  ), []);
 
   return (
     <div className="card card-outline card-primary">
@@ -522,14 +586,8 @@ export default function Sales() {
           onChangePage={(p) => p !== table.page && dispatch({ type: "PAGE", page: p })}
           onChangeRowsPerPage={(n) => n !== table.perPage && dispatch({ type: "PER_PAGE", perPage: n })}
           sortServer onSort={(col, dir) => col.sortField && dispatch({ type: "SORT", field: col.sortField, dir })}
-          progressComponent={<div className="p-4 text-center"><div className="spinner-border spinner-border-sm me-2"></div>Loading...</div>}
-          noDataComponent={
-            <div className="p-5 text-center">
-              <i className="fas fa-folder-open text-muted mb-3" style={{ fontSize: 48, opacity: 0.4 }}></i>
-              <div className="fw-semibold text-secondary mb-1">No data found</div>
-              <div className="small text-muted">Try adjusting your filters or check back later</div>
-            </div>
-          }
+          progressComponent={progressComponent}
+          noDataComponent={noDataComponent}
           striped highlightOnHover dense keyField="id" />
       </div>
 
@@ -632,27 +690,20 @@ export default function Sales() {
                 <Form.Group className="mb-0">
                   <Form.Label className="fw-bold small">Tax (GST) Type</Form.Label>
                   <div className="d-flex gap-3">
-                    <Form.Check 
-                      type="radio" 
-                      label="CGST/SGST" 
-                      name="gst_type" 
-                      value="CGST/SGST" 
+                    <Form.Check
+                      type="radio"
+                      label="CGST/SGST"
+                      name="gst_type"
+                      value="CGST/SGST"
                       checked={form.gst_type === 'CGST/SGST'}
                       onChange={e => setForm(f => ({ ...f, gst_type: e.target.value }))}
                       disabled={form.invoice_type === 'Retail'}
-          progressComponent={<div className="p-4 text-center"><div className="spinner-border spinner-border-sm me-2"></div>Loading...</div>}
-          noDataComponent={
-            <div className="p-5 text-center">
-              <i className="fas fa-folder-open text-muted mb-3" style={{ fontSize: 48, opacity: 0.4 }}></i>
-              <div className="fw-semibold text-secondary mb-1">No data found</div>
-              <div className="small text-muted">Try adjusting your filters or check back later</div>
-            </div>
-          }
                     />
-                      type="radio" 
-                      label="IGST" 
-                      name="gst_type" 
-                      value="IGST" 
+                    <Form.Check
+                      type="radio"
+                      label="IGST"
+                      name="gst_type"
+                      value="IGST"
                       checked={form.gst_type === 'IGST'}
                       onChange={e => setForm(f => ({ ...f, gst_type: e.target.value }))}
                       disabled={form.invoice_type === 'Retail'}
@@ -884,6 +935,15 @@ export default function Sales() {
           <Button variant="secondary" onClick={() => setViewShow(false)}>Close</Button>
         </Modal.Footer>
       </Modal>
+
+      <WhatsAppSendModal
+        show={waShow}
+        onHide={() => setWaShow(false)}
+        toNumber={waTarget?.customer?.phone}
+        toName={waTarget?.customer?.name}
+        contextType="sale"
+        contextId={waTarget?.id}
+      />
     </div>
   );
 }

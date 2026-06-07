@@ -93,6 +93,7 @@ export default function SidebarNavigation({ closeSidebar }) {
             {canView('follow-ups') && <MenuLink to="/follow-ups" icon="fas fa-calendar-check" label="Follow-ups" closeSidebar={closeSidebar} />}
             {canView('lead-integrations') && <MenuLink to="/lead-source-integrations" icon="fas fa-plug" label="Integrations" closeSidebar={closeSidebar} />}
             {canView('webhooks') && <MenuLink to="/webhooks" icon="fas fa-link" label="Webhooks" closeSidebar={closeSidebar} />}
+            {canView('whatsapp-settings') && <MenuLink to="/whatsapp-settings" icon="fab fa-whatsapp" label="WhatsApp" closeSidebar={closeSidebar} />}
           </SubMenu>
         )}
 

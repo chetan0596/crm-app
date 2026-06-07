@@ -42,10 +42,12 @@ export default function Reports() {
   const [pipelineData, setPipelineData] = useState(null);
   const [teamData, setTeamData] = useState(null);
   const [sourceData, setSourceData] = useState(null);
+  const [productData, setProductData] = useState(null);
   const [activityData, setActivityData] = useState(null);
   const [funnelData, setFunnelData] = useState(null);
   const [agingData, setAgingData] = useState(null);
   const [trendsData, setTrendsData] = useState(null);
+  const [followupReportData, setFollowupReportData] = useState(null);
 
   // Build query params with filters
   const buildParams = () => {
@@ -142,10 +144,12 @@ export default function Reports() {
     if (activeTab === "pipeline") fetchPipeline();
     if (activeTab === "team") fetchTeamPerformance();
     if (activeTab === "source") fetchSourceAnalysis();
+    if (activeTab === "product") fetchProductAnalysis();
     if (activeTab === "activity") fetchActivitySummary();
     if (activeTab === "funnel") fetchFunnelData();
     if (activeTab === "aging") fetchAgingData();
     if (activeTab === "trends") fetchTrendsData();
+    if (activeTab === "followups") fetchFollowupReport();
   };
 
   const saveSettings = async () => {
@@ -201,6 +205,18 @@ export default function Reports() {
     }
   };
 
+  const fetchProductAnalysis = async () => {
+    try {
+      setLoading(true);
+      const res = await api.get(`/reports/leads/product-analysis?${buildParams()}`);
+      setProductData(res.data.data);
+    } catch (e) {
+      toast.error("Failed to load product analysis report");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const fetchActivitySummary = async () => {
     try {
       setLoading(true);
@@ -220,6 +236,18 @@ export default function Reports() {
       setFunnelData(res.data.data);
     } catch (e) {
       toast.error("Failed to load conversion funnel");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchFollowupReport = async () => {
+    try {
+      setLoading(true);
+      const res = await api.get(`/reports/leads/followups?${buildParams()}`);
+      setFollowupReportData(res.data.data);
+    } catch (e) {
+      toast.error("Failed to load follow-up report");
     } finally {
       setLoading(false);
     }
@@ -725,6 +753,106 @@ export default function Reports() {
           )}
         </Tab>
 
+        {/* Product Analysis */}
+        <Tab eventKey="product" title="Product Analysis">
+          {loading && <div className="text-center py-4">Loading...</div>}
+          {!loading && productData && (
+            <>
+              <Row className="g-3 mb-4">
+                <Col md={4}>
+                  <Card className="text-center h-100">
+                    <Card.Body>
+                      <div className="text-secondary small">Total Sources</div>
+                      <div className="h4 mb-0">{productData.total_sources}</div>
+                    </Card.Body>
+                  </Card>
+                </Col>
+                <Col md={4}>
+                  <Card className="text-center h-100">
+                    <Card.Body>
+                      <div className="text-secondary small">Total Products</div>
+                      <div className="h4 mb-0">{productData.total_products}</div>
+                    </Card.Body>
+                  </Card>
+                </Col>
+                <Col md={4}>
+                  <Card className="text-center h-100">
+                    <Card.Body>
+                      <div className="text-secondary small">Top Product</div>
+                      <div className="h4 mb-0 text-primary">
+                        {productData.sources?.[0]?.products?.[0]?.product || "-"}
+                      </div>
+                      <div className="text-secondary small">
+                        {productData.sources?.[0]?.products?.[0]?.total || 0} leads
+                      </div>
+                    </Card.Body>
+                  </Card>
+                </Col>
+              </Row>
+
+              {productData.sources?.map((sourceGroup) => (
+                <Card key={sourceGroup.source_type} className="mb-4">
+                  <Card.Header className="bg-light d-flex justify-content-between align-items-center">
+                    <strong>{sourceGroup.source_label} — {sourceGroup.total_leads} leads</strong>
+                    <Button
+                      variant="outline-primary"
+                      size="sm"
+                      onClick={() =>
+                        exportToCSV(
+                          sourceGroup.products.map((p) => ({
+                            Product: p.product,
+                            Total: p.total,
+                            Won: p.won,
+                            Lost: p.lost,
+                            Open: p.open,
+                            "Conversion %": p.conversion_rate,
+                          })),
+                          `product_analysis_${sourceGroup.source_type}`
+                        )
+                      }
+                    >
+                      <i className="fas fa-download me-1"></i> CSV
+                    </Button>
+                  </Card.Header>
+                  <Card.Body className="p-0">
+                    <Table responsive hover className="mb-0">
+                      <thead className="table-light">
+                        <tr>
+                          <th>Product</th>
+                          <th className="text-end">Total</th>
+                          <th className="text-end">Won</th>
+                          <th className="text-end">Lost</th>
+                          <th className="text-end">Open</th>
+                          <th className="text-end">Conversion %</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {sourceGroup.products.map((item) => (
+                          <tr key={item.product}>
+                            <td>{item.product}</td>
+                            <td className="text-end">{item.total}</td>
+                            <td className="text-end text-success">{item.won}</td>
+                            <td className="text-end text-danger">{item.lost}</td>
+                            <td className="text-end text-primary">{item.open}</td>
+                            <td className="text-end">{item.conversion_rate}%</td>
+                          </tr>
+                        ))}
+                        {sourceGroup.products.length === 0 && (
+                          <tr>
+                            <td colSpan={6} className="text-muted text-center">
+                              No product data found.
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </Table>
+                  </Card.Body>
+                </Card>
+              ))}
+            </>
+          )}
+        </Tab>
+
         {/* Activity Summary */}
         <Tab eventKey="activity" title="Activity Summary">
           {loading && <div className="text-center py-4">Loading...</div>}
@@ -875,6 +1003,78 @@ export default function Reports() {
           )}
         </Tab>
 
+        {/* Follow-ups Report */}
+        <Tab eventKey="followups" title="Follow-ups">
+          {loading && <div className="text-center py-4">Loading...</div>}
+          {!loading && followupReportData && (
+            <>
+              <Row className="g-3 mb-4">
+                {[
+                  { label: "Today", value: followupReportData.summary?.today ?? 0, color: "#007bff" },
+                  { label: "Overdue", value: followupReportData.summary?.overdue ?? 0, color: "#dc3545" },
+                  { label: "Upcoming", value: followupReportData.summary?.upcoming ?? 0, color: "#28a745" },
+                  { label: "Not Scheduled", value: followupReportData.summary?.not_scheduled ?? 0, color: "#6c757d" },
+                ].map((c) => (
+                  <Col md={3} key={c.label}>
+                    <Card className="text-center h-100">
+                      <Card.Body>
+                        <div className="text-secondary small">{c.label}</div>
+                        <div className="h4 mb-0" style={{ color: c.color }}>{c.value}</div>
+                      </Card.Body>
+                    </Card>
+                  </Col>
+                ))}
+              </Row>
+
+              <Card>
+                <Card.Header className="bg-light d-flex justify-content-between align-items-center">
+                  <strong>Follow-up by Assignee</strong>
+                  <Button variant="outline-primary" size="sm"
+                    onClick={() => exportToCSV(
+                      followupReportData.by_assignee?.map(r => ({
+                        Assignee: r.assignee,
+                        Today: r.today,
+                        Overdue: r.overdue,
+                        Upcoming: r.upcoming,
+                        'Not Scheduled': r.not_scheduled,
+                        Total: r.total,
+                      })),
+                      "followup_report"
+                    )}>
+                    <i className="fas fa-download me-1"></i> Export CSV
+                  </Button>
+                </Card.Header>
+                <Card.Body className="p-0">
+                  <Table responsive hover className="mb-0">
+                    <thead className="table-light">
+                      <tr>
+                        <th>Assignee</th>
+                        <th className="text-end">Today</th>
+                        <th className="text-end text-danger">Overdue</th>
+                        <th className="text-end text-success">Upcoming</th>
+                        <th className="text-end text-secondary">Not Scheduled</th>
+                        <th className="text-end">Total</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {followupReportData.by_assignee?.map((row, i) => (
+                        <tr key={i}>
+                          <td>{row.assignee}</td>
+                          <td className="text-end">{row.today}</td>
+                          <td className="text-end text-danger">{row.overdue}</td>
+                          <td className="text-end text-success">{row.upcoming}</td>
+                          <td className="text-end text-secondary">{row.not_scheduled}</td>
+                          <td className="text-end fw-semibold">{row.total}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </Table>
+                </Card.Body>
+              </Card>
+            </>
+          )}
+        </Tab>
+
         {/* Lead Aging */}
         <Tab eventKey="aging" title="Lead Aging">
           {loading && <div className="text-center py-4">Loading...</div>}
@@ -918,9 +1118,14 @@ export default function Reports() {
               <Card>
                 <Card.Header className="bg-light d-flex justify-content-between align-items-center">
                   <strong>Aging by Stage</strong>
-                  <Button variant="outline-primary" size="sm" onClick={() => exportToCSV(agingData.by_stage, "lead_aging")}>
-                    <i className="fas fa-download me-1"></i> Export CSV
-                  </Button>
+                  <div className="d-flex gap-2">
+                    <Button variant="outline-primary" size="sm" onClick={() => exportToCSV(agingData.by_stage, "lead_aging")}>
+                      <i className="fas fa-download me-1"></i> Export CSV
+                    </Button>
+                    <Button variant="outline-danger" size="sm" onClick={() => downloadPDF("aging")}>
+                      <i className="fas fa-file-pdf me-1"></i> Download PDF
+                    </Button>
+                  </div>
                 </Card.Header>
                 <Card.Body className="p-0">
                   <Table responsive hover className="mb-0">

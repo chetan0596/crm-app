@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useReducer, useState } from "react";
+import { useEffect, useMemo, useReducer, useState, useCallback } from "react";
 import { useSearchParams } from "react-router-dom";
 import DataTable from "react-data-table-component";
 import { Modal, Button, Form, Badge, Row, Col } from "react-bootstrap";
@@ -85,27 +85,38 @@ export default function Users() {
     return () => clearTimeout(t);
   }, [searchInput, table.search]);
 
-  const load = async (signal) => {
+  const loadTable = async (signal) => {
     try {
       setLoading(true);
-      const [usersRes, rolesRes, allUsersRes] = await Promise.all([
-        api.get("/users", { params: table, signal }),
-        api.get("/roles", { params: { perPage: 1000 }, signal }),
-        api.get("/users", { params: { perPage: 1000 }, signal }) // For reports_to dropdown
-      ]);
-      setRows(usersRes.data.data || []);
-      setTotal(usersRes.data.total || 0);
-      setRoles(rolesRes.data.data || []);
-      setUsers(allUsersRes.data.data || []);
+      const res = await api.get("/users", { params: table, signal });
+      setRows(res.data.data || []);
+      setTotal(res.data.total || 0);
     } catch { setRows([]); setTotal(0); }
     finally { setLoading(false); }
   };
 
+  const loadDropdowns = async (signal) => {
+    const [rolesRes, allUsersRes] = await Promise.allSettled([
+      api.get("/roles", { params: { perPage: 200 }, signal }),
+      api.get("/users", { params: { perPage: 200 }, signal })
+    ]);
+    if (rolesRes.status === 'fulfilled') setRoles(rolesRes.value.data.data || []);
+    else { setRoles([]); toast.error("Failed to load roles"); }
+    if (allUsersRes.status === 'fulfilled') setUsers(allUsersRes.value.data.data || []);
+    else { setUsers([]); toast.error("Failed to load users"); }
+  };
+
   useEffect(() => {
     const controller = new AbortController();
-    load(controller.signal);
+    loadTable(controller.signal);
     return () => controller.abort();
   }, [table, reloadKey]);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    loadDropdowns(controller.signal);
+    return () => controller.abort();
+  }, [reloadKey]);
 
   const openAdd = () => {
     setEditingId(null);
@@ -113,7 +124,7 @@ export default function Users() {
     setShow(true);
   };
 
-  const openEdit = (row) => {
+  const openEdit = useCallback((row) => {
     setEditingId(row.id);
     setForm({
       name: row.name,
@@ -123,7 +134,7 @@ export default function Users() {
       reports_to: row.reports_to || ""
     });
     setShow(true);
-  };
+  }, []);
 
   const save = async () => {
     if (!form.name) { toast.warning("Name required"); return; }
@@ -151,7 +162,7 @@ export default function Users() {
     }
   };
 
-  const deleteUser = (row) => {
+  const deleteUser = useCallback((row) => {
     Swal.fire({
       title: "Delete user?",
       text: `User: ${row.name}?`,
@@ -164,14 +175,14 @@ export default function Users() {
         toast.success("User deleted");
       } catch { toast.error("Delete failed"); }
     });
-  };
+  }, []);
 
-  const openTransfer = (row) => {
+  const openTransfer = useCallback((row) => {
     setTransferUser(row);
     setTransferToUserId("");
     setTransferPreview(null);
     setTransferShow(true);
-  };
+  }, []);
 
   const loadTransferPreview = async () => {
     if (!transferToUserId) { toast.warning("Select a target user"); return; }
@@ -256,7 +267,19 @@ export default function Users() {
         </div>
       ),
     },
-  ], []);
+  ], [openEdit, openTransfer, deleteUser]);
+
+  const progressComponent = useMemo(() => (
+    <div className="p-4 text-center"><div className="spinner-border spinner-border-sm me-2"></div>Loading...</div>
+  ), []);
+
+  const noDataComponent = useMemo(() => (
+    <div className="p-5 text-center">
+      <i className="fas fa-folder-open text-muted mb-3" style={{ fontSize: 48, opacity: 0.4 }}></i>
+      <div className="fw-semibold text-secondary mb-1">No data found</div>
+      <div className="small text-muted">Try adjusting your filters or check back later</div>
+    </div>
+  ), []);
 
   return (
     <div className="card card-outline card-primary">
@@ -282,14 +305,8 @@ export default function Users() {
           onChangePage={(p) => p !== table.page && dispatch({ type: "PAGE", page: p })}
           onChangeRowsPerPage={(n) => n !== table.perPage && dispatch({ type: "PER_PAGE", perPage: n })}
           sortServer onSort={(col, dir) => col.sortField && dispatch({ type: "SORT", field: col.sortField, dir })}
-          progressComponent={<div className="p-4 text-center"><div className="spinner-border spinner-border-sm me-2"></div>Loading...</div>}
-          noDataComponent={
-            <div className="p-5 text-center">
-              <i className="fas fa-folder-open text-muted mb-3" style={{ fontSize: 48, opacity: 0.4 }}></i>
-              <div className="fw-semibold text-secondary mb-1">No data found</div>
-              <div className="small text-muted">Try adjusting your filters or check back later</div>
-            </div>
-          }
+          progressComponent={progressComponent}
+          noDataComponent={noDataComponent}
           striped highlightOnHover dense keyField="id" />
       </div>
 

@@ -61,6 +61,7 @@ const FollowUps = lazy(() => import("./pages/FollowUps"));
 const LeadSourceIntegrations = lazy(() => import("./pages/LeadSourceIntegrations"));
 const Webhooks = lazy(() => import("./pages/Webhooks"));
 const GoogleSheetsImport = lazy(() => import("./pages/GoogleSheetsImport"));
+const WhatsAppSettings = lazy(() => import("./pages/WhatsAppSettings"));
 
 // Loading component
 const LoadingSpinner = () => (
@@ -216,6 +217,13 @@ export default function App() {
           <PermissionRoute permission="webhooks-view">
             <Suspense fallback={<LoadingSpinner />}>
               <Webhooks />
+            </Suspense>
+          </PermissionRoute>
+        } />
+        <Route path="/whatsapp-settings" element={
+          <PermissionRoute permission="whatsapp-settings-view">
+            <Suspense fallback={<LoadingSpinner />}>
+              <WhatsAppSettings />
             </Suspense>
           </PermissionRoute>
         } />

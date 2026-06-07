@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useReducer, useState } from "react";
+import { useEffect, useMemo, useReducer, useState, useCallback } from "react";
 import { useSearchParams } from "react-router-dom";
 import DataTable from "react-data-table-component";
 import { Modal, Button, Form, Badge, Row, Col, Table } from "react-bootstrap";
@@ -88,30 +88,42 @@ export default function Quotations() {
     return () => clearTimeout(t);
   }, [searchInput, table.search]);
 
-  const load = async (signal) => {
+  const loadTable = async (signal) => {
     if (!canViewQuotations) return;
     setLoading(true);
     try {
-      const [quotRes, custRes, itemRes, taxRes] = await Promise.all([
-        api.get("/quotations", { params: table, signal }),
-        api.get("/customers", { params: { perPage: 1000 }, signal }),
-        api.get("/items", { params: { perPage: 1000 }, signal }),
-        api.get("/taxes", { params: { perPage: 1000 }, signal })
-      ]);
-      setRows(quotRes.data.data || []);
-      setTotal(quotRes.data.total || 0);
-      setCustomers(custRes.data.data || []);
-      setItems(itemRes.data.data || []);
-      setTaxes(taxRes.data.data || []);
+      const res = await api.get("/quotations", { params: table, signal });
+      setRows(res.data.data || []);
+      setTotal(res.data.total || 0);
     } catch { setRows([]); setTotal(0); }
     finally { setLoading(false); }
   };
 
+  const loadDropdowns = async (signal) => {
+    const [custRes, itemRes, taxRes] = await Promise.allSettled([
+      api.get("/customers", { params: { perPage: 200 }, signal }),
+      api.get("/items", { params: { perPage: 200 }, signal }),
+      api.get("/taxes", { params: { perPage: 200 }, signal })
+    ]);
+    if (custRes.status === 'fulfilled') setCustomers(custRes.value.data.data || []);
+    else { setCustomers([]); toast.error("Failed to load customers"); }
+    if (itemRes.status === 'fulfilled') setItems(itemRes.value.data.data || []);
+    else { setItems([]); toast.error("Failed to load items"); }
+    if (taxRes.status === 'fulfilled') setTaxes(taxRes.value.data.data || []);
+    else { setTaxes([]); toast.error("Failed to load taxes"); }
+  };
+
   useEffect(() => {
     const controller = new AbortController();
-    load(controller.signal);
+    loadTable(controller.signal);
     return () => controller.abort();
   }, [table, reloadKey, canViewQuotations]);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    loadDropdowns(controller.signal);
+    return () => controller.abort();
+  }, [reloadKey]);
 
   const generateQuotationNumber = () => {
     const year = new Date().getFullYear();

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useReducer, useState } from "react";
+import { useEffect, useMemo, useReducer, useState, useCallback } from "react";
 import { useSearchParams } from "react-router-dom";
 import DataTable from "react-data-table-component";
 import { Modal, Button, Form, Dropdown, Row, Col, Table, Badge } from "react-bootstrap";
@@ -79,29 +79,51 @@ export default function ItemMaster() {
     return () => clearTimeout(t);
   }, [searchInput, table.search]);
 
-  const load = async (signal) => {
+  const loadTable = async (signal) => {
     try {
       setLoading(true);
-      const [itemsRes, unitsRes, taxesRes, warehousesRes] = await Promise.all([
-        api.get("/items", { params: table, signal }),
-        api.get("/units", { params: { perPage: 1000 }, signal }),
-        api.get("/taxes", { params: { perPage: 1000 }, signal }),
-        api.get("/warehouses/list", { signal })
-      ]);
-      setRows(itemsRes.data.data || []);
-      setTotal(itemsRes.data.total || 0);
-      setUnits(unitsRes.data.data || []);
-      setTaxes(taxesRes.data.data || []);
-      setWarehouses(warehousesRes.data.data || []);
-    } catch { setRows([]); setTotal(0); }
-    finally { setLoading(false); }
+      const res = await api.get("/items", { params: table, signal });
+      setRows(res.data.data || []);
+      setTotal(res.data.total || 0);
+    } catch {
+      setRows([]); setTotal(0);
+      toast.error("Failed to load items");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadDropdowns = async (signal) => {
+    const [unitsRes, taxesRes, warehousesRes] = await Promise.allSettled([
+      api.get("/units", { params: { perPage: 200 }, signal }),
+      api.get("/taxes", { params: { perPage: 200 }, signal }),
+      api.get("/warehouses/list", { signal })
+    ]);
+
+    if (unitsRes.status === 'fulfilled') {
+      setUnits(unitsRes.value.data.data || []);
+    } else { setUnits([]); toast.error("Failed to load units"); }
+
+    if (taxesRes.status === 'fulfilled') {
+      setTaxes(taxesRes.value.data.data || []);
+    } else { setTaxes([]); toast.error("Failed to load taxes"); }
+
+    if (warehousesRes.status === 'fulfilled') {
+      setWarehouses(warehousesRes.value.data.data || []);
+    } else { setWarehouses([]); }
   };
 
   useEffect(() => {
     const controller = new AbortController();
-    load(controller.signal);
+    loadTable(controller.signal);
     return () => controller.abort();
   }, [table, reloadKey]);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    loadDropdowns(controller.signal);
+    return () => controller.abort();
+  }, [reloadKey]);
 
   const openAdd = () => {
     setEditRow(null);
@@ -109,7 +131,7 @@ export default function ItemMaster() {
     setShow(true);
   };
 
-  const openEdit = (row) => {
+  const openEdit = useCallback((row) => {
     setEditRow(row);
     setForm({
       name: row.name || "", sku: row.sku || "", unit_id: row.unit_id || "",
@@ -118,7 +140,7 @@ export default function ItemMaster() {
       min_stock: row.min_stock || "0"
     });
     setShow(true);
-  };
+  }, []);
 
   const save = async () => {
     if (!form.name.trim()) {
@@ -146,7 +168,7 @@ export default function ItemMaster() {
     }
   };
 
-  const openWarehouseStock = async (row) => {
+  const openWarehouseStock = useCallback(async (row) => {
     setSelectedItem(row);
     setShowStockModal(true);
     setLoadingStock(true);
@@ -158,9 +180,9 @@ export default function ItemMaster() {
     } finally {
       setLoadingStock(false);
     }
-  };
+  }, []);
 
-  const remove = (row) => {
+  const remove = useCallback((row) => {
     Swal.fire({
       title: "Delete item?",
       text: `Remove "${row.name}"?`,
@@ -173,9 +195,9 @@ export default function ItemMaster() {
         toast.success("Item deleted");
       } catch { toast.error("Delete failed"); }
     });
-  };
+  }, []);
 
-  const updateField = (field, value) => setForm(f => ({ ...f, [field]: value }));
+  const updateField = useCallback((field, value) => setForm(f => ({ ...f, [field]: value })), []);
 
   const columns = useMemo(() => {
     const all = [
@@ -204,15 +226,27 @@ export default function ItemMaster() {
       },
     ];
     return all.filter(Boolean);
-  }, [visibleCols]);
+  }, [visibleCols, openEdit, openWarehouseStock, remove]);
 
-  const stockStatus = (row) => {
+  const stockStatus = useCallback((row) => {
     const stock = row.current_stock || 0;
     const min = row.min_stock || 0;
     if (stock <= 0) return <span className="badge bg-danger">Out of Stock</span>;
     if (stock <= min) return <span className="badge bg-warning text-dark">Low Stock</span>;
     return <span className="badge bg-success">In Stock</span>;
-  };
+  }, []);
+
+  const progressComponent = useMemo(() => (
+    <div className="p-4 text-center"><div className="spinner-border spinner-border-sm me-2"></div>Loading...</div>
+  ), []);
+
+  const noDataComponent = useMemo(() => (
+    <div className="p-5 text-center">
+      <i className="fas fa-folder-open text-muted mb-3" style={{ fontSize: 48, opacity: 0.4 }}></i>
+      <div className="fw-semibold text-secondary mb-1">No data found</div>
+      <div className="small text-muted">Try adjusting your filters or check back later</div>
+    </div>
+  ), []);
 
   return (
     <div className="card card-outline card-primary">
@@ -256,14 +290,8 @@ export default function ItemMaster() {
           onChangePage={(p) => p !== table.page && dispatch({ type: "PAGE", page: p })}
           onChangeRowsPerPage={(n) => n !== table.perPage && dispatch({ type: "PER_PAGE", perPage: n })}
           sortServer onSort={(col, dir) => col.sortField && dispatch({ type: "SORT", field: col.sortField, dir })}
-          progressComponent={<div className="p-4 text-center"><div className="spinner-border spinner-border-sm me-2"></div>Loading...</div>}
-          noDataComponent={
-            <div className="p-5 text-center">
-              <i className="fas fa-folder-open text-muted mb-3" style={{ fontSize: 48, opacity: 0.4 }}></i>
-              <div className="fw-semibold text-secondary mb-1">No data found</div>
-              <div className="small text-muted">Try adjusting your filters or check back later</div>
-            </div>
-          }
+          progressComponent={progressComponent}
+          noDataComponent={noDataComponent}
           striped highlightOnHover dense keyField="id" />
       </div>
 

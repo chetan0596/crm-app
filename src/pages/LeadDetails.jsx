@@ -5,6 +5,7 @@ import { toast } from "react-toastify";
 import api from "../api";
 import { canEdit, canView } from "../utils/permissions";
 import { getUserData } from "../utils/permissions";
+import WhatsAppSendModal from "../components/WhatsAppSendModal";
 
 const typeLabels = {
   call: "Call",
@@ -76,6 +77,7 @@ export default function LeadDetails() {
   const [lead, setLead] = useState(null);
 
   const [showActivity, setShowActivity] = useState(false);
+  const [showWhatsApp, setShowWhatsApp] = useState(false);
   const [saving, setSaving] = useState(false);
   const [leadStages, setLeadStages] = useState([]);
   const [leadSources, setLeadSources] = useState([]);
@@ -131,13 +133,27 @@ export default function LeadDetails() {
         if (stagesRes.status === 'fulfilled') setLeadStages(stagesRes.value.data?.data || []);
         if (sourcesRes.status === 'fulfilled') setLeadSources(sourcesRes.value.data?.data || []);
         if (catRes.status === 'fulfilled') setCategories(catRes.value.data?.data || []);
-        if (subRes.status === 'fulfilled') setSubcategories(subRes.value.data?.data || []);
+        if (subRes.status === 'fulfilled') {
+          const subs = subRes.value.data?.data || [];
+          console.log('Subcategories loaded:', subs);
+          setSubcategories(subs);
+        }
         if (usersRes.status === 'fulfilled') setUsers(usersRes.value.data?.data || []);
         if (tagsRes.status === 'fulfilled') setTags(tagsRes.value.data?.data || []);
       } catch {}
     };
     fetchMasterData();
   }, []);
+
+  useEffect(() => {
+    if (lead) {
+      console.log('Lead category ID:', lead.lead_category_id, 'Lead category?.id:', lead.category?.id);
+    }
+  }, [lead]);
+
+  useEffect(() => {
+    console.log('Subcategories state:', subcategories);
+  }, [subcategories]);
 
   const startEdit = (field, value) => {
     setEditing(field);
@@ -293,6 +309,11 @@ export default function LeadDetails() {
           <button className="btn btn-light" onClick={() => navigate(-1)}>
             Back
           </button>
+          {lead?.phone && (
+            <button className="btn btn-success" onClick={() => setShowWhatsApp(true)}>
+              <i className="fab fa-whatsapp me-1"></i> Send WhatsApp
+            </button>
+          )}
           {canEdit("leads") && !assignedToMe && (
             <button className="btn btn-primary" onClick={claim} disabled={loading}>
               <i className="fas fa-user-check me-1"></i>
@@ -504,9 +525,16 @@ export default function LeadDetails() {
                             disabled={saving}
                           >
                             <option value="">Choose</option>
-                            {subcategories.filter(s => s.lead_category_id == Number(lead.lead_category_id)).map(s => (
-                              <option key={s.id} value={s.id}>{s.name}</option>
-                            ))}
+                            {(() => {
+                              const catId = lead.lead_category_id ?? lead.category?.id ?? '';
+                              const filtered = subcategories.filter(s => String(s.category_id || s.lead_category_id) === String(catId));
+                              if (filtered.length === 0) {
+                                return <option disabled value="__none__">No subcategories for this category</option>;
+                              }
+                              return filtered.map(s => (
+                                <option key={s.id} value={s.id}>{s.name}</option>
+                              ));
+                            })()}
                           </Form.Select>
                           <button className="btn btn-sm btn-success" onClick={() => saveInlineEdit('lead_subcategory_id')} disabled={saving}>
                             <i className="fas fa-check"></i>
@@ -702,6 +730,15 @@ export default function LeadDetails() {
           )}
         </Card.Body>
       </Card>
+
+      <WhatsAppSendModal
+        show={showWhatsApp}
+        onHide={() => setShowWhatsApp(false)}
+        toNumber={lead?.phone}
+        toName={lead?.name}
+        contextType="lead"
+        contextId={id}
+      />
 
       <Modal show={showActivity} onHide={() => setShowActivity(false)} centered backdrop="static">
         <Modal.Header closeButton>

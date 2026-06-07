@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useReducer, useState } from "react";
+import { useEffect, useMemo, useReducer, useState, useCallback } from "react";
 import { useSearchParams } from "react-router-dom";
 import DataTable from "react-data-table-component";
 import { Modal, Button, Form, Badge, Row, Col, Card, Tab, Tabs } from "react-bootstrap";
@@ -6,6 +6,7 @@ import Swal from "sweetalert2";
 import { toast } from "react-toastify";
 import api from "../api";
 import { canCreate, canEdit, canDelete, canView } from "../utils/permissions";
+import WhatsAppSendModal from "../components/WhatsAppSendModal";
 
 const tableReducer = (state, action) => {
   switch (action.type) {
@@ -66,6 +67,8 @@ export default function Payments() {
   });
 
   const [show, setShow] = useState(false);
+  const [waShow, setWaShow] = useState(false);
+  const [waTarget, setWaTarget] = useState(null);
   const [form, setForm] = useState({
     type: "sale",
     sale_id: "",
@@ -154,17 +157,13 @@ export default function Payments() {
     return () => clearTimeout(t);
   }, [searchInput, table.search]);
 
-  const load = async (signal) => {
+  const loadTable = async (signal) => {
     if (!canViewPayments) return;
     setLoading(true);
     try {
-      const [payRes, sumRes] = await Promise.all([
-        api.get("/payments", { params: { page: table.page, perPage: table.perPage, type: form.type }, signal }),
-        api.get("/payment-summary", { signal }),
-      ]);
-      setRows(payRes.data.data || []);
-      setTotal(payRes.data.total || 0);
-      setSummary(sumRes.data);
+      const res = await api.get("/payments", { params: { page: table.page, perPage: table.perPage, type: form.type }, signal });
+      setRows(res.data.data || []);
+      setTotal(res.data.total || 0);
     } catch { setRows([]); setTotal(0); }
     finally { setLoading(false); }
   };
@@ -174,54 +173,60 @@ export default function Payments() {
     const type = activeTab === "outstanding-sales" ? "sale" : "purchase";
     setLoading(true);
     try {
-      const [res, sumRes] = await Promise.all([
-        api.get("/outstanding", {
-          params: {
-            type,
-            search: table.search,
-            perPage: table.perPage,
-            page: table.page,
-            from: outstandingFilters.from,
-            to: outstandingFilters.to,
-            status: outstandingFilters.status,
-            warehouse_id: outstandingFilters.warehouse_id,
-            customer_id: type === "sale" ? outstandingFilters.customer_id : "",
-            vendor_id: type === "purchase" ? outstandingFilters.vendor_id : "",
-          },
-          signal,
-        }),
-        api.get("/payment-summary", { signal }),
-      ]);
+      const res = await api.get("/outstanding", {
+        params: {
+          type,
+          search: table.search,
+          perPage: table.perPage,
+          page: table.page,
+          from: outstandingFilters.from,
+          to: outstandingFilters.to,
+          status: outstandingFilters.status,
+          warehouse_id: outstandingFilters.warehouse_id,
+          customer_id: type === "sale" ? outstandingFilters.customer_id : "",
+          vendor_id: type === "purchase" ? outstandingFilters.vendor_id : "",
+        },
+        signal,
+      });
       setOutstanding(res.data.data || []);
       setOutstandingTotal(res.data.total || 0);
-      setSummary(sumRes.data);
-    } catch { 
-      setOutstanding([]); 
-      setOutstandingTotal(0); 
-    }
+    } catch { setOutstanding([]); setOutstandingTotal(0); }
     finally { setLoading(false); }
+  };
+
+  const loadSummary = async (signal) => {
+    try {
+      const res = await api.get("/payment-summary", { signal });
+      setSummary(res.data);
+    } catch { setSummary(null); }
   };
 
   useEffect(() => {
     const controller = new AbortController();
     if (activeTab === "payments") {
-      setOutstanding([]); // Clear outstanding data when switching to payments
-      load(controller.signal);
+      setOutstanding([]);
+      loadTable(controller.signal);
     } else {
-      setRows([]); // Clear payments data when switching to outstanding
+      setRows([]);
       loadOutstanding(controller.signal);
     }
     return () => controller.abort();
   }, [table, reloadKey, activeTab, canViewPayments, outstandingFilters]);
 
   useEffect(() => {
+    const controller = new AbortController();
+    loadSummary(controller.signal);
+    return () => controller.abort();
+  }, [reloadKey, activeTab]);
+
+  useEffect(() => {
     const loadDropdowns = async () => {
       try {
         const [salesRes, purchRes, custRes, vendRes, warehouseRes] = await Promise.all([
-          api.get("/sales", { params: { perPage: 1000 } }),
-          api.get("/purchases", { params: { perPage: 1000 } }),
-          api.get("/customers", { params: { perPage: 1000 } }),
-          api.get("/vendors", { params: { perPage: 1000 } }),
+          api.get("/sales", { params: { perPage: 200 } }),
+          api.get("/purchases", { params: { perPage: 200 } }),
+          api.get("/customers", { params: { perPage: 200 } }),
+          api.get("/vendors", { params: { perPage: 200 } }),
           api.get("/warehouses/list"),
         ]);
         setSales(salesRes.data?.data || []);
@@ -318,6 +323,11 @@ export default function Payments() {
         <div className="btn-group btn-group-sm">
           {canDelete("payments") && (
             <button className="btn btn-outline-danger" onClick={() => deletePayment(row)}><i className="fas fa-trash"></i></button>
+          )}
+          {(row.sale?.customer?.phone || row.purchase?.vendor?.phone) && (
+            <button className="btn btn-outline-success" onClick={() => { setWaTarget(row); setWaShow(true); }} title="Send WhatsApp">
+              <i className="fab fa-whatsapp"></i>
+            </button>
           )}
         </div>
       ),
@@ -681,6 +691,15 @@ persistTableHead
           </Button>
         </Modal.Footer>
       </Modal>
+
+      <WhatsAppSendModal
+        show={waShow}
+        onHide={() => setWaShow(false)}
+        toNumber={waTarget?.sale?.customer?.phone || waTarget?.purchase?.vendor?.phone}
+        toName={waTarget?.sale?.customer?.name || waTarget?.purchase?.vendor?.name}
+        contextType="payment"
+        contextId={waTarget?.id}
+      />
     </div>
   );
 }

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { Badge, Button, Card, Col, Dropdown, Form, Row } from "react-bootstrap";
 import DataTable from "react-data-table-component";
@@ -102,11 +102,11 @@ export default function FollowUps() {
     localStorage.setItem('followups-visible-cols', JSON.stringify(visibleCols));
   }, [visibleCols]);
 
-  const viewLead = (r) => navigate(`/leads/${r.id}`);
+  const viewLead = useCallback((r) => navigate(`/leads/${r.id}`), [navigate]);
 
-  const editLead = (r) => navigate(`/leads/${r.id}`, { state: { edit: true } });
+  const editLead = useCallback((r) => navigate(`/leads/${r.id}`, { state: { edit: true } }), [navigate]);
 
-  const deleteLead = async (r) => {
+  const deleteLead = useCallback(async (r) => {
     const result = await Swal.fire({
       title: "Delete lead?",
       text: "This action cannot be undone.",
@@ -124,9 +124,9 @@ export default function FollowUps() {
     } catch (e) {
       toast.error(e.response?.data?.message || "Delete failed");
     }
-  };
+  }, []);
 
-  const claimLead = async (r) => {
+  const claimLead = useCallback(async (r) => {
     try {
       await api.post(`/leads/${r.id}/claim`);
       toast.success("Lead assigned to you");
@@ -134,7 +134,7 @@ export default function FollowUps() {
     } catch (e) {
       toast.error(e.response?.data?.message || "Failed to claim lead");
     }
-  };
+  }, []);
 
   const bulkDelete = async () => {
     if (!selectedRows.length) return;
@@ -158,29 +158,68 @@ export default function FollowUps() {
     }
   };
 
-  const exportToCSV = () => {
-    if (!rows.length) {
-      toast.warning("No data to export");
-      return;
+  const [exporting, setExporting] = useState(false);
+
+  const exportToCSV = async () => {
+    try {
+      setExporting(true);
+      const baseParams = {
+        perPage: 200,
+        search,
+        stage: filterStage,
+        source: filterSource,
+        assigned_to: filterAssignee,
+        tags: (filterTags || []).join(","),
+        followup_bucket: bucket,
+        upcoming_days: bucket === "upcoming" ? upcomingDays : undefined,
+        created_from: filterCreatedFrom || undefined,
+        created_to: filterCreatedTo || undefined,
+        activity_from: filterActivityFrom || undefined,
+        sort: sortField,
+        dir: sortDir,
+        with: "tags",
+      };
+
+      // Fetch first page to get total
+      const first = await api.get("/leads", { params: { ...baseParams, page: 1 } });
+      const totalRecords = first.data?.total || 0;
+      let allRows = first.data?.data || [];
+
+      // Fetch remaining pages if needed
+      const totalPages = Math.ceil(totalRecords / 200);
+      for (let p = 2; p <= totalPages; p++) {
+        const res = await api.get("/leads", { params: { ...baseParams, page: p } });
+        allRows = allRows.concat(res.data?.data || []);
+      }
+
+      if (!allRows.length) {
+        toast.warning("No data to export");
+        return;
+      }
+
+      const headers = ["ID", "Name", "Phone", "Stage", "Source", "Assignee", "Next Follow-up", "Created At"];
+      const data = allRows.map((r) => [
+        r.id,
+        r.name,
+        r.phone || "",
+        r.stage || "",
+        r.source || "",
+        r.assignee?.name || "",
+        r.next_follow_up_date || "",
+        r.created_at || "",
+      ]);
+      const csv = [headers.join(","), ...data.map((row) => row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(","))].join("\n");
+      const blob = new Blob(["\ufeff" + csv], { type: "text/csv;charset=utf-8;" });
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(blob);
+      link.download = `followups-${bucket}-${new Date().toISOString().split("T")[0]}.csv`;
+      link.click();
+      toast.success(`Exported ${allRows.length} records`);
+    } catch (e) {
+      toast.error(e.response?.data?.message || "Export failed");
+    } finally {
+      setExporting(false);
     }
-    const headers = ["ID", "Name", "Phone", "Stage", "Source", "Assignee", "Next Follow-up", "Created At"];
-    const data = rows.map((r) => [
-      r.id,
-      r.name,
-      r.phone || "",
-      r.stage || "",
-      r.source || "",
-      r.assignee?.name || "",
-      r.next_follow_up_date || "",
-      r.created_at || "",
-    ]);
-    const csv = [headers.join(","), ...data.map((row) => row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(","))].join("\n");
-    const blob = new Blob(["\ufeff" + csv], { type: "text/csv;charset=utf-8;" });
-    const link = document.createElement("a");
-    link.href = URL.createObjectURL(blob);
-    link.download = `followups-${bucket}-${new Date().toISOString().split("T")[0]}.csv`;
-    link.click();
-    toast.success("Export completed");
   };
 
   const clearFilters = () => {
@@ -429,7 +468,7 @@ export default function FollowUps() {
         width: "180px",
       },
     ].filter(Boolean),
-    [visibleCols, canEditLeads, canDeleteLeads, currentUserId]
+    [visibleCols, canEditLeads, canDeleteLeads, currentUserId, viewLead, editLead, claimLead, deleteLead]
   );
 
   const bucketCards = [
@@ -535,9 +574,8 @@ export default function FollowUps() {
                 />
               </div>
 
-              <Button variant="success" size="sm" onClick={exportToCSV} className="d-flex align-items-center gap-1" style={{ borderRadius: 6, fontWeight: 500, fontSize: "0.8rem" }}>
-                <i className="fas fa-file-csv" style={{ fontSize: 12 }}></i>
-                <span>Export</span>
+              <Button variant="success" size="sm" onClick={exportToCSV} disabled={exporting} className="d-flex align-items-center gap-1" style={{ borderRadius: 6, fontWeight: 500, fontSize: "0.8rem" }}>
+                {exporting ? <><i className="fas fa-spinner fa-spin" style={{ fontSize: 12 }}></i><span>Exporting...</span></> : <><i className="fas fa-file-csv" style={{ fontSize: 12 }}></i><span>Export All</span></>}
               </Button>
 
               <Dropdown>

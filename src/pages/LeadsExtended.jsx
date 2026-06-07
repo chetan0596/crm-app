@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useReducer, useState } from "react";
+import { useEffect, useMemo, useReducer, useState, useCallback } from "react";
 import { Card, Form, Modal } from "react-bootstrap";
 import DataTable from "react-data-table-component";
 import Swal from "sweetalert2";
@@ -134,11 +134,11 @@ export default function LeadsExtended() {
     const loadMasters = async () => {
       try {
         const [catRes, subRes, srcRes, stageRes, userRes, tagRes] = await Promise.all([
-          api.get("/lead-categories", { params: { perPage: 1000 } }),
-          api.get("/lead-subcategories", { params: { perPage: 1000 } }),
+          api.get("/lead-categories", { params: { perPage: 200 } }),
+          api.get("/lead-subcategories", { params: { perPage: 200 } }),
           api.get("/lead-sources/list"),
           api.get("/lead-stages/list"),
-          api.get("/users", { params: { perPage: 1000 } }),
+          api.get("/users", { params: { perPage: 200 } }),
           api.get("/lead-tags", { params: { status: 1 } }),
         ]);
         setCategories(catRes.data?.data || catRes.data || []);
@@ -244,7 +244,7 @@ export default function LeadsExtended() {
     }
   };
 
-  const remove = async (row) => {
+  const remove = useCallback(async (row) => {
     const ok = await Swal.fire({
       title: "Delete Lead?",
       text: row?.name || "",
@@ -262,7 +262,7 @@ export default function LeadsExtended() {
     } catch (e) {
       toast.error(e.response?.data?.message || "Delete failed");
     }
-  };
+  }, []);
 
   const columns = useMemo(
     () => [
@@ -311,7 +311,7 @@ export default function LeadsExtended() {
         ),
       },
     ],
-    []
+    [remove]
   );
 
   if (!canViewPage) {
