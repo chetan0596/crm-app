@@ -2,7 +2,7 @@
   RewriteEngine On
 
   # Proxy API requests to the backend server
-  RewriteRule ^api/(.*)$ https://api.atriengineers.com/api/$1 [P,L]
+  RewriteRule ^api/(.*)$ https://api.atriengineers.com/public/api/$1 [P,L]
 
   # SPA fallback: redirect non-file, non-directory requests to index.html
   RewriteCond %{REQUEST_FILENAME} !-f

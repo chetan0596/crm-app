@@ -7,7 +7,7 @@ export default defineConfig({
   server: {
     proxy: {
       '/api': {
-        target: 'https://api.atriengineers.com',
+        target: 'https://api.atriengineers.com/publc',
         changeOrigin: true,
         secure: true,
       },
