@@ -114,6 +114,7 @@ export default function SidebarNavigation({ closeSidebar }) {
             {canView('vendors') && <MenuLink to="/inventory/vendors" icon="fas fa-truck" label="Vendors" closeSidebar={closeSidebar} />}
             {canView('purchases') && <MenuLink to="/inventory/purchases" icon="fas fa-shopping-cart" label="Purchases" closeSidebar={closeSidebar} />}
             {canView('sales') && <MenuLink to="/inventory/sales" icon="fas fa-cash-register" label="Sales" closeSidebar={closeSidebar} />}
+            {canView('sales') && <MenuLink to="/inventory/invoice-settings" icon="fas fa-file-invoice" label="Invoice Settings" closeSidebar={closeSidebar} />}
             {canView('quotations') && <MenuLink to="/quotations" icon="fas fa-file-alt" label="Quotations" closeSidebar={closeSidebar} />}
             {canView('payments') && <MenuLink to="/payments" icon="fas fa-money-bill-wave" label="Payments" closeSidebar={closeSidebar} />}
             {canView('credit-notes') && <MenuLink to="/credit-notes" icon="fas fa-file-invoice-dollar" label="Credit Notes" closeSidebar={closeSidebar} />}

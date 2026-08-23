@@ -43,6 +43,7 @@ export default function Sales() {
   const [items, setItems] = useState([]);
   const [taxes, setTaxes] = useState([]);
   const [warehouses, setWarehouses] = useState([]);
+  const [invoicePrefix, setInvoicePrefix] = useState('INV');
 
   const [show, setShow] = useState(false);
   const [viewShow, setViewShow] = useState(false);
@@ -144,6 +145,16 @@ export default function Sales() {
     return () => controller.abort();
   }, [reloadKey]);
 
+  // Load invoice prefix from invoice settings
+  useEffect(() => {
+    api.get("/invoice-settings")
+      .then(res => {
+        const prefix = res.data?.data?.invoice_prefix;
+        if (prefix) setInvoicePrefix(prefix);
+      })
+      .catch(() => {});
+  }, []);
+
   // Recalculate tax when tax_type or gst_type changes
   useEffect(() => {
     if (form.invoice_type === 'Tax Invoice') {
@@ -158,9 +169,10 @@ export default function Sales() {
     }
   }, [form.tax_type, form.gst_type, form.invoice_type]);
 
-  // Generate next invoice number
+  // Generate next invoice number using configured prefix
   const generateInvoiceNumber = () => {
-    if (!rows || rows.length === 0) return 'INV001';
+    const prefix = invoicePrefix || 'INV';
+    if (!rows || rows.length === 0) return `${prefix}001`;
     
     // Extract numbers from existing invoice numbers
     const numbers = rows
@@ -171,7 +183,7 @@ export default function Sales() {
       .filter(n => n > 0);
     
     const maxNum = numbers.length > 0 ? Math.max(...numbers) : 0;
-    return `INV${String(maxNum + 1).padStart(3, '0')}`;
+    return `${prefix}${String(maxNum + 1).padStart(3, '0')}`;
   };
 
   const openAdd = () => {

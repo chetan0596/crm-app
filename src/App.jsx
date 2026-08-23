@@ -62,6 +62,7 @@ const LeadSourceIntegrations = lazy(() => import("./pages/LeadSourceIntegrations
 const Webhooks = lazy(() => import("./pages/Webhooks"));
 const GoogleSheetsImport = lazy(() => import("./pages/GoogleSheetsImport"));
 const WhatsAppSettings = lazy(() => import("./pages/WhatsAppSettings"));
+const InvoiceSettings = lazy(() => import("./pages/InvoiceSettings"));
 
 // Loading component
 const LoadingSpinner = () => (
@@ -282,6 +283,13 @@ export default function App() {
           <PermissionRoute permission="sales-view">
             <Suspense fallback={<LoadingSpinner />}>
               <Sales />
+            </Suspense>
+          </PermissionRoute>
+        } />
+        <Route path="/inventory/invoice-settings" element={
+          <PermissionRoute permission="sales-view">
+            <Suspense fallback={<LoadingSpinner />}>
+              <InvoiceSettings />
             </Suspense>
           </PermissionRoute>
         } />
