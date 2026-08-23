@@ -26,6 +26,8 @@ export default function AdminLayout() {
     e.stopPropagation();
     if (window.innerWidth < 992) {
       // Mobile/tablet: slide-in overlay via body.sidebar-open
+      // Clear any stale desktop mini-sidebar state so the overlay renders full-width
+      document.body.classList.remove('sidebar-collapse');
       const opened = document.body.classList.toggle('sidebar-open');
       setSidebarOpen(opened);
     } else {
@@ -38,7 +40,6 @@ export default function AdminLayout() {
     setSidebarOpen(false);
     // Close sidebar only on mobile (< 992px)
     if (window.innerWidth < 992) {
-      document.body.classList.add('sidebar-collapse');
       document.body.classList.remove('sidebar-open');
     }
   };

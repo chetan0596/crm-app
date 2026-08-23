@@ -440,6 +440,29 @@ h1, h2, h3, h4, h5, h6 {
     margin: 2px 8px;
     padding: .55rem .75rem;
     transition: background-color .15s ease, color .15s ease;
+    display: flex;
+    align-items: center;
+    white-space: nowrap;
+    position: relative;
+}
+.sidebar .nav-sidebar .nav-item .nav-link .nav-icon {
+    flex-shrink: 0;
+    width: 1.6rem;
+    margin-right: .5rem;
+    text-align: center;
+}
+.sidebar .nav-sidebar .nav-item .nav-link p {
+    flex: 1;
+    margin: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.sidebar .nav-sidebar .nav-link > p > .right {
+    position: absolute;
+    right: .75rem;
+    top: 50%;
+    transform: translateY(-50%);
 }
 .sidebar .nav-sidebar .nav-item .nav-link:hover {
     background-color: var(--c-sidebar-bg-hover) !important;
@@ -553,6 +576,21 @@ button:focus, button:focus-visible {
     body.sidebar-open .wrapper .main-sidebar {
         transform: translate3d(0, 0, 0) !important;
         box-shadow: 4px 0 24px rgba(15, 23, 42, .25) !important;
+    }
+
+    /* When mobile overlay is open, neutralize any mini-sidebar (sidebar-collapse)
+       styles that shrink/hide labels — prevents icon/text stacking */
+    body.sidebar-open .main-sidebar .brand-text,
+    body.sidebar-open .main-sidebar .nav-sidebar .nav-link p {
+        display: inline-block !important;
+        width: auto !important;
+        margin-left: 0 !important;
+        opacity: 1 !important;
+        visibility: visible !important;
+        animation: none !important;
+    }
+    body.sidebar-open .main-sidebar .nav-sidebar .nav-link p {
+        display: block !important;
     }
 
     /* Backdrop when sidebar is open on mobile */
