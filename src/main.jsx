@@ -3,6 +3,9 @@ import ReactDOM from 'react-dom/client'
 import App from './App.jsx'
 import { BrowserRouter } from "react-router-dom"
 import { ToastContainer } from "react-toastify";
+import { ThemeProvider } from '@mui/material/styles';
+import { CssBaseline } from '@mui/material';
+import theme from './theme';
 
 import 'bootstrap/dist/css/bootstrap.min.css'
 import 'admin-lte/dist/css/adminlte.min.css'
@@ -26,8 +29,11 @@ import 'admin-lte/dist/js/adminlte.min.js'
 // )
 
 ReactDOM.createRoot(document.getElementById('root')).render(
-  <BrowserRouter>
-    <App />
-    <ToastContainer position="top-right" />
-  </BrowserRouter>
+  <ThemeProvider theme={theme}>
+    <CssBaseline />
+    <BrowserRouter>
+      <App />
+      <ToastContainer position="top-right" />
+    </BrowserRouter>
+  </ThemeProvider>
 )

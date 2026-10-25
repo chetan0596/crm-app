@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useCallback, useState, useEffect } from 'react';
 import { Dropdown, Badge } from "react-bootstrap";
 import { Link } from "react-router-dom";
 import api from "../api";
@@ -28,24 +28,29 @@ const timeAgo = (date) => {
 export default function NotificationBell() {
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
-  const [loading, setLoading] = useState(false);
 
-  const fetchNotifications = async () => {
+  const fetchNotifications = useCallback(async () => {
     try {
       const res = await api.get('/notifications?unread_only=true&limit=10');
-      setNotifications(res.data.data.notifications);
-      setUnreadCount(res.data.data.unread_count);
-    } catch (err) {
-      console.error('Failed to fetch notifications:', err);
+      const payload = res.data?.data ?? res.data ?? {};
+      const list = Array.isArray(payload) ? payload : Array.isArray(payload.notifications) ? payload.notifications : [];
+      setNotifications(list);
+      setUnreadCount(Number(payload.unread_count ?? list.length) || 0);
+    } catch {
+      setNotifications([]);
+      setUnreadCount(0);
     }
-  };
+  }, []);
 
   useEffect(() => {
-    fetchNotifications();
+    const initial = setTimeout(fetchNotifications, 0);
     // Poll every 60 seconds
     const interval = setInterval(fetchNotifications, 60000);
-    return () => clearInterval(interval);
-  }, []);
+    return () => {
+      clearTimeout(initial);
+      clearInterval(interval);
+    };
+  }, [fetchNotifications]);
 
   const markAsRead = async (id) => {
     try {

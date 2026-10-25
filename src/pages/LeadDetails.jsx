@@ -1,10 +1,35 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { Badge, Card, Form, Modal } from "react-bootstrap";
+import {
+  Alert,
+  Avatar,
+  Box,
+  Button,
+  Card,
+  CardContent,
+  Checkbox,
+  Chip,
+  CircularProgress,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  Divider,
+  FormControl,
+  IconButton,
+  InputLabel,
+  LinearProgress,
+  ListItemText,
+  MenuItem,
+  Select,
+  Stack,
+  TextField,
+  Tooltip,
+  Typography,
+} from "@mui/material";
 import { toast } from "react-toastify";
 import api from "../api";
-import { canEdit, canView } from "../utils/permissions";
-import { getUserData } from "../utils/permissions";
+import { canEdit, canView, getUserData } from "../utils/permissions";
 import WhatsAppSendModal from "../components/WhatsAppSendModal";
 
 const typeLabels = {
@@ -25,21 +50,45 @@ const typeIcons = {
   system: "fas fa-robot",
 };
 
-const stageVariant = (stage) => {
+const stageChipSx = (stage) => {
   const s = (stage || "").toLowerCase();
-  if (s.includes("new")) return "info";
-  if (s.includes("warm")) return "warning";
-  if (s.includes("hot")) return "danger";
-  if (s.includes("won")) return "success";
-  return "secondary";
+  if (s.includes("new")) return { bgcolor: '#e0f2fe', color: '#075985' };
+  if (s.includes("warm")) return { bgcolor: '#fff4d6', color: '#b76e00' };
+  if (s.includes("hot")) return { bgcolor: '#ffe4de', color: '#b71d18' };
+  if (s.includes("won")) return { bgcolor: '#dbf5e9', color: '#118d57' };
+  return { bgcolor: '#f1f5f9', color: '#475569' };
 };
 
-const statusVariant = (status) => {
-  const s = (status || "").toLowerCase();
-  if (s === "open") return "primary";
-  if (s === "won") return "success";
-  if (s === "lost") return "secondary";
-  return "dark";
+const cardSx = {
+  border: '1px solid',
+  borderColor: 'divider',
+  borderRadius: 3,
+  boxShadow: '0 8px 24px rgba(28,37,46,.05)',
+};
+
+const fieldLabelSx = {
+  color: 'text.secondary',
+  fontWeight: 700,
+  letterSpacing: '.04em',
+  textTransform: 'uppercase',
+  display: 'block',
+  mb: .75,
+};
+
+const getInitials = (name) => (name || '-')
+  .split(' ')
+  .slice(0, 2)
+  .map((p) => (p[0] || '').toUpperCase())
+  .join('');
+
+// Normalize any dropdown/master-data response shape to a plain array
+const toArray = (value) => {
+  if (Array.isArray(value)) return value;
+  if (Array.isArray(value?.data)) return value.data;
+  if (Array.isArray(value?.data?.data)) return value.data.data;
+  if (Array.isArray(value?.items)) return value.items;
+  if (Array.isArray(value?.results)) return value.results;
+  return [];
 };
 
 const formatDateTime = (value) => {
@@ -55,16 +104,53 @@ const formatDateTime = (value) => {
   }).format(d);
 };
 
-const formatDate = (value) => {
-  if (!value) return "-";
-  const d = new Date(value);
-  if (Number.isNaN(d.getTime())) return String(value);
-  return new Intl.DateTimeFormat(undefined, {
-    year: "numeric",
-    month: "short",
-    day: "2-digit",
-  }).format(d);
-};
+function EditIconButton({ onClick }) {
+  return (
+    <Tooltip title="Edit">
+      <IconButton
+        size="small"
+        onClick={onClick}
+        aria-label="Edit"
+        sx={{ border: '1px solid', borderColor: 'divider', width: 28, height: 28, flexShrink: 0 }}
+      >
+        <i className="fas fa-edit" style={{ fontSize: 11 }} aria-hidden="true" />
+      </IconButton>
+    </Tooltip>
+  );
+}
+
+function SaveCancelButtons({ field, saving, onSave, onCancel }) {
+  return (
+    <Stack direction="row" spacing={0.5} sx={{ flexShrink: 0 }}>
+      <Tooltip title="Save">
+        <span>
+          <IconButton
+            size="small"
+            onClick={() => onSave(field)}
+            disabled={saving}
+            aria-label="Save"
+            sx={{ border: '1px solid', borderColor: 'success.main', color: 'success.dark', width: 28, height: 28 }}
+          >
+            {saving ? <CircularProgress size={12} color="inherit" /> : <i className="fas fa-check" style={{ fontSize: 11 }} aria-hidden="true" />}
+          </IconButton>
+        </span>
+      </Tooltip>
+      <Tooltip title="Cancel">
+        <span>
+          <IconButton
+            size="small"
+            onClick={onCancel}
+            disabled={saving}
+            aria-label="Cancel"
+            sx={{ border: '1px solid', borderColor: 'divider', width: 28, height: 28 }}
+          >
+            <i className="fas fa-times" style={{ fontSize: 11 }} aria-hidden="true" />
+          </IconButton>
+        </span>
+      </Tooltip>
+    </Stack>
+  );
+}
 
 export default function LeadDetails() {
   const { id } = useParams();
@@ -94,12 +180,14 @@ export default function LeadDetails() {
     lead_stage: "",
   });
 
-  const openActivityModal = () => {
+  const canViewLeads = canView("leads");
+  const canEditLeads = canEdit("leads");
+
+  const openActivityDialog = () => {
     // Format existing follow_up_date to datetime-local if present
     let followUpDateTime = "";
     if (lead?.next_follow_up_date) {
       const date = new Date(lead.next_follow_up_date);
-      // Format as local datetime (YYYY-MM-DDTHH:mm)
       const year = date.getFullYear();
       const month = String(date.getMonth() + 1).padStart(2, '0');
       const day = String(date.getDate()).padStart(2, '0');
@@ -116,44 +204,51 @@ export default function LeadDetails() {
     setShowActivity(true);
   };
 
-  const canViewLeads = canView("leads");
+  const load = useCallback(async (signal) => {
+    if (!canViewLeads) return;
+    setLoading(true);
+    try {
+      const res = await api.get(`/leads/${id}`, { signal });
+      setLead(res.data.data);
+    } catch (e) {
+      if (signal?.aborted) return;
+      toast.error(e.response?.data?.message || "Failed to load lead");
+      setLead(null);
+    } finally {
+      if (!signal?.aborted) setLoading(false);
+    }
+  }, [id, canViewLeads]);
 
-  // Fetch master data for dropdowns
-  useEffect(() => {
-    const fetchMasterData = async () => {
-      try {
-        const [stagesRes, sourcesRes, catRes, subRes, usersRes, tagsRes] = await Promise.allSettled([
-          api.get('/lead-stages?perPage=200'),
-          api.get('/lead-sources?perPage=200'),
-          api.get('/lead-categories?perPage=200'),
-          api.get('/lead-subcategories?perPage=200'),
-          api.get('/leads/assignable-users'), // Only users that can be assigned to
-          api.get('/lead-tags?perPage=200'),
-        ]);
-        if (stagesRes.status === 'fulfilled') setLeadStages(stagesRes.value.data?.data || []);
-        if (sourcesRes.status === 'fulfilled') setLeadSources(sourcesRes.value.data?.data || []);
-        if (catRes.status === 'fulfilled') setCategories(catRes.value.data?.data || []);
-        if (subRes.status === 'fulfilled') {
-          const subs = subRes.value.data?.data || [];
-          console.log('Subcategories loaded:', subs);
-          setSubcategories(subs);
-        }
-        if (usersRes.status === 'fulfilled') setUsers(usersRes.value.data?.data || []);
-        if (tagsRes.status === 'fulfilled') setTags(tagsRes.value.data?.data || []);
-      } catch {}
-    };
-    fetchMasterData();
+  // Fetch master data for inline-edit dropdowns
+  const loadDropdowns = useCallback(async () => {
+    const [stagesRes, sourcesRes, catRes, subRes, usersRes, tagsRes, stageListRes] = await Promise.allSettled([
+      api.get('/lead-stages?perPage=200'),
+      api.get('/lead-sources?perPage=200'),
+      api.get('/lead-categories?perPage=200'),
+      api.get('/lead-subcategories?perPage=200'),
+      api.get('/leads/assignable-users'), // Only users that can be assigned to
+      api.get('/lead-tags?perPage=200'),
+      api.get('/lead-stages/list'),
+    ]);
+    if (stagesRes.status === 'fulfilled') setLeadStages(toArray(stagesRes.value.data));
+    if (sourcesRes.status === 'fulfilled') setLeadSources(toArray(sourcesRes.value.data));
+    if (catRes.status === 'fulfilled') setCategories(toArray(catRes.value.data));
+    if (subRes.status === 'fulfilled') setSubcategories(toArray(subRes.value.data));
+    if (usersRes.status === 'fulfilled') setUsers(toArray(usersRes.value.data));
+    if (tagsRes.status === 'fulfilled') setTags(toArray(tagsRes.value.data));
+    // /lead-stages/list is authoritative for stage names when available
+    if (stageListRes.status === 'fulfilled') setLeadStages(toArray(stageListRes.value.data));
   }, []);
 
   useEffect(() => {
-    if (lead) {
-      console.log('Lead category ID:', lead.lead_category_id, 'Lead category?.id:', lead.category?.id);
-    }
-  }, [lead]);
+    const controller = new AbortController();
+    load(controller.signal);
+    return () => controller.abort();
+  }, [load]);
 
   useEffect(() => {
-    console.log('Subcategories state:', subcategories);
-  }, [subcategories]);
+    loadDropdowns();
+  }, [loadDropdowns]);
 
   const startEdit = (field, value) => {
     setEditing(field);
@@ -203,38 +298,6 @@ export default function LeadDetails() {
 
   const assignedToMe = Boolean(currentUserId && assigneeId && assigneeId === Number(currentUserId));
 
-  const load = async (signal) => {
-    if (!canViewLeads) return;
-    setLoading(true);
-    try {
-      const res = await api.get(`/leads/${id}`, { signal });
-      setLead(res.data.data);
-    } catch (e) {
-      toast.error(e.response?.data?.message || "Failed to load lead");
-      setLead(null);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    const controller = new AbortController();
-    load(controller.signal);
-    return () => controller.abort();
-  }, [id, canViewLeads]);
-
-  useEffect(() => {
-    const loadStages = async () => {
-      try {
-        const res = await api.get("/lead-stages/list");
-        setLeadStages(res.data?.data || []);
-      } catch {
-        setLeadStages([]);
-      }
-    };
-    loadStages();
-  }, []);
-
   const claim = async () => {
     try {
       await api.post(`/leads/${id}/claim`);
@@ -277,459 +340,538 @@ export default function LeadDetails() {
     }
   };
 
+  const handleActivityDialogClose = (event, reason) => {
+    if (reason === 'backdropClick') return;
+    setShowActivity(false);
+  };
+
   if (!canViewLeads) {
     return (
-      <div className="p-4">
-        <Card className="border" style={{ borderColor: "#e2e8f0" }}>
-          <Card.Body className="text-center py-5">
-            <div className="text-secondary">Access denied</div>
-          </Card.Body>
-        </Card>
-      </div>
+      <Alert severity="error" sx={{ borderRadius: 3 }}>
+        Access denied. You don’t have permission to view leads.
+      </Alert>
     );
   }
 
+  const activityItems = lead?.activities || [];
+  const assignments = lead?.assignments || [];
+  const editTagValues = (editForm.tags || []).map(String);
+  const currentCategoryId = lead?.lead_category_id ?? lead?.category?.id ?? '';
+  const filteredSubcategories = subcategories.filter(
+    (s) => String(s.category_id || s.lead_category_id) === String(currentCategoryId)
+  );
+
   return (
-    <div className="p-4">
-      <div className="mb-3 d-flex align-items-center justify-content-between flex-wrap gap-2">
-        <div>
-          <h4 className="fw-semibold mb-1" style={{ color: "#1e293b" }}>
+    <Box>
+      <Box sx={{ display: 'flex', alignItems: { md: 'center' }, justifyContent: 'space-between', flexDirection: { xs: 'column', md: 'row' }, gap: 2, mb: 3 }}>
+        <Box>
+          <Typography variant="h4" sx={{ color: 'text.primary', fontWeight: 700 }}>
             Lead Details
-          </h4>
-          <div className="text-secondary small">
+          </Typography>
+          <Typography variant="body2" sx={{ color: 'text.secondary', mt: .5 }}>
             Lead #{id}
             {lead?.assignee?.name ? (
-              <span>
-                {" "}• Assigned to <strong>{lead.assignee.name}</strong>
-              </span>
+              <> • Assigned to <strong>{lead.assignee.name}</strong></>
             ) : null}
-          </div>
-        </div>
-        <div className="d-flex gap-2">
-          <button className="btn btn-light" onClick={() => navigate(-1)}>
+          </Typography>
+        </Box>
+        <Stack direction="row" spacing={1.5} flexWrap="wrap" useFlexGap>
+          <Button
+            variant="outlined"
+            onClick={() => navigate(-1)}
+            startIcon={<i className="fas fa-arrow-left" aria-hidden="true" />}
+          >
             Back
-          </button>
+          </Button>
           {lead?.phone && (
-            <button className="btn btn-success" onClick={() => setShowWhatsApp(true)}>
-              <i className="fab fa-whatsapp me-1"></i> Send WhatsApp
-            </button>
+            <Button
+              variant="contained"
+              color="success"
+              onClick={() => setShowWhatsApp(true)}
+              startIcon={<i className="fab fa-whatsapp" aria-hidden="true" />}
+            >
+              Send WhatsApp
+            </Button>
           )}
-          {canEdit("leads") && !assignedToMe && (
-            <button className="btn btn-primary" onClick={claim} disabled={loading}>
-              <i className="fas fa-user-check me-1"></i>
+          {canEditLeads && !assignedToMe && (
+            <Button
+              variant="contained"
+              onClick={claim}
+              disabled={loading}
+              startIcon={<i className="fas fa-user-check" aria-hidden="true" />}
+            >
               Assign to me
-            </button>
+            </Button>
           )}
-          {canEdit("leads") && (
-            <button className="btn btn-success" onClick={openActivityModal} disabled={loading}>
-              <i className="fas fa-plus me-1"></i>
+          {canEditLeads && (
+            <Button
+              variant="contained"
+              color="secondary"
+              onClick={openActivityDialog}
+              disabled={loading}
+              startIcon={<i className="fas fa-plus" aria-hidden="true" />}
+            >
               Add Activity
-            </button>
+            </Button>
           )}
-        </div>
-      </div>
+        </Stack>
+      </Box>
 
-      <Card className="border" style={{ borderColor: "#e2e8f0" }}>
-        <Card.Body>
-          {loading && <div className="text-secondary">Loading...</div>}
-          {!loading && !lead && <div className="text-secondary">No data</div>}
+      {loading && <LinearProgress sx={{ mb: 2, borderRadius: 1 }} />}
 
-          {!loading && lead && (
-            <div className="row g-3">
-              <div className="col-12 col-lg-4">
-                <div className="border rounded p-3" style={{ borderColor: "#e2e8f0" }}>
-                  <div className="d-flex align-items-center justify-content-between mb-2">
-                    <div className="fw-semibold">Timeline</div>
-                    {canEdit("leads") && (
-                      <button
-                        className="btn btn-sm btn-outline-primary"
-                        onClick={openActivityModal}
-                        disabled={loading}
-                      >
-                        <i className="fas fa-plus me-1"></i>
-                        Add Activity
-                      </button>
+      {!lead && !loading && (
+        <Alert severity="info" sx={{ borderRadius: 3 }}>No data</Alert>
+      )}
+
+      {!lead && loading && (
+        <Card sx={cardSx}>
+          <CardContent sx={{ display: 'flex', justifyContent: 'center', py: 8 }}>
+            <CircularProgress size={28} />
+          </CardContent>
+        </Card>
+      )}
+
+      {lead && (
+        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: 'minmax(0, 1fr) minmax(0, 2fr)' }, gap: 3, alignItems: 'start' }}>
+
+          {/* Timeline */}
+          <Card sx={cardSx}>
+            <CardContent sx={{ p: 3 }}>
+              <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 2 }}>
+                <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>Timeline</Typography>
+                {canEditLeads && (
+                  <Button
+                    size="small"
+                    variant="outlined"
+                    onClick={openActivityDialog}
+                    disabled={loading}
+                    startIcon={<i className="fas fa-plus" aria-hidden="true" />}
+                  >
+                    Add Activity
+                  </Button>
+                )}
+              </Stack>
+              <Divider sx={{ mb: 2.5 }} />
+
+              {activityItems.length === 0 && (
+                <Typography variant="body2" color="text.secondary">No activities</Typography>
+              )}
+
+              <Box sx={{ position: 'relative' }}>
+                <Box
+                  sx={{
+                    position: 'absolute',
+                    left: 15,
+                    top: 8,
+                    bottom: 8,
+                    width: 2,
+                    bgcolor: 'grey.200',
+                  }}
+                />
+                <Stack spacing={2.5}>
+                  {activityItems.map((a) => {
+                    const isSystem = a.type === 'system';
+                    return (
+                      <Box key={a.id} sx={{ display: 'flex', gap: 1.5, position: 'relative' }}>
+                        <Avatar
+                          sx={{
+                            width: 32,
+                            height: 32,
+                            bgcolor: isSystem ? 'grey.100' : '#e0f2fe',
+                            color: isSystem ? 'text.secondary' : '#0369a1',
+                            zIndex: 1,
+                          }}
+                        >
+                          <i className={typeIcons[a.type] || "fas fa-sticky-note"} style={{ fontSize: 12 }} aria-hidden="true" />
+                        </Avatar>
+                        <Box sx={{ flex: 1, minWidth: 0 }}>
+                          <Typography variant="body2" sx={{ fontWeight: 700, color: 'text.primary' }}>
+                            {formatDateTime(a.activity_at || a.created_at)}
+                          </Typography>
+                          <Typography variant="body2" sx={{ color: isSystem ? 'text.secondary' : 'text.primary' }}>
+                            {typeLabels[a.type] || a.type}
+                            {isSystem && (
+                              <Typography component="span" variant="caption" color="text.secondary" sx={{ ml: .5 }}>
+                                (auto)
+                              </Typography>
+                            )}
+                          </Typography>
+                          {a.creator?.name ? (
+                            <Typography variant="caption" color="text.secondary" display="block">
+                              @ {a.creator.name}
+                            </Typography>
+                          ) : null}
+                          {a.notes ? (
+                            <Typography variant="body2" color="text.secondary" sx={{ mt: .5, whiteSpace: 'pre-wrap' }}>
+                              {a.notes}
+                            </Typography>
+                          ) : null}
+                        </Box>
+                      </Box>
+                    );
+                  })}
+                </Stack>
+              </Box>
+            </CardContent>
+          </Card>
+
+          {/* Lead profile + fields */}
+          <Box>
+            <Card sx={cardSx}>
+              <CardContent sx={{ p: 3 }}>
+                <Stack
+                  direction={{ xs: 'column', sm: 'row' }}
+                  alignItems={{ xs: 'flex-start', sm: 'center' }}
+                  justifyContent="space-between"
+                  spacing={2}
+                >
+                  <Stack direction="row" spacing={2} alignItems="center" sx={{ minWidth: 0 }}>
+                    <Avatar sx={{ width: 56, height: 56, bgcolor: '#eaf0f6', color: 'primary.main', fontSize: 18, fontWeight: 700 }}>
+                      {getInitials(lead.name)}
+                    </Avatar>
+                    <Box sx={{ minWidth: 0 }}>
+                      <Typography variant="h6" sx={{ fontWeight: 700, color: 'text.primary' }}>{lead.name}</Typography>
+                      {lead.phone && <Typography variant="body2" color="text.secondary">{lead.phone}</Typography>}
+                      {lead.email && <Typography variant="body2" color="text.secondary">{lead.email}</Typography>}
+                    </Box>
+                  </Stack>
+
+                  <Stack alignItems={{ xs: 'flex-start', sm: 'flex-end' }} spacing={1} sx={{ flexShrink: 0 }}>
+                    <Chip label={lead.stage || "-"} size="small" sx={{ ...stageChipSx(lead.stage), fontWeight: 700 }} />
+                    {assignedToMe ? (
+                      <Chip label="ASSIGNED TO YOU" size="small" sx={{ bgcolor: '#dbf5e9', color: '#118d57', fontWeight: 700 }} />
+                    ) : (
+                      <Chip label="NOT ASSIGNED TO YOU" size="small" variant="outlined" sx={{ fontWeight: 700 }} />
                     )}
-                  </div>
+                  </Stack>
+                </Stack>
 
-                  {(lead.activities || []).length === 0 && (
-                    <div className="text-secondary small">No activities</div>
-                  )}
+                <Divider sx={{ my: 3 }} />
 
-                  <div style={{ position: "relative" }}>
-                    <div
-                      style={{
-                        position: "absolute",
-                        left: 13,
-                        top: 8,
-                        bottom: 8,
-                        width: 2,
-                        background: "#e2e8f0",
-                      }}
-                    />
+                <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(2, 1fr)' }, gap: 3 }}>
 
-                    {(lead.activities || []).map((a) => {
-                      const isSystem = a.type === 'system';
-                      return (
-                        <div key={a.id} className="d-flex gap-3 pb-3" style={{ position: "relative" }}>
-                          <div style={{ width: 28, display: "flex", justifyContent: "center" }}>
-                            <div
-                              className="rounded-circle d-flex align-items-center justify-content-center"
-                              style={{
-                                width: 26,
-                                height: 26,
-                                background: isSystem ? "#f1f5f9" : "#e0f2fe",
-                                color: isSystem ? "#64748b" : "#0369a1",
-                                zIndex: 1
-                              }}
-                            >
-                              <i className={typeIcons[a.type] || "fas fa-sticky-note"} style={{ fontSize: 12 }}></i>
-                            </div>
-                          </div>
-                          <div className="flex-grow-1">
-                            <div className="small fw-semibold" style={{ color: "#0f172a" }}>
-                              {formatDateTime(a.activity_at || a.created_at)}
-                            </div>
-                            <div className="small" style={{ color: isSystem ? "#64748b" : "#334155" }}>
-                              {typeLabels[a.type] || a.type}
-                              {isSystem && <span className="ms-1 text-muted">(auto)</span>}
-                            </div>
-                            <div className="small text-secondary">
-                              {a.creator?.name ? `@ ${a.creator.name}` : ""}
-                            </div>
-                            {a.notes ? (
-                              <div className="small text-secondary mt-1" style={{ whiteSpace: "pre-wrap" }}>{a.notes}</div>
-                            ) : null}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              </div>
-
-              <div className="col-12 col-lg-8">
-                <div className="border rounded p-3" style={{ borderColor: "#e2e8f0" }}>
-                  <div className="d-flex align-items-start justify-content-between gap-3 flex-wrap">
-                    <div className="d-flex align-items-center gap-3">
-                      <div
-                        className="rounded-circle d-flex align-items-center justify-content-center"
-                        style={{ width: 58, height: 58, background: "#f1f5f9", color: "#0f172a", fontWeight: 700 }}
-                      >
-                        {(lead.name || "-")
-                          .split(" ")
-                          .slice(0, 2)
-                          .map((p) => (p[0] || "").toUpperCase())
-                          .join("")}
-                      </div>
-                      <div>
-                        <div className="fw-semibold" style={{ fontSize: 16, color: "#0f172a" }}>{lead.name}</div>
-                        {lead.phone && <div className="text-secondary small">{lead.phone}</div>}
-                        {lead.email && <div className="text-secondary small">{lead.email}</div>}
-                      </div>
-                    </div>
-
-                    <div className="text-end">
-                      <div className="mb-1">
-                        <Badge bg={stageVariant(lead.stage)}>{lead.stage || "-"}</Badge>
-                      </div>
-                      {assignedToMe ? (
-                        <Badge bg="success">ASSIGNED TO YOU</Badge>
-                      ) : (
-                        <Badge bg="light" text="dark">NOT ASSIGNED TO YOU</Badge>
-                      )}
-                    </div>
-                  </div>
-
-                  <hr className="my-3" />
-
-                  <div className="row g-3">
-                    <div className="col-12 col-md-6">
-                      <div className="small text-secondary">Lead Source</div>
-                      {editing === 'lead_source_id' ? (
-                        <div className="d-flex gap-1">
-                          <Form.Select
-                            size="sm"
-                            value={editForm.lead_source_id || ''}
+                  {/* Lead Source */}
+                  <Box>
+                    <Typography variant="caption" sx={fieldLabelSx}>Lead Source</Typography>
+                    {editing === 'lead_source_id' ? (
+                      <Stack direction="row" spacing={1} alignItems="center">
+                        <FormControl size="small" fullWidth>
+                          <Select
+                            value={editForm.lead_source_id ?? ''}
                             onChange={(e) => setEditForm({ ...editForm, lead_source_id: e.target.value })}
                             disabled={saving}
+                            displayEmpty
                           >
-                            <option value="">Choose</option>
+                            <MenuItem value=""><em>Choose</em></MenuItem>
                             {leadSources.map(s => (
-                              <option key={s.id} value={s.id}>{s.name}</option>
+                              <MenuItem key={s.id} value={s.id}>{s.name}</MenuItem>
                             ))}
-                          </Form.Select>
-                          <button className="btn btn-sm btn-success" onClick={() => saveInlineEdit('lead_source_id')} disabled={saving}>
-                            <i className="fas fa-check"></i>
-                          </button>
-                          <button className="btn btn-sm btn-light" onClick={cancelEdit} disabled={saving}>
-                            <i className="fas fa-times"></i>
-                          </button>
-                        </div>
-                      ) : (
-                        <div className="d-flex align-items-center justify-content-between">
-                          <div className="fw-semibold">{lead.source || "-"}</div>
-                          {canEdit("leads") && assignedToMe && (
-                            <button className="btn btn-sm btn-outline-secondary" onClick={() => startEdit('lead_source_id', lead.lead_source_id || '')}>
-                              <i className="fas fa-edit"></i>
-                            </button>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                    <div className="col-12 col-md-6">
-                      <div className="small text-secondary">Next Follow-up</div>
-                      <div className="fw-semibold">{formatDateTime(lead.next_follow_up_date)}</div>
-                    </div>
-                    <div className="col-12 col-md-6">
-                      <div className="small text-secondary">Category</div>
-                      {editing === 'lead_category_id' ? (
-                        <div className="d-flex gap-1">
-                          <Form.Select
-                            size="sm"
-                            value={editForm.lead_category_id || ''}
+                          </Select>
+                        </FormControl>
+                        <SaveCancelButtons field="lead_source_id" saving={saving} onSave={saveInlineEdit} onCancel={cancelEdit} />
+                      </Stack>
+                    ) : (
+                      <Stack direction="row" alignItems="center" justifyContent="space-between" spacing={1}>
+                        <Typography variant="body2" sx={{ fontWeight: 600 }}>{lead.source || "-"}</Typography>
+                        {canEditLeads && assignedToMe && (
+                          <EditIconButton onClick={() => startEdit('lead_source_id', lead.lead_source_id || '')} />
+                        )}
+                      </Stack>
+                    )}
+                  </Box>
+
+                  {/* Next Follow-up */}
+                  <Box>
+                    <Typography variant="caption" sx={fieldLabelSx}>Next Follow-up</Typography>
+                    <Typography variant="body2" sx={{ fontWeight: 600 }}>{formatDateTime(lead.next_follow_up_date)}</Typography>
+                  </Box>
+
+                  {/* Category */}
+                  <Box>
+                    <Typography variant="caption" sx={fieldLabelSx}>Category</Typography>
+                    {editing === 'lead_category_id' ? (
+                      <Stack direction="row" spacing={1} alignItems="center">
+                        <FormControl size="small" fullWidth>
+                          <Select
+                            value={editForm.lead_category_id ?? ''}
                             onChange={(e) => setEditForm({ ...editForm, lead_category_id: e.target.value, lead_subcategory_id: '' })}
                             disabled={saving}
+                            displayEmpty
                           >
-                            <option value="">Choose</option>
+                            <MenuItem value=""><em>Choose</em></MenuItem>
                             {categories.map(c => (
-                              <option key={c.id} value={c.id}>{c.name}</option>
+                              <MenuItem key={c.id} value={c.id}>{c.name}</MenuItem>
                             ))}
-                          </Form.Select>
-                          <button className="btn btn-sm btn-success" onClick={() => saveInlineEdit('lead_category_id')} disabled={saving}>
-                            <i className="fas fa-check"></i>
-                          </button>
-                          <button className="btn btn-sm btn-light" onClick={cancelEdit} disabled={saving}>
-                            <i className="fas fa-times"></i>
-                          </button>
-                        </div>
-                      ) : (
-                        <div className="d-flex align-items-center justify-content-between">
-                          <div className="fw-semibold">{lead.category?.name || "-"}</div>
-                          {canEdit("leads") && assignedToMe && (
-                            <button className="btn btn-sm btn-outline-secondary" onClick={() => startEdit('lead_category_id', lead.lead_category_id || '')}>
-                              <i className="fas fa-edit"></i>
-                            </button>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                    <div className="col-12 col-md-6">
-                      <div className="small text-secondary">Subcategory</div>
-                      {editing === 'lead_subcategory_id' ? (
-                        <div className="d-flex gap-1">
-                          <Form.Select
-                            size="sm"
-                            value={editForm.lead_subcategory_id || ''}
+                          </Select>
+                        </FormControl>
+                        <SaveCancelButtons field="lead_category_id" saving={saving} onSave={saveInlineEdit} onCancel={cancelEdit} />
+                      </Stack>
+                    ) : (
+                      <Stack direction="row" alignItems="center" justifyContent="space-between" spacing={1}>
+                        <Typography variant="body2" sx={{ fontWeight: 600 }}>{lead.category?.name || "-"}</Typography>
+                        {canEditLeads && assignedToMe && (
+                          <EditIconButton onClick={() => startEdit('lead_category_id', lead.lead_category_id || '')} />
+                        )}
+                      </Stack>
+                    )}
+                  </Box>
+
+                  {/* Subcategory */}
+                  <Box>
+                    <Typography variant="caption" sx={fieldLabelSx}>Subcategory</Typography>
+                    {editing === 'lead_subcategory_id' ? (
+                      <Stack direction="row" spacing={1} alignItems="center">
+                        <FormControl size="small" fullWidth>
+                          <Select
+                            value={editForm.lead_subcategory_id ?? ''}
                             onChange={(e) => setEditForm({ ...editForm, lead_subcategory_id: e.target.value })}
                             disabled={saving}
+                            displayEmpty
                           >
-                            <option value="">Choose</option>
-                            {(() => {
-                              const catId = lead.lead_category_id ?? lead.category?.id ?? '';
-                              const filtered = subcategories.filter(s => String(s.category_id || s.lead_category_id) === String(catId));
-                              if (filtered.length === 0) {
-                                return <option disabled value="__none__">No subcategories for this category</option>;
-                              }
-                              return filtered.map(s => (
-                                <option key={s.id} value={s.id}>{s.name}</option>
-                              ));
-                            })()}
-                          </Form.Select>
-                          <button className="btn btn-sm btn-success" onClick={() => saveInlineEdit('lead_subcategory_id')} disabled={saving}>
-                            <i className="fas fa-check"></i>
-                          </button>
-                          <button className="btn btn-sm btn-light" onClick={cancelEdit} disabled={saving}>
-                            <i className="fas fa-times"></i>
-                          </button>
-                        </div>
-                      ) : (
-                        <div className="d-flex align-items-center justify-content-between">
-                          <div className="fw-semibold">{lead.subcategory?.name || "-"}</div>
-                          {canEdit("leads") && assignedToMe && (
-                            <button className="btn btn-sm btn-outline-secondary" onClick={() => startEdit('lead_subcategory_id', lead.lead_subcategory_id || '')}>
-                              <i className="fas fa-edit"></i>
-                            </button>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                    <div className="col-12 col-md-6">
-                      <div className="small text-secondary">Assignee</div>
-                      {editing === 'assigned_to' ? (
-                        <div className="d-flex gap-1">
-                          <Form.Select
-                            size="sm"
-                            value={editForm.assigned_to || ''}
+                            <MenuItem value=""><em>Choose</em></MenuItem>
+                            {filteredSubcategories.length === 0 ? (
+                              <MenuItem disabled value="__none__">No subcategories for this category</MenuItem>
+                            ) : (
+                              filteredSubcategories.map(s => (
+                                <MenuItem key={s.id} value={s.id}>{s.name}</MenuItem>
+                              ))
+                            )}
+                          </Select>
+                        </FormControl>
+                        <SaveCancelButtons field="lead_subcategory_id" saving={saving} onSave={saveInlineEdit} onCancel={cancelEdit} />
+                      </Stack>
+                    ) : (
+                      <Stack direction="row" alignItems="center" justifyContent="space-between" spacing={1}>
+                        <Typography variant="body2" sx={{ fontWeight: 600 }}>{lead.subcategory?.name || "-"}</Typography>
+                        {canEditLeads && assignedToMe && (
+                          <EditIconButton onClick={() => startEdit('lead_subcategory_id', lead.lead_subcategory_id || '')} />
+                        )}
+                      </Stack>
+                    )}
+                  </Box>
+
+                  {/* Assignee */}
+                  <Box>
+                    <Typography variant="caption" sx={fieldLabelSx}>Assignee</Typography>
+                    {editing === 'assigned_to' ? (
+                      <Stack direction="row" spacing={1} alignItems="center">
+                        <FormControl size="small" fullWidth>
+                          <Select
+                            value={editForm.assigned_to ?? ''}
                             onChange={(e) => setEditForm({ ...editForm, assigned_to: e.target.value })}
                             disabled={saving}
+                            displayEmpty
                           >
-                            <option value="">Select User</option>
+                            <MenuItem value=""><em>Select User</em></MenuItem>
                             {users.map(u => (
-                              <option key={u.id} value={u.id}>{u.name}</option>
+                              <MenuItem key={u.id} value={u.id}>{u.name}</MenuItem>
                             ))}
-                          </Form.Select>
-                          <button className="btn btn-sm btn-success" onClick={() => saveInlineEdit('assigned_to')} disabled={saving}>
-                            <i className="fas fa-check"></i>
-                          </button>
-                          <button className="btn btn-sm btn-light" onClick={cancelEdit} disabled={saving}>
-                            <i className="fas fa-times"></i>
-                          </button>
-                        </div>
-                      ) : (
-                        <div className="d-flex align-items-center justify-content-between">
-                          <div className="fw-semibold">{lead.assignee?.name || "-"}</div>
-                          {canEdit("leads") && assignedToMe && (
-                            <button className="btn btn-sm btn-outline-secondary" onClick={() => startEdit('assigned_to', lead.assigned_to || '')}>
-                              <i className="fas fa-edit"></i>
-                            </button>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                    <div className="col-12 col-md-6">
-                      <div className="small text-secondary">Created</div>
-                      <div className="fw-semibold">{formatDateTime(lead.created_at)}</div>
-                    </div>
-                    <div className="col-12">
-                      <div className="small text-secondary">Description</div>
-                      {editing === 'description' ? (
-                        <div className="d-flex gap-1 flex-column">
-                          <Form.Control
-                            as="textarea"
-                            rows={3}
-                            value={editForm.description || ''}
-                            onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
+                          </Select>
+                        </FormControl>
+                        <SaveCancelButtons field="assigned_to" saving={saving} onSave={saveInlineEdit} onCancel={cancelEdit} />
+                      </Stack>
+                    ) : (
+                      <Stack direction="row" alignItems="center" justifyContent="space-between" spacing={1}>
+                        <Typography variant="body2" sx={{ fontWeight: 600 }}>{lead.assignee?.name || "-"}</Typography>
+                        {canEditLeads && assignedToMe && (
+                          <EditIconButton onClick={() => startEdit('assigned_to', lead.assigned_to || '')} />
+                        )}
+                      </Stack>
+                    )}
+                  </Box>
+
+                  {/* Created */}
+                  <Box>
+                    <Typography variant="caption" sx={fieldLabelSx}>Created</Typography>
+                    <Typography variant="body2" sx={{ fontWeight: 600 }}>{formatDateTime(lead.created_at)}</Typography>
+                  </Box>
+
+                  {/* Description */}
+                  <Box sx={{ gridColumn: '1 / -1' }}>
+                    <Typography variant="caption" sx={fieldLabelSx}>Description</Typography>
+                    {editing === 'description' ? (
+                      <Stack spacing={1}>
+                        <TextField
+                          size="small"
+                          multiline
+                          rows={3}
+                          value={editForm.description || ''}
+                          onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
+                          disabled={saving}
+                          fullWidth
+                        />
+                        <Stack direction="row" spacing={1}>
+                          <Button
+                            size="small"
+                            variant="contained"
+                            color="success"
+                            onClick={() => saveInlineEdit('description')}
                             disabled={saving}
-                          />
-                          <div className="d-flex gap-1">
-                            <button className="btn btn-sm btn-success" onClick={() => saveInlineEdit('description')} disabled={saving}>
-                              <i className="fas fa-check"></i> Save
-                            </button>
-                            <button className="btn btn-sm btn-light" onClick={cancelEdit} disabled={saving}>
-                              <i className="fas fa-times"></i> Cancel
-                            </button>
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="d-flex align-items-start justify-content-between gap-2">
-                          <div style={{ color: "#0f172a", whiteSpace: "pre-wrap", flex: 1 }}>{lead.description || "-"}</div>
-                          {canEdit("leads") && assignedToMe && (
-                            <button className="btn btn-sm btn-outline-secondary flex-shrink-0" onClick={() => startEdit('description', lead.description || '')}>
-                              <i className="fas fa-edit"></i>
-                            </button>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                    <div className="col-12">
-                      <div className="small text-secondary">Lead Stage</div>
-                      {editing === 'stage' ? (
-                        <div className="d-flex gap-1">
-                          <Form.Select
-                            size="sm"
-                            value={editForm.stage || ''}
+                            startIcon={saving ? <CircularProgress size={12} color="inherit" /> : <i className="fas fa-check" aria-hidden="true" />}
+                          >
+                            Save
+                          </Button>
+                          <Button
+                            size="small"
+                            variant="outlined"
+                            onClick={cancelEdit}
+                            disabled={saving}
+                            startIcon={<i className="fas fa-times" aria-hidden="true" />}
+                          >
+                            Cancel
+                          </Button>
+                        </Stack>
+                      </Stack>
+                    ) : (
+                      <Stack direction="row" alignItems="flex-start" justifyContent="space-between" spacing={1}>
+                        <Typography variant="body2" sx={{ color: 'text.primary', whiteSpace: 'pre-wrap', flex: 1 }}>
+                          {lead.description || "-"}
+                        </Typography>
+                        {canEditLeads && assignedToMe && (
+                          <EditIconButton onClick={() => startEdit('description', lead.description || '')} />
+                        )}
+                      </Stack>
+                    )}
+                  </Box>
+
+                  {/* Lead Stage */}
+                  <Box sx={{ gridColumn: '1 / -1' }}>
+                    <Typography variant="caption" sx={fieldLabelSx}>Lead Stage</Typography>
+                    {editing === 'stage' ? (
+                      <Stack direction="row" spacing={1} alignItems="center" sx={{ maxWidth: 420 }}>
+                        <FormControl size="small" fullWidth>
+                          <Select
+                            value={editForm.stage ?? ''}
                             onChange={(e) => setEditForm({ ...editForm, stage: e.target.value })}
                             disabled={saving}
+                            displayEmpty
                           >
-                            <option value="">Choose</option>
+                            <MenuItem value=""><em>Choose</em></MenuItem>
                             {leadStages.map(s => (
-                              <option key={s.id ?? s.name} value={s.name}>{s.name}</option>
+                              <MenuItem key={s.id ?? s.name} value={s.name}>{s.name}</MenuItem>
                             ))}
-                          </Form.Select>
-                          <button className="btn btn-sm btn-success" onClick={() => saveInlineEdit('stage')} disabled={saving}>
-                            <i className="fas fa-check"></i>
-                          </button>
-                          <button className="btn btn-sm btn-light" onClick={cancelEdit} disabled={saving}>
-                            <i className="fas fa-times"></i>
-                          </button>
-                        </div>
-                      ) : (
-                        <div className="d-flex align-items-center justify-content-between">
-                          <Badge bg={stageVariant(lead.stage)}>{lead.stage || "-"}</Badge>
-                          {canEdit("leads") && assignedToMe && (
-                            <button className="btn btn-sm btn-outline-secondary" onClick={() => startEdit('stage', lead.stage || '')}>
-                              <i className="fas fa-edit"></i>
-                            </button>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                    <div className="col-12">
-                      <div className="small text-secondary">Tags</div>
-                      {editing === 'tags' ? (
-                        <div className="d-flex gap-1 flex-column">
-                          <Form.Select
+                          </Select>
+                        </FormControl>
+                        <SaveCancelButtons field="stage" saving={saving} onSave={saveInlineEdit} onCancel={cancelEdit} />
+                      </Stack>
+                    ) : (
+                      <Stack direction="row" alignItems="center" justifyContent="space-between" spacing={1}>
+                        <Chip label={lead.stage || "-"} size="small" sx={{ ...stageChipSx(lead.stage), fontWeight: 700 }} />
+                        {canEditLeads && assignedToMe && (
+                          <EditIconButton onClick={() => startEdit('stage', lead.stage || '')} />
+                        )}
+                      </Stack>
+                    )}
+                  </Box>
+
+                  {/* Tags */}
+                  <Box sx={{ gridColumn: '1 / -1' }}>
+                    <Typography variant="caption" sx={fieldLabelSx}>Tags</Typography>
+                    {editing === 'tags' ? (
+                      <Stack spacing={1} sx={{ maxWidth: 420 }}>
+                        <FormControl size="small" fullWidth>
+                          <Select
                             multiple
-                            size="sm"
-                            value={editForm.tags || []}
-                            onChange={(e) => setEditForm({ ...editForm, tags: Array.from(e.target.selectedOptions, o => o.value) })}
+                            displayEmpty
+                            value={editTagValues}
+                            onChange={(e) => setEditForm({ ...editForm, tags: e.target.value })}
                             disabled={saving}
-                            style={{ height: '80px' }}
+                            renderValue={(selected) =>
+                              selected.length === 0
+                                ? <em>Select tags</em>
+                                : tags.filter(t => selected.includes(String(t.id))).map(t => t.name).join(', ')
+                            }
                           >
                             {tags.map(t => (
-                              <option key={t.id} value={t.id}>{t.name}</option>
+                              <MenuItem key={t.id} value={String(t.id)}>
+                                <Checkbox size="small" checked={editTagValues.includes(String(t.id))} />
+                                <ListItemText primary={t.name} />
+                              </MenuItem>
                             ))}
-                          </Form.Select>
-                          <div className="d-flex gap-1">
-                            <button className="btn btn-sm btn-success" onClick={() => saveInlineEdit('tags')} disabled={saving}>
-                              <i className="fas fa-check"></i> Save
-                            </button>
-                            <button className="btn btn-sm btn-light" onClick={cancelEdit} disabled={saving}>
-                              <i className="fas fa-times"></i> Cancel
-                            </button>
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="d-flex align-items-start justify-content-between gap-2">
-                          <div className="d-flex flex-wrap gap-1">
-                            {(lead.tags || []).length === 0 && <span className="text-muted">-</span>}
-                            {(lead.tags || []).map(t => (
-                              <span key={t.id} className="badge bg-light text-dark border" style={{ fontSize: 11 }}>
-                                {t.name}
-                              </span>
-                            ))}
-                          </div>
-                          {canEdit("leads") && assignedToMe && (
-                            <button className="btn btn-sm btn-outline-secondary flex-shrink-0" onClick={() => startEdit('tags', (lead.tags || []).map(t => String(t.id)))}>
-                              <i className="fas fa-edit"></i>
-                            </button>
+                          </Select>
+                        </FormControl>
+                        <Stack direction="row" spacing={1}>
+                          <Button
+                            size="small"
+                            variant="contained"
+                            color="success"
+                            onClick={() => saveInlineEdit('tags')}
+                            disabled={saving}
+                            startIcon={saving ? <CircularProgress size={12} color="inherit" /> : <i className="fas fa-check" aria-hidden="true" />}
+                          >
+                            Save
+                          </Button>
+                          <Button
+                            size="small"
+                            variant="outlined"
+                            onClick={cancelEdit}
+                            disabled={saving}
+                            startIcon={<i className="fas fa-times" aria-hidden="true" />}
+                          >
+                            Cancel
+                          </Button>
+                        </Stack>
+                      </Stack>
+                    ) : (
+                      <Stack direction="row" alignItems="flex-start" justifyContent="space-between" spacing={1}>
+                        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: .75 }}>
+                          {(lead.tags || []).length === 0 && (
+                            <Typography variant="body2" color="text.secondary">-</Typography>
                           )}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-                <div className="border rounded p-3 mt-3" style={{ borderColor: "#e2e8f0" }}>
-                  <div className="fw-semibold">Assignment History</div>
-                  <div className="mt-2">
-                    {(lead.assignments || []).length === 0 && (
-                      <div className="text-secondary small">No history</div>
+                          {(lead.tags || []).map(t => (
+                            <Chip key={t.id} label={t.name} size="small" variant="outlined" />
+                          ))}
+                        </Box>
+                        {canEditLeads && assignedToMe && (
+                          <EditIconButton onClick={() => startEdit('tags', (lead.tags || []).map(t => String(t.id)))} />
+                        )}
+                      </Stack>
                     )}
-                    {(lead.assignments || []).map((h) => (
-                      <div key={h.id} className="border rounded p-2 mb-2" style={{ borderColor: "#e2e8f0" }}>
-                        <div className="d-flex justify-content-between gap-2">
-                          <div className="small">
-                            <span className="fw-semibold">{h.from_user?.name || "Unassigned"}</span>
-                            <span className="text-secondary"> → </span>
-                            <span className="fw-semibold">{h.to_user?.name || "-"}</span>
-                          </div>
-                          <div className="text-secondary small">{formatDateTime(h.created_at)}</div>
-                        </div>
-                        <div className="text-secondary small mt-1">
-                          {h.assigned_by?.name ? `Assigned by ${h.assigned_by.name}` : ""}
-                          {h.reason ? ` • ${h.reason}` : ""}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-        </Card.Body>
-      </Card>
+                  </Box>
+                </Box>
+              </CardContent>
+            </Card>
+
+            {/* Assignment History */}
+            <Card sx={{ ...cardSx, mt: 3 }}>
+              <CardContent sx={{ p: 3 }}>
+                <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>Assignment History</Typography>
+                <Divider sx={{ my: 2 }} />
+                {assignments.length === 0 && (
+                  <Typography variant="body2" color="text.secondary">No history</Typography>
+                )}
+                {assignments.map((h) => (
+                  <Box
+                    key={h.id}
+                    sx={{
+                      border: '1px solid',
+                      borderColor: 'divider',
+                      borderRadius: 2,
+                      bgcolor: '#f8fafc',
+                      p: 1.5,
+                      mb: 1.5,
+                      '&:last-of-type': { mb: 0 },
+                    }}
+                  >
+                    <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" spacing={0.5}>
+                      <Typography variant="body2">
+                        <Box component="span" sx={{ fontWeight: 700 }}>{h.from_user?.name || "Unassigned"}</Box>
+                        <Box component="span" sx={{ color: 'text.secondary', mx: .5 }}>→</Box>
+                        <Box component="span" sx={{ fontWeight: 700 }}>{h.to_user?.name || "-"}</Box>
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary">{formatDateTime(h.created_at)}</Typography>
+                    </Stack>
+                    <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: .5 }}>
+                      {h.assigned_by?.name ? `Assigned by ${h.assigned_by.name}` : ""}
+                      {h.reason ? ` • ${h.reason}` : ""}
+                    </Typography>
+                  </Box>
+                ))}
+              </CardContent>
+            </Card>
+          </Box>
+        </Box>
+      )}
 
       <WhatsAppSendModal
         show={showWhatsApp}
@@ -740,78 +882,101 @@ export default function LeadDetails() {
         contextId={id}
       />
 
-      <Modal show={showActivity} onHide={() => setShowActivity(false)} centered backdrop="static">
-        <Modal.Header closeButton>
-          <Modal.Title>Add Activity</Modal.Title>
-        </Modal.Header>
-        <Modal.Body>
+      <Dialog
+        open={showActivity}
+        onClose={handleActivityDialogClose}
+        maxWidth="sm"
+        fullWidth
+        scroll="paper"
+        slotProps={{ paper: { sx: { borderRadius: 3, boxShadow: '0 8px 24px rgba(28,37,46,.12)' } } }}
+      >
+        <DialogTitle sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 2, py: 2 }}>
+          <Typography variant="h6" sx={{ fontWeight: 700 }}>Add Activity</Typography>
+          <IconButton size="small" onClick={() => setShowActivity(false)} aria-label="Close">
+            <i className="fas fa-times" style={{ fontSize: 14 }} aria-hidden="true" />
+          </IconButton>
+        </DialogTitle>
+
+        <DialogContent dividers sx={{ p: 3 }}>
           {!assignedToMe && (
-            <div className="alert alert-warning mb-3">
+            <Alert severity="warning" sx={{ mb: 2.5 }}>
               You must <strong>Assign to me</strong> first to add activities.
-            </div>
+            </Alert>
           )}
 
-          <div className="small text-secondary mb-2">Please select the type of activity you want to add</div>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            Please select the type of activity you want to add
+          </Typography>
 
-          <Form.Group className="mb-3">
-            <Form.Label>Activity Type</Form.Label>
-            <Form.Select value={activity.type} onChange={(e) => setActivity({ ...activity, type: e.target.value })}>
-              <option value="call">Call</option>
-              <option value="message">Message</option>
-              <option value="meeting">Meeting</option>
-              <option value="site_visit">Site Visit</option>
-              <option value="follow_up">Follow-up</option>
-            </Form.Select>
-          </Form.Group>
+          <Box sx={{ display: 'grid', gap: 2.5 }}>
+            <FormControl size="small" fullWidth>
+              <InputLabel>Activity Type</InputLabel>
+              <Select
+                label="Activity Type"
+                value={activity.type}
+                onChange={(e) => setActivity({ ...activity, type: e.target.value })}
+              >
+                <MenuItem value="call">Call</MenuItem>
+                <MenuItem value="message">Message</MenuItem>
+                <MenuItem value="meeting">Meeting</MenuItem>
+                <MenuItem value="site_visit">Site Visit</MenuItem>
+                <MenuItem value="follow_up">Follow-up</MenuItem>
+              </Select>
+            </FormControl>
 
-          <Form.Group className="mb-3">
-            <Form.Label>Add Discussion Summary</Form.Label>
-            <Form.Control
-              as="textarea"
-              rows={6}
+            <TextField
+              size="small"
+              label="Add Discussion Summary"
               placeholder="Add Discussion Summary.."
+              multiline
+              rows={5}
               value={activity.notes}
               onChange={(e) => setActivity({ ...activity, notes: e.target.value })}
+              fullWidth
             />
-          </Form.Group>
 
-          <div className="row g-2">
-            <div className="col-12 col-md-6">
-              <Form.Group className="mb-3">
-                <Form.Label>Follow Up Date & Time</Form.Label>
-                <Form.Control
-                  type="datetime-local"
-                  value={activity.follow_up_date}
-                  onChange={(e) => setActivity({ ...activity, follow_up_date: e.target.value })}
-                />
-              </Form.Group>
-            </div>
-            <div className="col-12 col-md-6">
-              <Form.Group className="mb-3">
-                <Form.Label>Lead Stage</Form.Label>
-                <Form.Select
+            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)' }, gap: 2 }}>
+              <TextField
+                size="small"
+                type="datetime-local"
+                label="Follow Up Date & Time"
+                value={activity.follow_up_date}
+                onChange={(e) => setActivity({ ...activity, follow_up_date: e.target.value })}
+                slotProps={{ inputLabel: { shrink: true } }}
+                fullWidth
+              />
+              <FormControl size="small" fullWidth>
+                <InputLabel>Lead Stage</InputLabel>
+                <Select
+                  label="Lead Stage"
                   value={activity.lead_stage}
                   onChange={(e) => setActivity({ ...activity, lead_stage: e.target.value })}
                 >
-                  <option value="">Choose</option>
+                  <MenuItem value=""><em>Choose</em></MenuItem>
                   {(leadStages || []).map((s) => (
-                    <option key={s.id ?? s.name} value={s.name}>{s.name}</option>
+                    <MenuItem key={s.id ?? s.name} value={s.name}>{s.name}</MenuItem>
                   ))}
-                </Form.Select>
-              </Form.Group>
-            </div>
-          </div>
-        </Modal.Body>
-        <Modal.Footer>
-          <div className="w-100 d-flex gap-2 justify-content-end">
-            <button className="btn btn-light" onClick={() => setShowActivity(false)} disabled={saving}>Cancel</button>
-            <button className="btn btn-primary" onClick={addActivity} disabled={saving || !assignedToMe} style={{ minWidth: 140 }}>
-              <i className="fas fa-save me-1"></i>
-              {saving ? "Saving..." : "Save"}
-            </button>
-          </div>
-        </Modal.Footer>
-      </Modal>
-    </div>
+                </Select>
+              </FormControl>
+            </Box>
+          </Box>
+        </DialogContent>
+
+        <DialogActions sx={{ px: 3, py: 2 }}>
+          <Button variant="outlined" onClick={() => setShowActivity(false)} disabled={saving}>
+            Cancel
+          </Button>
+          <Button
+            variant="contained"
+            onClick={addActivity}
+            disabled={saving || !assignedToMe}
+            startIcon={saving ? <CircularProgress size={14} color="inherit" /> : <i className="fas fa-save" aria-hidden="true" />}
+            sx={{ minWidth: 140 }}
+          >
+            {saving ? "Saving..." : "Save"}
+          </Button>
+        </DialogActions>
+      </Dialog>
+    </Box>
   );
 }

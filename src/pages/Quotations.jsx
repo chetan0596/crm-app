@@ -277,6 +277,33 @@ export default function Quotations() {
     });
   };
 
+  const handleDownloadQuotationPDF = useCallback(async (row) => {
+    try {
+      const res = await api.get(`/quotations/${row.id}/download-pdf`, { responseType: 'blob' });
+      const blob = new Blob([res.data], { type: 'application/pdf' });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = `quotation-${row.quotation_number || row.id}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(link.href);
+    } catch (err) {
+      toast.error('Failed to download PDF');
+    }
+  }, []);
+
+  const handleViewQuotationPDF = useCallback(async (row) => {
+    try {
+      const res = await api.get(`/quotations/${row.id}/view-pdf`, { responseType: 'blob' });
+      const blob = new Blob([res.data], { type: 'application/pdf' });
+      const url = URL.createObjectURL(blob);
+      window.open(url, '_blank', 'noopener,noreferrer');
+    } catch (err) {
+      toast.error('Failed to open PDF');
+    }
+  }, []);
+
   const columns = useMemo(() => [
     { name: "ID", selector: r => r.id, sortable: true, sortField: "id", width: "60px" },
     { name: "Quotation #", selector: r => r.quotation_number, sortable: true, sortField: "quotation_number" },
@@ -293,10 +320,12 @@ export default function Quotations() {
       width: "120px" 
     },
     {
-      name: "Action", width: "220px",
+      name: "Action", width: "280px",
       cell: row => (
         <div className="btn-group btn-group-sm">
           <button className="btn btn-outline-info" onClick={() => viewQuotation(row)} title="View"><i className="fas fa-eye"></i></button>
+          <button className="btn btn-outline-dark" onClick={() => handleViewQuotationPDF(row)} title="View PDF"><i className="fas fa-file-pdf"></i></button>
+          <button className="btn btn-outline-primary" onClick={() => handleDownloadQuotationPDF(row)} title="Download PDF"><i className="fas fa-download"></i></button>
           {row.status !== 'converted' && canEdit("quotations") && (
             <button className="btn btn-outline-primary" onClick={() => openEdit(row)} title="Edit"><i className="fas fa-edit"></i></button>
           )}
@@ -491,6 +520,12 @@ export default function Quotations() {
                 <i className="fas fa-edit me-1"></i> Edit
               </Button>
             )}
+            <Button variant="outline-secondary" size="sm" disabled={!viewData} onClick={() => handleViewQuotationPDF(viewData)}>
+              <i className="fas fa-file-pdf me-1"></i> View PDF
+            </Button>
+            <Button variant="outline-primary" size="sm" disabled={!viewData} onClick={() => handleDownloadQuotationPDF(viewData)}>
+              <i className="fas fa-download me-1"></i> Download
+            </Button>
           </div>
         </Modal.Header>
         <Modal.Body>

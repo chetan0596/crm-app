@@ -1,18 +1,25 @@
 import { Outlet } from "react-router-dom";
-import { useState, useEffect } from "react";
+import { useState } from "react";
+import { AppBar, Box, Drawer, IconButton, Toolbar, useMediaQuery } from "@mui/material";
+import { useTheme } from "@mui/material/styles";
 import { clearPermissions, clearUserData } from "../utils/permissions";
 import { clearAuthTokens } from "../utils/auth";
 import SidebarNavigation from "../components/SidebarNavigation";
 import UserDropdown from "../components/UserDropdown";
 
+const NAV_WIDTH = 280;
+
+const drawerPaperSx = {
+  width: NAV_WIDTH,
+  bgcolor: '#071f35',
+  color: 'rgba(255,255,255,.78)',
+  borderRight: 0,
+};
+
 export default function AdminLayout() {
-
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-
-  useEffect(() => {
-    // Initialize sidebar to expanded state (default)
-    document.body.classList.remove('sidebar-open');
-  }, []);
+  const theme = useTheme();
+  const isDesktop = useMediaQuery(theme.breakpoints.up('lg'));
+  const [mobileOpen, setMobileOpen] = useState(false);
 
   const logout = () => {
     clearAuthTokens();
@@ -21,108 +28,97 @@ export default function AdminLayout() {
     window.location.href = "/login";
   };
 
-  const toggleSidebar = (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (window.innerWidth < 992) {
-      // Mobile/tablet: slide-in overlay via body.sidebar-open
-      // Clear any stale desktop mini-sidebar state so the overlay renders full-width
-      document.body.classList.remove('sidebar-collapse');
-      const opened = document.body.classList.toggle('sidebar-open');
-      setSidebarOpen(opened);
-    } else {
-      // Desktop: collapse to mini sidebar
-      document.body.classList.toggle('sidebar-collapse');
-    }
-  };
-
-  const closeSidebar = () => {
-    setSidebarOpen(false);
-    // Close sidebar only on mobile (< 992px)
-    if (window.innerWidth < 992) {
-      document.body.classList.remove('sidebar-open');
-    }
-  };
-
-  // Close mobile sidebar when clicking on the backdrop
-  useEffect(() => {
-    const handleBackdropClick = (e) => {
-      if (
-        window.innerWidth < 992 &&
-        document.body.classList.contains('sidebar-open') &&
-        !e.target.closest('.main-sidebar') &&
-        !e.target.closest('[data-widget="pushmenu"]')
-      ) {
-        document.body.classList.remove('sidebar-open');
-        setSidebarOpen(false);
-      }
-    };
-    document.addEventListener('click', handleBackdropClick);
-    return () => document.removeEventListener('click', handleBackdropClick);
-  }, []);
-
-  useEffect(() => {
-    const handleResize = () => {
-      if (window.innerWidth >= 992) {
-        setSidebarOpen(false);
-      }
-    };
-    window.addEventListener("resize", handleResize);
-    return () => window.removeEventListener("resize", handleResize);
-  }, []);
+  const drawerContent = (
+    <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+      <Box sx={{ px: 2.5, py: 2.5 }}>
+        <Box
+          component="img"
+          src={`${import.meta.env.BASE_URL}sarth-logo.png`}
+          alt="Sarth — Grow Business"
+          sx={{ display: 'block', width: 170, height: 'auto', p: 1, borderRadius: 2, bgcolor: '#fff' }}
+        />
+      </Box>
+      <Box sx={{ flexGrow: 1, overflowY: 'auto', px: 1.5, pb: 2 }}>
+        <SidebarNavigation closeSidebar={() => setMobileOpen(false)} />
+      </Box>
+    </Box>
+  );
 
   return (
-    <div className={`wrapper sidebar-mini${sidebarOpen ? " sidebar-open" : ""}`}>
+    <Box sx={{ display: 'flex', minHeight: '100vh', bgcolor: 'background.default' }}>
+      <AppBar
+        position="fixed"
+        color="inherit"
+        sx={{
+          width: { lg: `calc(100% - ${NAV_WIDTH}px)` },
+          ml: { lg: `${NAV_WIDTH}px` },
+          bgcolor: 'rgba(255,255,255,.86)',
+          backdropFilter: 'blur(10px)',
+          borderBottom: '1px solid',
+          borderColor: 'divider',
+          boxShadow: 'none',
+        }}
+      >
+        <Toolbar sx={{ minHeight: 64 }}>
+          <IconButton
+            aria-label="Open navigation"
+            edge="start"
+            onClick={() => setMobileOpen(true)}
+            sx={{ mr: 1, display: { lg: 'none' } }}
+          >
+            <i className="fas fa-bars" aria-hidden="true" />
+          </IconButton>
+          <Box sx={{ flexGrow: 1 }} />
 
-      {/* Navbar */}
-      <nav className="main-header navbar navbar-expand navbar-white navbar-light">
-        <ul className="navbar-nav">
-
-          {/* Toggle */}
-          <li className="nav-item">
-            <a className="nav-link" href="#" onClick={toggleSidebar} aria-label="Toggle sidebar">
-              <i className="fas fa-bars"></i>
-            </a>
-          </li>
-
-        </ul>
-
-        {/* Right side */}
-        <ul className="navbar-nav ml-auto align-items-center">
+          {/* Right side */}
           <UserDropdown logout={logout} />
-        </ul>
-      </nav>
-
+        </Toolbar>
+      </AppBar>
 
       {/* Sidebar */}
-      <aside className="main-sidebar sidebar-dark-primary elevation-4">
-
-        <a href="#" className="brand-link">
-          <span className="brand-text font-weight-light ms-2">
-            CRM Admin
-          </span>
-        </a>
-
-        <div className="sidebar">
-          <SidebarNavigation closeSidebar={closeSidebar} />
-        </div>
-
-      </aside>
+      <Box component="nav" sx={{ width: { lg: NAV_WIDTH }, flexShrink: { lg: 0 } }} aria-label="Main navigation">
+        {!isDesktop && (
+          <Drawer
+            variant="temporary"
+            open={mobileOpen}
+            onClose={() => setMobileOpen(false)}
+            ModalProps={{ keepMounted: true }}
+            sx={{
+              display: { xs: 'block', lg: 'none' },
+              '& .MuiDrawer-paper': drawerPaperSx,
+            }}
+          >
+            {drawerContent}
+          </Drawer>
+        )}
+        {isDesktop && (
+          <Drawer
+            variant="permanent"
+            open
+            sx={{
+              display: { xs: 'none', lg: 'block' },
+              '& .MuiDrawer-paper': drawerPaperSx,
+            }}
+          >
+            {drawerContent}
+          </Drawer>
+        )}
+      </Box>
 
       {/* Content */}
-      <div className="content-wrapper">
-
-        <section className="content pt-3">
-          <div className="container-fluid">
-
-            {/* 🔥 Important */}
-            <Outlet />
-
-          </div>
-        </section>
-
-      </div>
-
-    </div>
+      <Box
+        component="main"
+        sx={{
+          flexGrow: 1,
+          minWidth: 0,
+          width: { lg: `calc(100% - ${NAV_WIDTH}px)` },
+          p: { xs: 2, md: 3 },
+          pt: { xs: 10, md: 11 },
+        }}
+      >
+        {/* 🔥 Important */}
+        <Outlet />
+      </Box>
+    </Box>
   );
 }

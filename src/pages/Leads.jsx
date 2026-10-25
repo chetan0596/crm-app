@@ -1,10 +1,43 @@
-import { useEffect, useMemo, useReducer, useState } from "react";
+import { useCallback, useEffect, useMemo, useReducer, useState } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
-import DataTable from "react-data-table-component";
-import { Modal, Button, Form, Dropdown } from "react-bootstrap";
+import {
+  Alert,
+  Avatar,
+  Box,
+  Button,
+  Card,
+  CardContent,
+  Checkbox,
+  Chip,
+  Collapse,
+  Divider,
+  FormControl,
+  IconButton,
+  InputAdornment,
+  InputLabel,
+  LinearProgress,
+  ListItemIcon,
+  ListItemText,
+  Menu,
+  MenuItem,
+  Select,
+  Stack,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TablePagination,
+  TableRow,
+  TableSortLabel,
+  TextField,
+  Tooltip,
+  Typography,
+} from "@mui/material";
 import Swal from "sweetalert2";
 import { toast } from "react-toastify";
 import api from "../api";
+import LeadFormDialog from "../components/LeadFormDialog";
 import { canCreate, canDelete, canEdit, canView } from "../utils/permissions";
 import { getUserData } from "../utils/permissions";
 
@@ -42,25 +75,48 @@ function tableReducer(state, action) {
   }
 }
 
-const stageVariant = (stage) => {
+const stageChipSx = (stage) => {
   const s = (stage || "").toLowerCase();
-  if (s.includes("new")) return { bg: "info", text: "white" };
-  if (s.includes("warm")) return { bg: "warning", text: "dark" };
-  if (s.includes("hot")) return { bg: "danger", text: "white" };
-  if (s.includes("won")) return { bg: "success", text: "white" };
-  return { bg: "secondary", text: "white" };
+  if (s.includes("new")) return { bgcolor: '#e0f2fe', color: '#075985' };
+  if (s.includes("warm")) return { bgcolor: '#fff4d6', color: '#b76e00' };
+  if (s.includes("hot")) return { bgcolor: '#ffe4de', color: '#b71d18' };
+  if (s.includes("won")) return { bgcolor: '#dbf5e9', color: '#118d57' };
+  return { bgcolor: '#f1f5f9', color: '#475569' };
 };
 
 // IndiaMART QUERY_TYPE mapping helper
 const getIndiamartQueryTypeBadge = (queryType) => {
   const types = {
-    'W': { label: 'Direct', class: 'bg-primary' },
-    'B': { label: 'Buy-Lead', class: 'bg-success' },
-    'P': { label: 'PNS Call', class: 'bg-warning text-dark' },
-    'BIZ': { label: 'Catalog', class: 'bg-info' },
-    'WA': { label: 'WhatsApp', class: 'bg-secondary' },
+    'W': { label: 'Direct', sx: { bgcolor: '#eaf0f6', color: '#062849' } },
+    'B': { label: 'Buy-Lead', sx: { bgcolor: '#dbf5e9', color: '#118d57' } },
+    'P': { label: 'PNS Call', sx: { bgcolor: '#fff4d6', color: '#b76e00' } },
+    'BIZ': { label: 'Catalog', sx: { bgcolor: '#caf4ff', color: '#006c9c' } },
+    'WA': { label: 'WhatsApp', sx: { bgcolor: '#f1f5f9', color: '#475569' } },
   };
-  return types[queryType] || { label: queryType, class: 'bg-light text-dark' };
+  return types[queryType] || { label: queryType, sx: { bgcolor: '#f1f5f9', color: '#475569' } };
+};
+
+const getInitials = (name) => (name || 'U').split(' ').map((part) => part[0]).join('').toUpperCase().slice(0, 2);
+
+const defaultVisibleCols = {
+  id: true,
+  name: true,
+  phone: true,
+  lead_stage: true,
+  lead_source: true,
+  tags: true,
+  last_activity: true,
+  assignee: true,
+  action: true,
+};
+
+const toArray = (value) => {
+  if (Array.isArray(value)) return value;
+  if (Array.isArray(value?.data)) return value.data;
+  if (Array.isArray(value?.data?.data)) return value.data.data;
+  if (Array.isArray(value?.items)) return value.items;
+  if (Array.isArray(value?.results)) return value.results;
+  return [];
 };
 
 export default function Leads() {
@@ -101,7 +157,7 @@ export default function Leads() {
   const [serverMode, setServerMode] = useState(false);
 
   const [categories, setCategories] = useState([]);
-  const [subcategories, setSubcategories] = useState([]);
+  const [, setSubcategories] = useState([]);
   const [states, setStates] = useState([]);
   const [cities, setCities] = useState([]);
   const [leadSources, setLeadSources] = useState([]);
@@ -123,29 +179,25 @@ export default function Leads() {
   const [filterActivityFrom, setFilterActivityFrom] = useState(initialTable.filters.activity_from);
   const [filterActivityTo, setFilterActivityTo] = useState(initialTable.filters.activity_to);
   const [showFilters, setShowFilters] = useState(false);
+  const [columnAnchorEl, setColumnAnchorEl] = useState(null);
+  const [actionAnchorEl, setActionAnchorEl] = useState(null);
+  const [actionRow, setActionRow] = useState(null);
 
   const [visibleCols, setVisibleCols] = useState(() => {
-    const saved = localStorage.getItem('leads-visible-cols');
-    if (saved) {
-      try {
-        return JSON.parse(saved);
-      } catch {}
+    try {
+      const saved = localStorage.getItem('leads-visible-cols');
+      return saved ? { ...defaultVisibleCols, ...JSON.parse(saved) } : defaultVisibleCols;
+    } catch {
+      return defaultVisibleCols;
     }
-    return {
-      id: true,
-      name: true,
-      phone: true,
-      lead_stage: true,
-      lead_source: true,
-      tags: true,
-      last_activity: true,
-      assignee: true,
-      action: true,
-    };
   });
 
   useEffect(() => {
-    localStorage.setItem('leads-visible-cols', JSON.stringify(visibleCols));
+    try {
+      localStorage.setItem('leads-visible-cols', JSON.stringify(visibleCols));
+    } catch {
+      return undefined;
+    }
   }, [visibleCols]);
 
   const [show, setShow] = useState(false);
@@ -208,18 +260,18 @@ export default function Leads() {
     expires: {},
   }), []);
 
-  const fetchWithCache = async (key, url, setter) => {
+  const fetchWithCache = useCallback(async (key, url, setter) => {
     const now = Date.now();
     if (masterCache[key] && masterCache.expires[key] && now < masterCache.expires[key]) {
       setter(masterCache[key]);
       return;
     }
     const r = await api.get(url);
-    const data = r.data?.data || r.data || [];
+    const data = toArray(r.data);
     masterCache[key] = data;
     masterCache.expires[key] = now + 600000; // 10 minutes
     setter(data);
-  };
+  }, [masterCache]);
 
   useEffect(() => {
     const newParams = new URLSearchParams({
@@ -267,7 +319,7 @@ export default function Leads() {
     return withParts.join(',');
   }, [visibleCols.category, visibleCols.subcategory, visibleCols.state, visibleCols.city, visibleCols.stage, visibleCols.source]);
 
-  const loadTable = async (signal) => {
+  const loadTable = useCallback(async (signal) => {
     if (!canViewLeads) return;
     try {
       setLoading(true);
@@ -306,9 +358,9 @@ export default function Leads() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [canViewLeads, table, buildWithQuery]);
 
-  const loadDropdowns = async () => {
+  const loadDropdowns = useCallback(async () => {
     await Promise.allSettled([
       fetchWithCache('categories', '/lead-categories?perPage=200', setCategories),
       fetchWithCache('subcategories', '/lead-subcategories?perPage=200', setSubcategories),
@@ -318,17 +370,17 @@ export default function Leads() {
       fetchWithCache('tags', '/lead-tags?perPage=200', setTags),
       fetchWithCache('states', '/states?perPage=200', setStates),
     ]);
-  };
+  }, [fetchWithCache]);
 
   useEffect(() => {
     const controller = new AbortController();
     loadTable(controller.signal);
     return () => controller.abort();
-  }, [reloadKey, table, canViewLeads, buildWithQuery]);
+  }, [loadTable, reloadKey]);
 
   useEffect(() => {
     loadDropdowns();
-  }, [reloadKey]);
+  }, [loadDropdowns, reloadKey]);
 
   // Debounced filter updates
   useEffect(() => {
@@ -670,952 +722,495 @@ export default function Leads() {
 
   // ================= TABLE =================
 
-  const cols = useMemo(() => {
-    const all = [
-      visibleCols.id && {
-        name: "ID",
-        selector: r => r.id,
-        sortable: true,
-        sortField: "id",
-        width: "70px",
+  const columns = [
+    visibleCols.id && {
+      key: 'id', label: 'ID', sortField: 'id', width: 80,
+      render: (row) => <Typography variant="body2" sx={{ fontWeight: 700 }}>#{row.id}</Typography>,
+    },
+    visibleCols.name && {
+      key: 'name', label: 'Name', sortField: 'name', minWidth: 190,
+      render: (row) => (
+        <Stack direction="row" spacing={1.5} alignItems="center">
+          <Avatar sx={{ width: 34, height: 34, bgcolor: '#eaf0f6', color: '#062849', fontSize: 12, fontWeight: 700 }}>
+            {getInitials(row.name)}
+          </Avatar>
+          <Box sx={{ minWidth: 0 }}>
+            <Typography variant="body2" sx={{ fontWeight: 700 }}>{row.name || '-'}</Typography>
+            <Typography variant="caption" color="text.secondary" noWrap>
+              {row.email || row.company_name || ''}
+            </Typography>
+          </Box>
+        </Stack>
+      ),
+    },
+    visibleCols.phone && {
+      key: 'phone', label: 'Phone', sortField: 'phone', minWidth: 130,
+      render: (row) => row.phone || '-',
+    },
+    visibleCols.lead_stage && {
+      key: 'lead_stage', label: 'Lead Stage', sortField: 'stage', minWidth: 120,
+      render: (row) => <Chip label={row.stage || '-'} size="small" sx={{ ...stageChipSx(row.stage), fontWeight: 700 }} />,
+    },
+    visibleCols.lead_source && {
+      key: 'lead_source', label: 'Lead Source', sortField: 'source', minWidth: 160,
+      render: (row) => (
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: .75, flexWrap: 'wrap' }}>
+          <Typography variant="body2" color="text.secondary">{row.source || '-'}</Typography>
+          {row.source_type === 'indiamart' && row.query_type && (
+            <Chip label={getIndiamartQueryTypeBadge(row.query_type).label} size="small" sx={{ ...getIndiamartQueryTypeBadge(row.query_type).sx, fontSize: 11, fontWeight: 700 }} />
+          )}
+        </Box>
+      ),
+    },
+    visibleCols.tags && {
+      key: 'tags', label: 'Tags', minWidth: 160,
+      render: (row) => (
+        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: .5 }}>
+          {(row.tags || []).length === 0 && <Typography variant="body2" color="text.secondary">-</Typography>}
+          {(row.tags || []).slice(0, 3).map((tag) => (
+            <Chip key={tag.id} label={tag.name} size="small" variant="outlined" />
+          ))}
+          {(row.tags || []).length > 3 && <Chip label={`+${row.tags.length - 3}`} size="small" variant="outlined" />}
+        </Box>
+      ),
+    },
+    visibleCols.last_activity && {
+      key: 'last_activity', label: 'Last Activity', minWidth: 170,
+      render: (row) => {
+        const last = row.activities?.[0];
+        return (
+          <Box>
+            <Typography variant="body2" sx={{ fontWeight: 700 }}>
+              {last?.type ? (last.type.charAt(0).toUpperCase() + last.type.slice(1)) : '-'}
+            </Typography>
+            <Typography variant="caption" color="text.secondary">
+              {last?.activity_at ? new Date(last.activity_at).toLocaleString() : ''}
+            </Typography>
+          </Box>
+        );
       },
-      visibleCols.name && {
-        name: "Name",
-        selector: r => r.name,
-        sortable: true,
-        sortField: "name",
-        minWidth: "140px",
-      },
-      visibleCols.phone && {
-        name: "Phone",
-        selector: r => r.phone || "-",
-        sortable: true,
-        sortField: "phone",
-        minWidth: "120px",
-      },
-      visibleCols.lead_stage && {
-        name: "Lead Stage",
-        cell: r => {
-          const v = stageVariant(r.stage);
-          return <span className={`badge bg-${v.bg}`}>{r.stage || "-"}</span>;
-        },
-        sortable: true,
-        sortField: "stage",
-        width: "110px",
-      },
-      visibleCols.lead_source && {
-        name: "Lead Source",
-        selector: r => (
-          <div>
-            <span className="text-secondary">{r.source || "-"}</span>
-            {r.source_type === 'indiamart' && r.query_type && (
-              <span className={`badge ms-1 ${getIndiamartQueryTypeBadge(r.query_type).class}`} style={{ fontSize: '0.7em' }}>
-                {getIndiamartQueryTypeBadge(r.query_type).label}
-              </span>
-            )}
-          </div>
-        ),
-        sortable: true,
-        sortField: "source",
-        minWidth: "140px",
-      },
-      visibleCols.tags && {
-        name: "Tags",
-        cell: r => (
-          <div className="d-flex flex-wrap gap-1">
-            {(r.tags || []).length === 0 && <span className="text-secondary">-</span>}
-            {(r.tags || []).slice(0, 3).map((t) => (
-              <span key={t.id} className="badge bg-light text-dark border" style={{ fontSize: 11 }}>
-                {t.name}
-              </span>
-            ))}
-            {(r.tags || []).length > 3 && (
-              <span className="badge bg-light text-dark border" style={{ fontSize: 11 }}>+{(r.tags || []).length - 3}</span>
-            )}
-          </div>
-        ),
-        minWidth: "140px",
-      },
-      visibleCols.last_activity && {
-        name: "Last Activity",
-        cell: r => {
-          const last = r.activities?.[0];
-          return (
-            <div>
-              <div className="small fw-semibold" style={{ color: "#0f172a" }}>{last?.type ? (last.type.charAt(0).toUpperCase() + last.type.slice(1)) : "-"}</div>
-              <div className="small text-secondary">{last?.activity_at ? new Date(last.activity_at).toLocaleString() : ""}</div>
-            </div>
-          );
-        },
-        minWidth: "160px",
-      },
-      visibleCols.assignee && {
-        name: "Assignee",
-        cell: r => (
-          <div>
-            <div className="fw-semibold" style={{ color: "#0f172a" }}>{r.assignee?.name || "-"}</div>
-            <div className="small text-secondary">{r.assigned_at ? new Date(r.assigned_at).toLocaleString() : ""}</div>
-          </div>
-        ),
-        minWidth: "180px",
-      },
-      visibleCols.action && {
-        name: "Action",
-        width: "140px",
-        cell: r => (
-          <div className="btn-group btn-group-sm">
-            <button className="btn btn-outline-primary" onClick={() => navigate(`/leads/${r.id}`)}>
-              <i className="fas fa-eye"></i>
-            </button>
-            <button className="btn btn-outline-info" onClick={() => openEdit(r)}>
-              <i className="fas fa-edit"></i>
-            </button>
-            {canEdit("leads") && (!r.assigned_to || (currentUserId && Number(r.assigned_to) !== Number(currentUserId))) && (
-              <button className="btn btn-outline-success" onClick={() => claim(r)}>
-                <i className="fas fa-user-check"></i>
-              </button>
-            )}
-            {canDelete("leads") && (
-              <button className="btn btn-outline-danger" onClick={() => del(r)}>
-                <i className="fas fa-trash"></i>
-              </button>
-            )}
-          </div>
-        ),
-      },
-    ];
+    },
+    visibleCols.assignee && {
+      key: 'assignee', label: 'Assignee', minWidth: 190,
+      render: (row) => (
+        <Stack direction="row" spacing={1.25} alignItems="center">
+          {row.assignee?.name ? (
+            <Avatar sx={{ width: 32, height: 32, bgcolor: '#f1ebfd', color: '#6528e8', fontSize: 11, fontWeight: 700 }}>
+              {getInitials(row.assignee.name)}
+            </Avatar>
+          ) : null}
+          <Box sx={{ minWidth: 0 }}>
+            <Typography variant="body2" sx={{ fontWeight: 700 }}>{row.assignee?.name || '-'}</Typography>
+            <Typography variant="caption" color="text.secondary">
+              {row.assigned_at ? new Date(row.assigned_at).toLocaleString() : ''}
+            </Typography>
+          </Box>
+        </Stack>
+      ),
+    },
+    visibleCols.action && {
+      key: 'action', label: 'Action', minWidth: 84, align: 'right',
+      render: (row) => (
+        <Tooltip title="Actions">
+          <IconButton
+            size="small"
+            onClick={(event) => {
+              event.stopPropagation();
+              setActionRow(row);
+              setActionAnchorEl(event.currentTarget);
+            }}
+            aria-label="Lead actions"
+            aria-haspopup="true"
+            sx={{ border: '1px solid', borderColor: 'divider' }}
+          >
+            <i className="fas fa-ellipsis-vertical" style={{ fontSize: 13 }} aria-hidden="true" />
+          </IconButton>
+        </Tooltip>
+      ),
+    },
+  ].filter(Boolean);
 
-    return all.filter(Boolean);
-  }, [visibleCols, navigate, currentUserId]);
+  const visibleColumnOptions = [
+    ['id', 'ID'],
+    ['name', 'Name'],
+    ['phone', 'Phone'],
+    ['lead_stage', 'Lead Stage'],
+    ['lead_source', 'Lead Source'],
+    ['tags', 'Tags'],
+    ['last_activity', 'Last Activity'],
+    ['assignee', 'Assignee'],
+    ['action', 'Action'],
+  ];
+
+  const shownColumnCount = visibleColumnOptions.filter(([key]) => visibleCols[key]).length;
+
+  const closeActionMenu = () => {
+    setActionAnchorEl(null);
+    setActionRow(null);
+  };
+
+  const runRowAction = (callback) => () => {
+    const row = actionRow;
+    closeActionMenu();
+    if (row) callback(row);
+  };
+
+  const handleSort = (field) => {
+    const isAsc = table.sortField === field && table.sortDir === 'asc';
+    dispatch({ type: 'SORT', field, dir: isAsc ? 'desc' : 'asc' });
+  };
 
   // ================= UI =================
 
   if (!canViewLeads) {
     return (
-      <div className="p-4">
-        <div className="card card-outline card-primary">
-          <div className="card-body text-center py-5">
-            <div className="text-secondary">Access denied</div>
-          </div>
-        </div>
-      </div>
+      <Alert severity="error" sx={{ borderRadius: 3 }}>
+        Access denied. You don’t have permission to view leads.
+      </Alert>
     );
   }
 
   return (
-    <div className="card card-outline card-primary">
+    <Box>
 
-      <div className="card-header">
-        <div className="row g-3 align-items-center">
-          <div className="col-12 col-md-4">
-            <h3 className="card-title mb-0">
-              <i className="fas fa-users me-2 text-primary"></i>
-              Leads
-            </h3>
-            {total > 0 && (
-              <span className="badge bg-light text-dark mt-1">{total} total</span>
-            )}
-          </div>
-
-          <div className="col-12 col-md-8">
-            <div className="d-flex gap-2 flex-wrap justify-content-md-end align-items-center">
-              <div className="input-group input-group-sm" style={{ maxWidth: 280 }}>
-                <span className="input-group-text">
-                  <i className="fas fa-search"></i>
-                </span>
-                <input
-                  className="form-control"
-                  placeholder="Search name, phone, email"
-                  value={searchInput}
-                  onChange={e => setSearchInput(e.target.value)}
-                />
-              </div>
+      <Card sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 3, boxShadow: '0 8px 24px rgba(28,37,46,.05)' }}>
+        <CardContent sx={{ p: 3 }}>
+          <Box sx={{ display: 'flex', alignItems: { md: 'center' }, justifyContent: 'space-between', flexDirection: { xs: 'column', md: 'row' }, gap: 2 }}>
+            <Box>
+              <Typography variant="h4" sx={{ color: 'text.primary', fontWeight: 700 }}>
+                Leads
+              </Typography>
+              <Typography variant="body2" sx={{ color: 'text.secondary', mt: .5 }}>
+                {total} total leads
+              </Typography>
+            </Box>
+            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} alignItems={{ sm: 'center' }}>
+              <TextField
+                size="small"
+                placeholder="Search name, phone, email"
+                value={searchInput}
+                onChange={e => setSearchInput(e.target.value)}
+                sx={{ minWidth: { xs: '100%', sm: 280 } }}
+                slotProps={{
+                  input: {
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <i className="fas fa-search" style={{ fontSize: 13 }} aria-hidden="true" />
+                      </InputAdornment>
+                    ),
+                  },
+                }}
+              />
 
               {/* Filter Dropdown */}
-              <Dropdown>
-                <Dropdown.Toggle variant="outline-secondary btn-sm" id="leads-filter-toggle">
-                  <i className="fas fa-filter me-1"></i>
-                  Filters
-                  {hasActiveFilters && <span className="badge bg-primary ms-1">●</span>}
-                </Dropdown.Toggle>
-                <Dropdown.Menu style={{ minWidth: 280 }}>
-                  <div className="px-3 py-2">
-                    <div className="mb-2">
-                      <label className="small fw-semibold text-muted">Stage</label>
-                      <Form.Select
-                        size="sm"
-                        value={filterStage}
-                        onChange={(e) => setFilterStage(e.target.value)}
-                      >
-                        <option value="">All Stages</option>
-                        {leadStages.map((s) => (
-                          <option key={s.id ?? s.name} value={s.name}>{s.name}</option>
-                        ))}
-                      </Form.Select>
-                    </div>
-                    <div className="mb-2">
-                      <label className="small fw-semibold text-muted">Source</label>
-                      <Form.Select
-                        size="sm"
-                        value={filterSource}
-                        onChange={(e) => setFilterSource(e.target.value)}
-                      >
-                        <option value="">All Sources</option>
-                        {leadSources.map((s) => (
-                          <option key={s.id ?? s.name} value={s.name}>{s.name}</option>
-                        ))}
-                      </Form.Select>
-                    </div>
-                    <div className="mb-2">
-                      <label className="small fw-semibold text-muted">Product</label>
-                      <Form.Control
-                        size="sm"
-                        type="text"
-                        placeholder="Search product..."
-                        value={filterProductName}
-                        onChange={(e) => setFilterProductName(e.target.value)}
-                      />
-                    </div>
-                    <div className="mb-2">
-                      <label className="small fw-semibold text-muted">Assignee</label>
-                      <Form.Select
-                        size="sm"
-                        value={filterAssignee}
-                        onChange={(e) => setFilterAssignee(e.target.value)}
-                      >
-                        <option value="">All Assignees</option>
-                        {users.map((u) => (
-                          <option key={u.id} value={u.id}>{u.name}</option>
-                        ))}
-                      </Form.Select>
-                    </div>
-                    <div className="mb-2">
-                      <label className="small fw-semibold text-muted">Created By</label>
-                      <Form.Select
-                        size="sm"
-                        value={filterCreatedBy}
-                        onChange={(e) => setFilterCreatedBy(e.target.value)}
-                      >
-                        <option value="">All Creators</option>
-                        {users.map((u) => (
-                          <option key={u.id} value={u.id}>{u.name}</option>
-                        ))}
-                      </Form.Select>
-                    </div>
-                    <div className="mb-2">
-                      <label className="small fw-semibold text-muted">Tags</label>
-                      <Form.Select
-                        size="sm"
-                        multiple
-                        style={{ minHeight: 60 }}
-                        value={filterTags}
-                        onChange={(e) => {
-                          const selected = Array.from(e.target.selectedOptions, (o) => o.value);
-                          setFilterTags(selected);
-                        }}
-                      >
-                        {tags.map((t) => (
-                          <option key={t.id} value={t.id}>{t.name}</option>
-                        ))}
-                      </Form.Select>
-                      <small className="text-muted">Hold Ctrl to select multiple</small>
-                    </div>
-                    <div className="mb-2">
-                      <label className="small fw-semibold text-muted">Created Date</label>
-                      <div className="d-flex gap-1">
-                        <Form.Control
-                          type="date"
-                          size="sm"
-                          placeholder="From"
-                          value={filterCreatedFrom}
-                          onChange={(e) => setFilterCreatedFrom(e.target.value)}
-                        />
-                        <Form.Control
-                          type="date"
-                          size="sm"
-                          placeholder="To"
-                          value={filterCreatedTo}
-                          onChange={(e) => setFilterCreatedTo(e.target.value)}
-                        />
-                      </div>
-                    </div>
-                    <div className="mb-2">
-                      <label className="small fw-semibold text-muted">Last Activity Date</label>
-                      <div className="d-flex gap-1">
-                        <Form.Control
-                          type="date"
-                          size="sm"
-                          placeholder="From"
-                          value={filterActivityFrom}
-                          onChange={(e) => setFilterActivityFrom(e.target.value)}
-                        />
-                        <Form.Control
-                          type="date"
-                          size="sm"
-                          placeholder="To"
-                          value={filterActivityTo}
-                          onChange={(e) => setFilterActivityTo(e.target.value)}
-                        />
-                      </div>
-                    </div>
-                    {hasActiveFilters && (
-                      <div className="d-flex justify-content-end mt-2">
-                        <button className="btn btn-outline-secondary btn-sm" onClick={clearFilters}>
-                          <i className="fas fa-times me-1"></i> Clear
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                </Dropdown.Menu>
-              </Dropdown>
+              <Button
+                variant="outlined"
+                onClick={() => setShowFilters(open => !open)}
+                startIcon={<i className="fas fa-filter" aria-hidden="true" />}
+                endIcon={hasActiveFilters ? <Box component="span" sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: 'secondary.main' }} /> : null}
+                sx={{ whiteSpace: 'nowrap' }}
+              >
+                Filters
+              </Button>
 
               {canCreate("leads") && (
-                <button
-                  className="btn btn-primary btn-sm"
-                  onClick={openAdd}
-                >
-                  <i className="fas fa-plus me-1"></i> Add Lead
-                </button>
+                <Button variant="contained" onClick={openAdd} startIcon={<i className="fas fa-plus" aria-hidden="true" />}>
+                  Add Lead
+                </Button>
               )}
+            </Stack>
+          </Box>
+        </CardContent>
 
-            </div>
-          </div>
-        </div>
-      </div>
+        <Collapse in={showFilters} unmountOnExit>
+          <Divider />
+          <Box sx={{ px: 3, py: 2.5, bgcolor: '#f8fafc' }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 2, mb: 2.5 }}>
+              <Box>
+                <Typography variant="subtitle2" sx={{ color: 'text.primary', fontWeight: 700 }}>
+                  Filters
+                </Typography>
+                <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                  Refine the leads shown in the table
+                </Typography>
+              </Box>
+              {hasActiveFilters && (
+                <Button variant="text" size="small" onClick={clearFilters} startIcon={<i className="fas fa-times" aria-hidden="true" />}>
+                  Clear filters
+                </Button>
+              )}
+            </Box>
 
-      <div className="card-body bg-light border-bottom py-2">
-        <div className="d-flex align-items-center justify-content-between gap-2 flex-wrap">
-          <div className="d-flex align-items-center gap-2 flex-wrap">
-            <span className="text-muted small fw-semibold">Columns:</span>
-            <Dropdown>
-              <Dropdown.Toggle variant="outline-secondary btn-sm" id="leadscol-toggle">
-                <i className="fas fa-columns me-1"></i>
-                {(() => {
-                  const allCols = [
-                    visibleCols.id, visibleCols.name, visibleCols.phone,
-                    visibleCols.lead_stage, visibleCols.lead_source, visibleCols.tags,
-                    visibleCols.last_activity, visibleCols.assignee, visibleCols.action,
-                  ];
-                  const total = allCols.length;
-                  const shown = allCols.filter(Boolean).length;
-                  if (shown === 0) return 'No columns';
-                  if (shown === total) return `All columns (${total})`;
-                  return `${shown} of ${total} columns`;
-                })()}
-              </Dropdown.Toggle>
+            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', xl: 'repeat(4, 1fr)' }, gap: 2 }}>
+              <FormControl size="small" fullWidth>
+                <InputLabel>Stage</InputLabel>
+                <Select label="Stage" value={filterStage} onChange={(e) => setFilterStage(e.target.value)}>
+                  <MenuItem value=""><em>All stages</em></MenuItem>
+                  {leadStages.map((stage) => <MenuItem key={stage.id ?? stage.name} value={stage.name}>{stage.name}</MenuItem>)}
+                </Select>
+              </FormControl>
+              <FormControl size="small" fullWidth>
+                <InputLabel>Source</InputLabel>
+                <Select label="Source" value={filterSource} onChange={(e) => setFilterSource(e.target.value)}>
+                  <MenuItem value=""><em>All sources</em></MenuItem>
+                  {leadSources.map((source) => <MenuItem key={source.id ?? source.name} value={source.name}>{source.name}</MenuItem>)}
+                </Select>
+              </FormControl>
+              <TextField size="small" label="Product" placeholder="Search product" value={filterProductName} onChange={(e) => setFilterProductName(e.target.value)} fullWidth />
+              <FormControl size="small" fullWidth>
+                <InputLabel>Assignee</InputLabel>
+                <Select label="Assignee" value={filterAssignee} onChange={(e) => setFilterAssignee(e.target.value)}>
+                  <MenuItem value=""><em>All assignees</em></MenuItem>
+                  {users.map((user) => <MenuItem key={user.id} value={String(user.id)}>{user.name}</MenuItem>)}
+                </Select>
+              </FormControl>
+              <FormControl size="small" fullWidth>
+                <InputLabel>Created by</InputLabel>
+                <Select label="Created by" value={filterCreatedBy} onChange={(e) => setFilterCreatedBy(e.target.value)}>
+                  <MenuItem value=""><em>All creators</em></MenuItem>
+                  {users.map((user) => <MenuItem key={user.id} value={String(user.id)}>{user.name}</MenuItem>)}
+                </Select>
+              </FormControl>
+              <FormControl size="small" fullWidth>
+                <InputLabel>Tags</InputLabel>
+                <Select
+                  multiple
+                  displayEmpty
+                  label="Tags"
+                  value={filterTags.map(String)}
+                  onChange={(e) => setFilterTags(e.target.value)}
+                  renderValue={(selected) => selected.length ? `${selected.length} selected` : 'All tags'}
+                >
+                  {tags.map((tag) => (
+                    <MenuItem key={tag.id} value={String(tag.id)}>
+                      <Checkbox checked={filterTags.map(String).includes(String(tag.id))} size="small" />
+                      <ListItemText primary={tag.name} />
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Box>
 
-              <Dropdown.Menu>
-                <Dropdown.Item
-                  active={visibleCols.id}
-                  onClick={() => setVisibleCols(v => ({ ...v, id: !v.id }))}
-                >
-                  <i className={`fas ${visibleCols.id ? 'fa-check-square text-primary' : 'fa-square'} me-2`}></i>
-                  ID
-                </Dropdown.Item>
-                <Dropdown.Item
-                  active={visibleCols.name}
-                  onClick={() => setVisibleCols(v => ({ ...v, name: !v.name }))}
-                >
-                  <i className={`fas ${visibleCols.name ? 'fa-check-square text-primary' : 'fa-square'} me-2`}></i>
-                  Name
-                </Dropdown.Item>
-                <Dropdown.Item
-                  active={visibleCols.phone}
-                  onClick={() => setVisibleCols(v => ({ ...v, phone: !v.phone }))}
-                >
-                  <i className={`fas ${visibleCols.phone ? 'fa-check-square text-primary' : 'fa-square'} me-2`}></i>
-                  Phone
-                </Dropdown.Item>
-                <Dropdown.Item
-                  active={visibleCols.lead_stage}
-                  onClick={() => setVisibleCols(v => ({ ...v, lead_stage: !v.lead_stage }))}
-                >
-                  <i className={`fas ${visibleCols.lead_stage ? 'fa-check-square text-primary' : 'fa-square'} me-2`}></i>
-                  Lead Stage
-                </Dropdown.Item>
-                <Dropdown.Item
-                  active={visibleCols.lead_source}
-                  onClick={() => setVisibleCols(v => ({ ...v, lead_source: !v.lead_source }))}
-                >
-                  <i className={`fas ${visibleCols.lead_source ? 'fa-check-square text-primary' : 'fa-square'} me-2`}></i>
-                  Lead Source
-                </Dropdown.Item>
-                <Dropdown.Item
-                  active={visibleCols.tags}
-                  onClick={() => setVisibleCols(v => ({ ...v, tags: !v.tags }))}
-                >
-                  <i className={`fas ${visibleCols.tags ? 'fa-check-square text-primary' : 'fa-square'} me-2`}></i>
-                  Tags
-                </Dropdown.Item>
-                <Dropdown.Item
-                  active={visibleCols.last_activity}
-                  onClick={() => setVisibleCols(v => ({ ...v, last_activity: !v.last_activity }))}
-                >
-                  <i className={`fas ${visibleCols.last_activity ? 'fa-check-square text-primary' : 'fa-square'} me-2`}></i>
-                  Last Activity
-                </Dropdown.Item>
-                <Dropdown.Item
-                  active={visibleCols.assignee}
-                  onClick={() => setVisibleCols(v => ({ ...v, assignee: !v.assignee }))}
-                >
-                  <i className={`fas ${visibleCols.assignee ? 'fa-check-square text-primary' : 'fa-square'} me-2`}></i>
-                  Assignee
-                </Dropdown.Item>
-                <Dropdown.Item
-                  active={visibleCols.action}
-                  onClick={() => setVisibleCols(v => ({ ...v, action: !v.action }))}
-                >
-                  <i className={`fas ${visibleCols.action ? 'fa-check-square text-primary' : 'fa-square'} me-2`}></i>
-                  Action
-                </Dropdown.Item>
-              </Dropdown.Menu>
-            </Dropdown>
-          </div>
+            <Box sx={{ mt: 2, display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(2, 1fr)' }, gap: 2 }}>
+              <Box>
+                <Typography variant="caption" sx={{ display: 'block', color: 'text.secondary', fontWeight: 700, mb: .75 }}>
+                  Created date
+                </Typography>
+                <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 1.5 }}>
+                  <TextField size="small" type="date" label="From" value={filterCreatedFrom} onChange={(e) => setFilterCreatedFrom(e.target.value)} slotProps={{ inputLabel: { shrink: true } }} fullWidth />
+                  <TextField size="small" type="date" label="To" value={filterCreatedTo} onChange={(e) => setFilterCreatedTo(e.target.value)} slotProps={{ inputLabel: { shrink: true } }} fullWidth />
+                </Box>
+              </Box>
+              <Box>
+                <Typography variant="caption" sx={{ display: 'block', color: 'text.secondary', fontWeight: 700, mb: .75 }}>
+                  Last activity date
+                </Typography>
+                <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 1.5 }}>
+                  <TextField size="small" type="date" label="From" value={filterActivityFrom} onChange={(e) => setFilterActivityFrom(e.target.value)} slotProps={{ inputLabel: { shrink: true } }} fullWidth />
+                  <TextField size="small" type="date" label="To" value={filterActivityTo} onChange={(e) => setFilterActivityTo(e.target.value)} slotProps={{ inputLabel: { shrink: true } }} fullWidth />
+                </Box>
+              </Box>
+            </Box>
+          </Box>
+        </Collapse>
 
-          <div className="d-flex align-items-center gap-2">
-            <button className="btn btn-outline-secondary btn-sm" onClick={() => setReloadKey(k => k + 1)} disabled={loading}>
-              <i className="fas fa-sync-alt me-1"></i> Refresh
-            </button>
-          </div>
-        </div>
-      </div>
+        <Divider />
+        <Box sx={{ px: 3, py: 1.5, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 2, flexWrap: 'wrap' }}>
+          <Stack direction="row" spacing={1.5} alignItems="center">
+            <Typography variant="body2" sx={{ color: 'text.secondary', fontWeight: 700 }}>
+              Columns:
+            </Typography>
+            <Button
+              variant="text"
+              size="small"
+              onClick={(event) => setColumnAnchorEl(event.currentTarget)}
+              startIcon={<i className="fas fa-columns" aria-hidden="true" />}
+            >
+              {shownColumnCount === 0 ? 'No columns' : shownColumnCount === visibleColumnOptions.length ? `All columns (${visibleColumnOptions.length})` : `${shownColumnCount} of ${visibleColumnOptions.length} columns`}
+            </Button>
+            <Menu anchorEl={columnAnchorEl} open={Boolean(columnAnchorEl)} onClose={() => setColumnAnchorEl(null)}>
+              {visibleColumnOptions.map(([key, label]) => (
+                <MenuItem key={key} onClick={() => setVisibleCols(v => ({ ...v, [key]: !v[key] }))}>
+                  <Checkbox checked={Boolean(visibleCols[key])} size="small" />
+                  <ListItemText primary={label} />
+                </MenuItem>
+              ))}
+            </Menu>
+          </Stack>
+          <Button
+            variant="outlined"
+            size="small"
+            onClick={() => setReloadKey(k => k + 1)}
+            disabled={loading}
+            startIcon={<i className="fas fa-sync-alt" aria-hidden="true" />}
+          >
+            Refresh
+          </Button>
+        </Box>
 
-      <div className="card-body p-0">
-        <DataTable
-          keyField="id"
-          columns={cols}
-          data={rows}
-          progressPending={loading}
-          persistTableHead
-          pagination
-          paginationServer
-          paginationTotalRows={total}
-          paginationPerPage={table.perPage}
-          onChangePage={(p) => {
-            if (p !== table.page) {
-              dispatch({ type: "PAGE", page: p });
-            }
-          }}
-          onChangeRowsPerPage={(n) => {
-            if (n !== table.perPage) {
-              dispatch({ type: "PER_PAGE", perPage: n });
-            }
-          }}
-          sortServer
-          onSort={(col, dir) => {
-            if (col.sortField) {
-              dispatch({ type: "SORT", field: col.sortField, dir });
-            }
-          }}
-          striped
-          highlightOnHover
-          pointerOnHover
-          responsive
-          noDataComponent={
-            <div className="p-5 text-center">
-              <i className="fas fa-folder-open text-muted mb-3" style={{ fontSize: 48, opacity: 0.4 }}></i>
-              <div className="fw-semibold text-secondary mb-1">No leads found</div>
-              <div className="small text-muted">Try adjusting your search or filters</div>
-            </div>
-          }
-          customStyles={{
-            rows: {
-              style: {
-                fontSize: '0.875rem',
+        {loading && <LinearProgress />}
+        <TableContainer sx={{ overflowX: 'auto' }}>
+          <Table sx={{ minWidth: 1100 }} size="small">
+            <TableHead>
+              <TableRow sx={{ bgcolor: '#f8fafc' }}>
+                {columns.map((column) => (
+                  <TableCell
+                    key={column.key}
+                    align={column.align || 'left'}
+                    sx={{
+                      minWidth: column.minWidth,
+                      width: column.width,
+                      color: 'text.secondary',
+                      fontSize: 12,
+                      fontWeight: 700,
+                      textTransform: 'uppercase',
+                      letterSpacing: '.04em',
+                      px: 2,
+                      py: 1.5,
+                      borderBottom: '1px solid',
+                      borderColor: 'divider',
+                    }}
+                  >
+                    {column.sortField ? (
+                      <TableSortLabel
+                        active={table.sortField === column.sortField}
+                        direction={table.sortField === column.sortField ? table.sortDir : 'asc'}
+                        onClick={() => handleSort(column.sortField)}
+                      >
+                        {column.label}
+                      </TableSortLabel>
+                    ) : column.label}
+                  </TableCell>
+                ))}
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {rows.length === 0 && !loading ? (
+                <TableRow>
+                  <TableCell colSpan={Math.max(columns.length, 1)} align="center" sx={{ py: 7 }}>
+                    <i className="fas fa-folder-open" style={{ color: '#637381', fontSize: 42, opacity: .4 }} aria-hidden="true" />
+                    <Typography variant="subtitle2" sx={{ color: 'text.secondary', mt: 1.5 }}>
+                      No leads found
+                    </Typography>
+                    <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                      Try adjusting your search or filters
+                    </Typography>
+                  </TableCell>
+                </TableRow>
+              ) : rows.map((row) => (
+                <TableRow
+                  key={row.id}
+                  hover
+                  sx={{
+                    '&:hover': { bgcolor: 'rgba(6,40,73,.035)' },
+                    '&:last-child td': { borderBottom: 0 },
+                  }}
+                >
+                  {columns.map((column) => (
+                    <TableCell
+                      key={`${row.id}-${column.key}`}
+                      align={column.align || 'left'}
+                      sx={{ verticalAlign: 'middle', px: 2, py: 1.5, borderBottom: '1px solid #f1f5f9' }}
+                    >
+                      {column.render(row)}
+                    </TableCell>
+                  ))}
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </TableContainer>
+
+        <Menu
+          anchorEl={actionAnchorEl}
+          open={Boolean(actionAnchorEl)}
+          onClose={closeActionMenu}
+          anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+          transformOrigin={{ vertical: 'top', horizontal: 'right' }}
+          slotProps={{
+            paper: {
+              sx: {
+                mt: .75,
+                minWidth: 168,
+                borderRadius: 2.5,
+                border: '1px solid',
+                borderColor: 'divider',
+                boxShadow: '0 12px 32px rgba(28,37,46,.14)',
               },
             },
-            headCells: {
-              style: {
-                fontWeight: '600',
-                fontSize: '0.8rem',
-                textTransform: 'uppercase',
-                letterSpacing: '0.5px',
-              },
-            },
           }}
+        >
+          <MenuItem onClick={runRowAction((row) => navigate(`/leads/${row.id}`))}>
+            <ListItemIcon><i className="fas fa-eye" aria-hidden="true" /></ListItemIcon>
+            <ListItemText primary="View" />
+          </MenuItem>
+          <MenuItem onClick={runRowAction(openEdit)}>
+            <ListItemIcon><i className="fas fa-edit" aria-hidden="true" /></ListItemIcon>
+            <ListItemText primary="Edit" />
+          </MenuItem>
+          {actionRow && canEdit("leads") && (!actionRow.assigned_to || (currentUserId && Number(actionRow.assigned_to) !== Number(currentUserId))) && (
+            <MenuItem onClick={runRowAction(claim)}>
+              <ListItemIcon sx={{ color: 'success.main' }}><i className="fas fa-user-check" aria-hidden="true" /></ListItemIcon>
+              <ListItemText primary="Assign to me" />
+            </MenuItem>
+          )}
+          {actionRow && canDelete("leads") && <Divider />}
+          {actionRow && canDelete("leads") && (
+            <MenuItem onClick={runRowAction(del)} sx={{ color: 'error.main' }}>
+              <ListItemIcon sx={{ color: 'error.main' }}><i className="fas fa-trash" aria-hidden="true" /></ListItemIcon>
+              <ListItemText primary="Delete" />
+            </MenuItem>
+          )}
+        </Menu>
+
+        <TablePagination
+          component="div"
+          count={total}
+          page={Math.max(table.page - 1, 0)}
+          rowsPerPage={table.perPage}
+          rowsPerPageOptions={[10, 20, 50, 100, 200]}
+          onPageChange={(event, page) => {
+            const nextPage = page + 1;
+            if (nextPage !== table.page) dispatch({ type: 'PAGE', page: nextPage });
+          }}
+          onRowsPerPageChange={(event) => {
+            const nextSize = Number(event.target.value);
+            if (nextSize !== table.perPage) dispatch({ type: 'PER_PAGE', perPage: nextSize });
+          }}
+          sx={{ borderTop: '1px solid', borderColor: 'divider' }}
         />
-      </div>
+      </Card>
 
 
       {/* ================= MODAL ================= */}
 
-      <Modal show={show} onHide={() => setShow(false)} backdrop="static" centered size="lg" scrollable>
-        <Modal.Header closeButton className="bg-light">
-          <Modal.Title>
-            <i className={`fas ${edit ? 'fa-edit' : 'fa-plus'} me-2 text-primary`}></i>
-            {edit ? "Edit Lead" : "Add Lead"}
-          </Modal.Title>
-        </Modal.Header>
+      <LeadFormDialog
+        open={show}
+        edit={edit}
+        form={form}
+        setForm={setForm}
+        categories={categories}
+        leadSources={leadSources}
+        leadStages={leadStages}
+        users={users}
+        states={states}
+        cities={cities}
+        tags={tags}
+        saving={saving}
+        err={err}
+        showAdvance={showAdvance}
+        setShowAdvance={setShowAdvance}
+        onClose={() => setShow(false)}
+        onSave={save}
+        showAddCity={showAddCity}
+        newCityName={newCityName}
+        setNewCityName={setNewCityName}
+        addingCity={addingCity}
+        onOpenAddCity={openAddCity}
+        onCloseAddCity={() => setShowAddCity(false)}
+        onSaveCity={saveCity}
+      />
 
-        <Modal.Body>
-          <div className="mb-3">
-            <div className="small text-secondary mb-2">
-              <span className="fw-semibold">Type</span> <span className="text-danger">*</span>
-            </div>
-            <div className="d-flex gap-4">
-              <Form.Check
-                type="radio"
-                id="lead-type-business"
-                label="Business"
-                checked={form.lead_type === "business"}
-                onChange={() => setForm({ ...form, lead_type: "business" })}
-              />
-              <Form.Check
-                type="radio"
-                id="lead-type-individual"
-                label="Individual"
-                checked={form.lead_type === "individual"}
-                onChange={() => setForm({ ...form, lead_type: "individual" })}
-              />
-            </div>
-          </div>
-
-          <div className="row g-2">
-            <div className="col-12 col-md-6">
-              <Form.Group className="mb-3">
-                <Form.Label className="fw-semibold text-muted small">Name <span className="text-danger">*</span></Form.Label>
-                <Form.Control
-                  placeholder="Enter full name"
-                  value={form.name}
-                  onChange={(e) => setForm({ ...form, name: e.target.value })}
-                />
-              </Form.Group>
-            </div>
-
-            <div className="col-12 col-md-6">
-              <div className="row g-2">
-                <div className="col-5">
-                  <Form.Group className="mb-3">
-                    <Form.Label className="fw-semibold text-muted small">Code <span className="text-danger">*</span></Form.Label>
-                    <Form.Select
-                      value={form.phone_code}
-                      onChange={(e) => setForm({ ...form, phone_code: e.target.value })}
-                    >
-                      <option value="+91 IN">+91 IN</option>
-                    </Form.Select>
-                  </Form.Group>
-                </div>
-                <div className="col-7">
-                  <Form.Group className="mb-3">
-                    <Form.Label className="fw-semibold text-muted small">Phone <span className="text-danger">*</span></Form.Label>
-                    <Form.Control
-                      placeholder="Phone number"
-                      value={form.phone}
-                      onChange={(e) => setForm({ ...form, phone: e.target.value })}
-                    />
-                  </Form.Group>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="row g-2">
-            <div className="col-12 col-md-6">
-              <div className="row g-2">
-                <div className="col-5">
-                  <Form.Group className="mb-3">
-                    <Form.Label className="fw-semibold text-muted small">Code</Form.Label>
-                    <Form.Select
-                      value={form.whatsapp_code}
-                      onChange={(e) => setForm({ ...form, whatsapp_code: e.target.value })}
-                    >
-                      <option value="+91 IN">+91 IN</option>
-                    </Form.Select>
-                  </Form.Group>
-                </div>
-                <div className="col-7">
-                  <Form.Group className="mb-3">
-                    <Form.Label className="fw-semibold text-muted small">Whatsapp</Form.Label>
-                    <Form.Control
-                      placeholder="Whatsapp number"
-                      value={form.whatsapp}
-                      onChange={(e) => setForm({ ...form, whatsapp: e.target.value })}
-                    />
-                  </Form.Group>
-                </div>
-              </div>
-            </div>
-
-            <div className="col-12 col-md-6">
-              <Form.Group className="mb-3">
-                <Form.Label>Lead Stage <span className="text-danger">*</span></Form.Label>
-                <Form.Select value={form.stage} onChange={(e) => setForm({ ...form, stage: e.target.value })}>
-                  {(leadStages.length ? leadStages : [{ id: 0, name: 'New Lead' }]).map((s) => (
-                    <option key={s.id ?? s.name} value={s.name}>{s.name}</option>
-                  ))}
-                </Form.Select>
-              </Form.Group>
-            </div>
-          </div>
-           
-
-          <div className="row g-2">
-            <div className="col-12 col-md-6">
-              <Form.Group className="mb-3">
-                <Form.Label>Lead Category</Form.Label>
-                <Form.Select value={form.lead_category_id} onChange={(e) => setForm({ ...form, lead_category_id: e.target.value, lead_subcategory_id: "" })}>
-                  <option value="">Choose</option>
-                  {categories.map((c) => (
-                    <option key={c.id} value={c.id}>{c.name}</option>
-                  ))}
-                </Form.Select>
-              </Form.Group>
-            </div>
-            <div className="col-12 col-md-6">
-              <Form.Group className="mb-3">
-                <Form.Label>Lead Source</Form.Label>
-                <Form.Select value={form.source} onChange={(e) => setForm({ ...form, source: e.target.value })}>
-                  <option value="">Choose</option>
-                  {leadSources.map((s) => (
-                    <option key={s.id ?? s.name} value={s.name}>{s.name}</option>
-                  ))}
-                </Form.Select>
-              </Form.Group>
-            </div>
-          </div>
-
-          {form.source === "Other" && (
-            <Form.Group className="mb-3">
-              <Form.Label>Source (Other)</Form.Label>
-              <Form.Control
-                placeholder="Specify source"
-                value={form.source_other}
-                onChange={(e) => setForm({ ...form, source_other: e.target.value })}
-              />
-            </Form.Group>
-          )}
-
-          <Form.Group className="mb-3">
-            <Form.Label>Description</Form.Label>
-            <Form.Control
-              as="textarea"
-              rows={3}
-              placeholder="Description"
-              value={form.description}
-              onChange={(e) => setForm({ ...form, description: e.target.value })}
-            />
-          </Form.Group>
-
-          <div className="d-flex align-items-center gap-2 mb-2">
-            <div className="fw-semibold text-secondary">Advance Options</div>
-            <button
-              type="button"
-              className="btn btn-link p-0"
-              onClick={() => setShowAdvance(!showAdvance)}
-              style={{ textDecoration: "none" }}
-            >
-              {showAdvance ? "Click to hide" : "Click to show"}
-            </button>
-          </div>
-
-          {showAdvance && (
-            <>
-              <div className="row g-2">
-                <div className="col-12 col-md-6">
-                  <Form.Group className="mb-3">
-                    <Form.Label className="fw-semibold text-muted small">Email</Form.Label>
-                    <Form.Control
-                      type="email"
-                      placeholder="email@example.com"
-                      value={form.email}
-                      onChange={(e) => setForm({ ...form, email: e.target.value })}
-                    />
-                  </Form.Group>
-                </div>
-                <div className="col-12 col-md-6">
-                  <Form.Group className="mb-3">
-                    <Form.Label className="fw-semibold text-muted small">Website</Form.Label>
-                    <Form.Control
-                      type="url"
-                      placeholder="https://example.com"
-                      value={form.website}
-                      onChange={(e) => setForm({ ...form, website: e.target.value })}
-                    />
-                  </Form.Group>
-                </div>
-              </div>
-
-              <div className="row g-2">
-                <div className="col-12 col-md-6">
-                  <Form.Group className="mb-3">
-                    <Form.Label className="fw-semibold text-muted small">Company</Form.Label>
-                    <Form.Control
-                      placeholder="Company name"
-                      value={form.company_name}
-                      onChange={(e) => setForm({ ...form, company_name: e.target.value })}
-                    />
-                  </Form.Group>
-                </div>
-              </div>
-
-              <Form.Group className="mb-3">
-                <Form.Label>Address</Form.Label>
-                <Form.Control
-                  as="textarea"
-                  rows={3}
-                  placeholder="Address"
-                  value={form.address}
-                  onChange={(e) => setForm({ ...form, address: e.target.value })}
-                />
-              </Form.Group>
-
-              <div className="row g-2">
-                <div className="col-12 col-md-4">
-                  <Form.Group className="mb-3">
-                    <Form.Label>Pincode</Form.Label>
-                    <Form.Control
-                      placeholder="Pincode"
-                      value={form.pincode}
-                      onChange={(e) => setForm({ ...form, pincode: e.target.value })}
-                    />
-                  </Form.Group>
-                </div>
-                <div className="col-12 col-md-4">
-                  <Form.Group className="mb-3">
-                    <Form.Label>Country</Form.Label>
-                    <Form.Select value={form.country} onChange={(e) => setForm({ ...form, country: e.target.value })}>
-                      <option value="India">India</option>
-                    </Form.Select>
-                  </Form.Group>
-                </div>
-                <div className="col-12 col-md-4">
-                  <Form.Group className="mb-3">
-                    <Form.Label>State</Form.Label>
-                    <Form.Select
-                      value={form.state_id}
-                      onChange={(e) => setForm({ ...form, state_id: e.target.value, city_id: "" })}
-                    >
-                      <option value="">Choose</option>
-                      {states.map((s) => (
-                        <option key={s.id} value={s.id}>{s.name}</option>
-                      ))}
-                    </Form.Select>
-                  </Form.Group>
-                </div>
-              </div>
-
-              <div className="row g-2">
-                <div className="col-12 col-md-6">
-                  <Form.Group className="mb-3">
-                    <Form.Label>City</Form.Label>
-                    <Form.Select
-                      value={form.city_id}
-                      onChange={(e) => setForm({ ...form, city_id: e.target.value })}
-                      disabled={!form.state_id}
-                    >
-                      <option value="">Choose</option>
-                      {cities.map((c) => (
-                        <option key={c.id} value={c.id}>{c.name}</option>
-                      ))}
-                    </Form.Select>
-                  </Form.Group>
-
-                  <div className="d-flex justify-content-end" style={{ marginTop: -10 }}>
-                    <button type="button" className="btn btn-link p-0" onClick={openAddCity}>
-                      + Add New City
-                    </button>
-                  </div>
-                </div>
-                <div className="col-12 col-md-6">
-                  <Form.Group className="mb-3">
-                    <Form.Label>GSTIN (TAX No.)</Form.Label>
-                    <Form.Control
-                      placeholder="GSTIN (TAX No.)"
-                      value={form.gstin}
-                      onChange={(e) => setForm({ ...form, gstin: e.target.value })}
-                    />
-                  </Form.Group>
-                </div>
-              </div>
-
-              <div className="row g-2">
-                <div className="col-12 col-md-6">
-                  <Form.Group className="mb-3">
-                    <Form.Label>Assigned To</Form.Label>
-                    <Form.Select
-                      value={form.assigned_to}
-                      onChange={(e) => setForm({ ...form, assigned_to: e.target.value })}
-                    >
-                      <option value="">Choose</option>
-                      {users.map((u) => (
-                        <option key={u.id} value={u.id}>{u.name}</option>
-                      ))}
-                    </Form.Select>
-                  </Form.Group>
-                </div>
-                <div className="col-12 col-md-6">
-                  <Form.Group className="mb-3">
-                    <Form.Label>Expected Close Date</Form.Label>
-                    <Form.Control
-                      type="date"
-                      value={form.expected_close_date}
-                      onChange={(e) => setForm({ ...form, expected_close_date: e.target.value })}
-                    />
-                  </Form.Group>
-                </div>
-              </div>
-
-              <div className="row g-2">
-                <div className="col-12 col-md-6">
-                  <Form.Group className="mb-3">
-                    <Form.Label>Expected Value</Form.Label>
-                    <Form.Control
-                      type="number"
-                      step="0.01"
-                      value={form.expected_value}
-                      onChange={(e) => setForm({ ...form, expected_value: e.target.value })}
-                    />
-                  </Form.Group>
-                </div>
-              </div>
-
-              <div className="row g-2">
-                <div className="col-12 col-md-6">
-                  <Form.Group className="mb-3">
-                    <Form.Label>Budget</Form.Label>
-                    <Form.Control
-                      type="number"
-                      step="0.01"
-                      placeholder="Enter budget"
-                      value={form.budget}
-                      onChange={(e) => setForm({ ...form, budget: e.target.value })}
-                    />
-                  </Form.Group>
-                </div>
-                <div className="col-12 col-md-6">
-                  <Form.Group className="mb-3">
-                    <Form.Label>Priority</Form.Label>
-                    <Form.Select
-                      value={form.priority}
-                      onChange={(e) => setForm({ ...form, priority: e.target.value })}
-                    >
-                      <option value="low">Low</option>
-                      <option value="medium">Medium</option>
-                      <option value="high">High</option>
-                    </Form.Select>
-                  </Form.Group>
-                </div>
-              </div>
-
-              <div className="row g-2">
-                <div className="col-12 col-md-6">
-                  <Form.Group className="mb-3">
-                    <Form.Label>Tags</Form.Label>
-                    <Form.Select
-                      multiple
-                      style={{ minHeight: 38, height: 90 }}
-                      value={(form.tags || []).map(String)}
-                      onChange={(e) => {
-                        const selected = Array.from(e.target.selectedOptions, (o) => String(o.value));
-                        setForm({ ...form, tags: selected });
-                      }}
-                    >
-                      {tags.map((t) => (
-                        <option key={t.id} value={t.id}>{t.name}</option>
-                      ))}
-                    </Form.Select>
-                  </Form.Group>
-                </div>
-              </div>
-
-              {form.lead_type === "business" && (
-                <div className="row g-2">
-                  <div className="col-12 col-md-6">
-                    <Form.Group className="mb-3">
-                      <Form.Label>Industry</Form.Label>
-                      <Form.Control
-                        placeholder="Industry"
-                        value={form.industry}
-                        onChange={(e) => setForm({ ...form, industry: e.target.value })}
-                      />
-                    </Form.Group>
-                  </div>
-                  <div className="col-12 col-md-6">
-                    <Form.Group className="mb-3">
-                      <Form.Label>Company Size</Form.Label>
-                      <Form.Select
-                        value={form.company_size}
-                        onChange={(e) => setForm({ ...form, company_size: e.target.value })}
-                      >
-                        <option value="">Choose</option>
-                        <option value="Small">Small</option>
-                        <option value="Medium">Medium</option>
-                        <option value="Large">Large</option>
-                      </Form.Select>
-                    </Form.Group>
-                  </div>
-                </div>
-              )}
-
-              <Form.Group className="mb-3">
-                <Form.Label>Notes</Form.Label>
-                <Form.Control
-                  as="textarea"
-                  rows={4}
-                  placeholder="Internal notes"
-                  value={form.notes}
-                  onChange={(e) => setForm({ ...form, notes: e.target.value })}
-                />
-              </Form.Group>
-            </>
-          )}
-
-          {err && (
-            <div className="text-danger mt-2">
-              {err}
-            </div>
-          )}
-
-        </Modal.Body>
-
-        <Modal.Footer>
-
-          <Button
-            variant="secondary"
-            onClick={() => setShow(false)}
-            disabled={saving}
-          >
-            Cancel
-          </Button>
-
-          <Button
-            variant="primary"
-            onClick={save}
-            disabled={saving}
-          >
-            {saving && (
-              <span className="spinner-border spinner-border-sm me-2"/>
-            )}
-            {saving ? "Saving..." : "Save"}
-          </Button>
-
-        </Modal.Footer>
-      </Modal>
-
-      {/* Add City Modal */}
-      <Modal show={showAddCity} onHide={() => setShowAddCity(false)} centered backdrop="static">
-        <Modal.Header closeButton>
-          <Modal.Title>Add City</Modal.Title>
-        </Modal.Header>
-        <Modal.Body>
-          <Form.Group>
-            <Form.Label>City Name</Form.Label>
-            <Form.Control
-              value={newCityName}
-              onChange={(e) => setNewCityName(e.target.value)}
-              autoFocus
-              placeholder="Enter city name"
-            />
-          </Form.Group>
-        </Modal.Body>
-        <Modal.Footer>
-          <Button variant="secondary" onClick={() => setShowAddCity(false)} disabled={addingCity}>Cancel</Button>
-          <Button variant="primary" onClick={saveCity} disabled={addingCity}>
-            {addingCity ? "Saving..." : "Save"}
-          </Button>
-        </Modal.Footer>
-      </Modal>
-
-    </div>
+    </Box>
   );
 }

@@ -1,5 +1,27 @@
-import { useEffect, useMemo, useState } from "react";
-import { Card, Row, Col, Form, Table, Badge } from "react-bootstrap";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  Alert,
+  AlertTitle,
+  Box,
+  Card,
+  CardContent,
+  Chip,
+  CircularProgress,
+  Divider,
+  FormControl,
+  InputLabel,
+  MenuItem,
+  Select,
+  Stack,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  TextField,
+  Typography,
+} from "@mui/material";
 import {
   LineChart,
   Line,
@@ -21,6 +43,114 @@ const formatMoney = (v) => {
   return n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 };
 
+const cardSx = {
+  height: '100%',
+  border: '1px solid',
+  borderColor: 'divider',
+  borderRadius: 3,
+  boxShadow: '0 8px 24px rgba(28,37,46,.05)',
+};
+
+const iconBoxSx = (background, color, size = 48) => ({
+  width: size,
+  height: size,
+  borderRadius: 2,
+  display: 'grid',
+  placeItems: 'center',
+  bgcolor: background,
+  color,
+  flexShrink: 0,
+});
+
+function MetricCard({ label, value, icon, color, background }) {
+  return (
+    <Card sx={cardSx}>
+      <CardContent sx={{ p: 3 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+          <Box sx={iconBoxSx(background, color)}>
+            <i className={icon} style={{ fontSize: 20 }} aria-hidden="true" />
+          </Box>
+          <Box sx={{ minWidth: 0 }}>
+            <Typography variant="body2" sx={{ color: 'text.secondary', mb: .5 }}>
+              {label}
+            </Typography>
+            <Typography variant="h5" sx={{ color, fontWeight: 700 }}>
+              {value}
+            </Typography>
+          </Box>
+        </Box>
+      </CardContent>
+    </Card>
+  );
+}
+
+function SectionCard({ title, subtitle, icon, iconColor, iconBackground, action, children, contentSx }) {
+  return (
+    <Card sx={cardSx}>
+      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 2, px: 3, py: 2.5 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, minWidth: 0 }}>
+          <Box sx={iconBoxSx(iconBackground, iconColor, 40)}>
+            <i className={icon} style={{ fontSize: 16 }} aria-hidden="true" />
+          </Box>
+          <Box sx={{ minWidth: 0 }}>
+            <Typography variant="subtitle1" sx={{ color: 'text.primary', fontWeight: 700 }}>
+              {title}
+            </Typography>
+            {subtitle && (
+              <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                {subtitle}
+              </Typography>
+            )}
+          </Box>
+        </Box>
+        {action}
+      </Box>
+      <Divider />
+      <CardContent sx={{ p: 3, '&:last-child': { pb: 3 }, ...contentSx }}>
+        {children}
+      </CardContent>
+    </Card>
+  );
+}
+
+function DashboardTable({ columns, rows, renderRow, emptyMessage }) {
+  return (
+    <TableContainer>
+      <Table size="small">
+        <TableHead>
+          <TableRow sx={{ bgcolor: '#f8fafc' }}>
+            {columns.map((column) => (
+              <TableCell
+                key={column.label}
+                align={column.align || 'left'}
+                sx={{ color: 'text.secondary', fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.04em', py: 1.5 }}
+              >
+                {column.label}
+              </TableCell>
+            ))}
+          </TableRow>
+        </TableHead>
+        <TableBody>
+          {rows.length === 0 ? (
+            <TableRow>
+              <TableCell colSpan={columns.length} align="center" sx={{ color: 'text.secondary', py: 4 }}>
+                {emptyMessage}
+              </TableCell>
+            </TableRow>
+          ) : rows.map(renderRow)}
+        </TableBody>
+      </Table>
+    </TableContainer>
+  );
+}
+
+const chartTooltipSx = {
+  backgroundColor: '#fff',
+  border: '1px solid rgba(145,158,171,.24)',
+  borderRadius: '8px',
+  boxShadow: '0 8px 24px rgba(28,37,46,.12)',
+};
+
 const TrendChart = ({ data, loading }) => {
   const formatDate = (dateStr) => {
     const date = new Date(dateStr);
@@ -36,76 +166,30 @@ const TrendChart = ({ data, loading }) => {
 
   if (loading) {
     return (
-      <div style={{ height: 350, display: "flex", alignItems: "center", justifyContent: "center" }}>
-        <div className="text-muted">Loading chart...</div>
-      </div>
+      <Box sx={{ height: 350, display: 'grid', placeItems: 'center', color: 'text.secondary' }}>
+        <CircularProgress size={28} />
+      </Box>
     );
   }
 
   if (!chartData.length) {
     return (
-      <div style={{ height: 350, display: "flex", alignItems: "center", justifyContent: "center" }}>
-        <div className="text-muted">No data available</div>
-      </div>
+      <Box sx={{ height: 350, display: 'grid', placeItems: 'center', color: 'text.secondary' }}>
+        No data available
+      </Box>
     );
   }
 
   return (
     <ResponsiveContainer width="100%" height={350}>
-      <LineChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
-        <defs>
-          <linearGradient id="salesGradient" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="5%" stopColor="#0d6efd" stopOpacity={0.1} />
-            <stop offset="95%" stopColor="#0d6efd" stopOpacity={0} />
-          </linearGradient>
-          <linearGradient id="purchasesGradient" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="5%" stopColor="#fd7e14" stopOpacity={0.1} />
-            <stop offset="95%" stopColor="#fd7e14" stopOpacity={0} />
-          </linearGradient>
-        </defs>
-        <CartesianGrid strokeDasharray="3 3" stroke="#e9ecef" />
-        <XAxis
-          dataKey="displayDate"
-          tick={{ fontSize: 12 }}
-          tickMargin={10}
-          stroke="#6c757d"
-        />
-        <YAxis
-          tick={{ fontSize: 12 }}
-          stroke="#6c757d"
-          tickFormatter={(value) => `₹${(value / 1000).toFixed(0)}K`}
-        />
-        <Tooltip
-          formatter={(value, name) => [formatMoney(value), name]}
-          labelStyle={{ color: "#6c757d" }}
-          contentStyle={{
-            backgroundColor: "#fff",
-            border: "1px solid #dee2e6",
-            borderRadius: "8px",
-            boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
-          }}
-        />
-        <Legend wrapperStyle={{ paddingTop: 20 }} />
-        <Line
-          type="monotone"
-          dataKey="sales"
-          name="Sales"
-          stroke="#0d6efd"
-          strokeWidth={3}
-          dot={{ fill: "#0d6efd", strokeWidth: 2, r: 4 }}
-          activeDot={{ r: 6, strokeWidth: 0 }}
-          fillOpacity={0.1}
-        />
-        <Line
-          type="monotone"
-          dataKey="purchases"
-          name="Purchases"
-          stroke="#fd7e14"
-          strokeWidth={3}
-          dot={{ fill: "#fd7e14", strokeWidth: 2, r: 4 }}
-          activeDot={{ r: 6, strokeWidth: 0 }}
-          fillOpacity={0.1}
-        />
+      <LineChart data={chartData} margin={{ top: 20, right: 24, left: 8, bottom: 10 }}>
+        <CartesianGrid strokeDasharray="3 3" stroke="rgba(145,158,171,.22)" vertical={false} />
+        <XAxis dataKey="displayDate" tick={{ fontSize: 12, fill: '#637381' }} tickMargin={10} axisLine={false} tickLine={false} />
+        <YAxis tick={{ fontSize: 12, fill: '#637381' }} axisLine={false} tickLine={false} tickFormatter={(value) => `₹${(value / 1000).toFixed(0)}K`} />
+        <Tooltip formatter={(value, name) => [`₹${formatMoney(value)}`, name]} labelStyle={{ color: '#637381' }} contentStyle={chartTooltipSx} />
+        <Legend wrapperStyle={{ paddingTop: 16 }} />
+        <Line type="monotone" dataKey="sales" name="Sales" stroke="#062849" strokeWidth={3} dot={{ fill: '#062849', strokeWidth: 2, r: 4 }} activeDot={{ r: 6, strokeWidth: 0 }} />
+        <Line type="monotone" dataKey="purchases" name="Purchases" stroke="#6528e8" strokeWidth={3} dot={{ fill: '#6528e8', strokeWidth: 2, r: 4 }} activeDot={{ r: 6, strokeWidth: 0 }} />
       </LineChart>
     </ResponsiveContainer>
   );
@@ -115,40 +199,19 @@ const MonthlySalesChart = ({ data }) => {
   const chartData = useMemo(() => data || [], [data]);
 
   if (!chartData.length) {
-    return (
-      <div style={{ height: 280, display: "flex", alignItems: "center", justifyContent: "center" }}>
-        <div className="text-secondary">No data available</div>
-      </div>
-    );
+    return <Box sx={{ height: 280, display: 'grid', placeItems: 'center', color: 'text.secondary' }}>No data available</Box>;
   }
 
   return (
     <ResponsiveContainer width="100%" height={280}>
-      <BarChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
-        <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-        <XAxis
-          dataKey="month"
-          tick={{ fontSize: 11, fill: "#64748b" }}
-          tickMargin={10}
-          stroke="#94a3b8"
-        />
-        <YAxis
-          tick={{ fontSize: 11, fill: "#64748b" }}
-          stroke="#94a3b8"
-          tickFormatter={(value) => `₹${(value / 1000).toFixed(0)}K`}
-        />
-        <Tooltip
-          formatter={(value) => [formatMoney(value), "Sales"]}
-          contentStyle={{
-            backgroundColor: "#fff",
-            border: "1px solid #e2e8f0",
-            borderRadius: "8px",
-            boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
-          }}
-        />
-        <Bar dataKey="sales" name="Sales" fill="#3b82f6" radius={[4, 4, 0, 0]}>
+      <BarChart data={chartData} margin={{ top: 16, right: 16, left: 0, bottom: 8 }}>
+        <CartesianGrid strokeDasharray="3 3" stroke="rgba(145,158,171,.22)" vertical={false} />
+        <XAxis dataKey="month" tick={{ fontSize: 11, fill: '#637381' }} tickMargin={10} axisLine={false} tickLine={false} />
+        <YAxis tick={{ fontSize: 11, fill: '#637381' }} axisLine={false} tickLine={false} tickFormatter={(value) => `₹${(value / 1000).toFixed(0)}K`} />
+        <Tooltip formatter={(value) => [`₹${formatMoney(value)}`, "Sales"]} contentStyle={chartTooltipSx} />
+        <Bar dataKey="sales" name="Sales" radius={[6, 6, 0, 0]}>
           {chartData.map((entry, index) => (
-            <Cell key={`cell-${index}`} fill={index === chartData.length - 1 ? "#2563eb" : "#60a5fa"} />
+            <Cell key={`cell-${index}`} fill={index === chartData.length - 1 ? '#062849' : '#7b6bd8'} />
           ))}
         </Bar>
       </BarChart>
@@ -160,43 +223,19 @@ const TopCustomersChart = ({ data }) => {
   const chartData = useMemo(() => (data || []).slice(0, 5), [data]);
 
   if (!chartData.length) {
-    return (
-      <div style={{ height: 280, display: "flex", alignItems: "center", justifyContent: "center" }}>
-        <div className="text-secondary">No data available</div>
-      </div>
-    );
+    return <Box sx={{ height: 280, display: 'grid', placeItems: 'center', color: 'text.secondary' }}>No data available</Box>;
   }
 
-  const colors = ["#059669", "#10b981", "#34d399", "#6ee7b7", "#a7f3d0"];
+  const colors = ['#062849', '#244f78', '#4d6e96', '#7a91b5', '#a7b8cf'];
 
   return (
     <ResponsiveContainer width="100%" height={280}>
-      <BarChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 60 }} layout="vertical">
-        <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" horizontal={false} />
-        <XAxis
-          type="number"
-          tick={{ fontSize: 11, fill: "#64748b" }}
-          stroke="#94a3b8"
-          tickFormatter={(value) => `₹${(value / 1000).toFixed(0)}K`}
-        />
-        <YAxis
-          type="category"
-          dataKey="name"
-          tick={{ fontSize: 11, fill: "#64748b" }}
-          stroke="#94a3b8"
-          width={100}
-          interval={0}
-        />
-        <Tooltip
-          formatter={(value) => [formatMoney(value), "Total Sales"]}
-          contentStyle={{
-            backgroundColor: "#fff",
-            border: "1px solid #e2e8f0",
-            borderRadius: "8px",
-            boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
-          }}
-        />
-        <Bar dataKey="sales" name="Sales" radius={[0, 4, 4, 0]}>
+      <BarChart data={chartData} margin={{ top: 16, right: 16, left: 0, bottom: 8 }} layout="vertical">
+        <CartesianGrid strokeDasharray="3 3" stroke="rgba(145,158,171,.22)" horizontal={false} />
+        <XAxis type="number" tick={{ fontSize: 11, fill: '#637381' }} axisLine={false} tickLine={false} tickFormatter={(value) => `₹${(value / 1000).toFixed(0)}K`} />
+        <YAxis type="category" dataKey="name" tick={{ fontSize: 11, fill: '#637381' }} axisLine={false} tickLine={false} width={110} interval={0} />
+        <Tooltip formatter={(value) => [`₹${formatMoney(value)}`, "Total Sales"]} contentStyle={chartTooltipSx} />
+        <Bar dataKey="sales" name="Sales" radius={[0, 6, 6, 0]}>
           {chartData.map((entry, index) => (
             <Cell key={`cell-${index}`} fill={colors[index % colors.length]} />
           ))}
@@ -232,7 +271,7 @@ export default function Dashboard() {
 
   const canSeeDashboard = canView("dashboard");
 
-  const load = async (signal) => {
+  const load = useCallback(async (signal) => {
     if (!canSeeDashboard) return;
 
     setLoading(true);
@@ -273,382 +312,184 @@ export default function Dashboard() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [canSeeDashboard, rangeMode, days, customFrom, customTo]);
 
   useEffect(() => {
     const controller = new AbortController();
     load(controller.signal);
     return () => controller.abort();
-  }, [rangeMode, days, customFrom, customTo, canSeeDashboard]);
+  }, [load]);
 
   if (!canSeeDashboard) {
     return (
-      <Card className="card-outline card-danger">
-        <Card.Body>
-          <h5 className="mb-1">Access denied</h5>
-          <div className="text-muted">You don’t have permission to view the dashboard.</div>
-        </Card.Body>
-      </Card>
+      <Alert severity="error" sx={{ borderRadius: 3 }}>
+        <AlertTitle>Access denied</AlertTitle>
+        You don’t have permission to view the dashboard.
+      </Alert>
     );
   }
 
-  const profitVariant = Number(kpi.profitMonth || 0) >= 0 ? "success" : "danger";
+  const profitPositive = Number(kpi.profitMonth || 0) >= 0;
   const trendLabel = rangeMode === "custom"
     ? "Custom range"
     : days === 1
       ? "Today"
       : `Last ${days} days`;
 
+  const primaryMetrics = [
+    { label: 'Sales Today', value: `₹${formatMoney(kpi.salesToday)}`, icon: 'fas fa-calendar-day', color: '#062849', background: '#eaf0f6' },
+    { label: 'Sales This Month', value: `₹${formatMoney(kpi.salesMonth)}`, icon: 'fas fa-chart-line', color: '#6528e8', background: '#f1ebfd' },
+    { label: 'Purchases This Month', value: `₹${formatMoney(kpi.purchasesMonth)}`, icon: 'fas fa-cart-shopping', color: '#b76e00', background: '#fff4d6' },
+    { label: 'Profit This Month', value: `₹${formatMoney(kpi.profitMonth)}`, icon: 'fas fa-coins', color: profitPositive ? '#118d57' : '#b71d18', background: profitPositive ? '#dbf5e9' : '#ffe4de' },
+  ];
+
+  const secondaryMetrics = [
+    { label: 'Customers', value: kpi.customersCount || 0, icon: 'fas fa-users', color: '#006c9c', background: '#caf4ff' },
+    { label: 'Vendors', value: kpi.vendorsCount || 0, icon: 'fas fa-truck', color: '#003768', background: '#d7e9ff' },
+    { label: 'Low Stock Items', value: kpi.lowStockCount || 0, icon: 'fas fa-triangle-exclamation', color: '#b76e00', background: '#fff4d6' },
+    { label: 'Out of Stock', value: kpi.outOfStockCount || 0, icon: 'fas fa-ban', color: '#b71d18', background: '#ffe4de' },
+  ];
+
   return (
-    <div>
-      <Row className="mb-3 align-items-end">
-        <Col md={8}>
-          <h3 className="mb-1">Analytics Dashboard</h3>
-          <div className="text-muted">Quick overview of sales, purchases, inventory and customers.</div>
-        </Col>
-        <Col md={4} className="d-flex justify-content-md-end">
-          <div style={{ maxWidth: 520, width: "100%" }}>
-            <div className="d-flex gap-2 justify-content-md-end flex-wrap">
-              <Form.Select
-                value={rangeMode === "custom" ? "custom" : String(days)}
-                onChange={(e) => {
-                  const v = e.target.value;
-                  if (v === "custom") {
-                    setRangeMode("custom");
-                    return;
-                  }
-                  setRangeMode("last");
-                  setDays(Number(v));
-                }}
-                style={{ maxWidth: 220 }}
-              >
-                <option value={"1"}>Today</option>
-                <option value={"7"}>Last 7 Days</option>
-                <option value={"30"}>Last 30 Days</option>
-                <option value={"90"}>Last 90 Days</option>
-                <option value={"180"}>Last 180 Days</option>
-                <option value={"custom"}>Custom</option>
-              </Form.Select>
+    <Box>
+      <Box sx={{ display: 'flex', alignItems: { md: 'center' }, justifyContent: 'space-between', flexDirection: { xs: 'column', md: 'row' }, gap: 3, mb: 3 }}>
+        <Box>
+          <Typography variant="h4" sx={{ color: 'text.primary', fontWeight: 700, mb: .5 }}>
+            Hi, Welcome back
+          </Typography>
+          <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+            Overview of sales, purchases, inventory, customers, and leads.
+          </Typography>
+        </Box>
+        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} alignItems={{ sm: 'center' }}>
+          <FormControl size="small" sx={{ minWidth: 180 }}>
+            <InputLabel id="dashboard-range-label">Range</InputLabel>
+            <Select
+              labelId="dashboard-range-label"
+              label="Range"
+              value={rangeMode === "custom" ? "custom" : String(days)}
+              onChange={(event) => {
+                const value = event.target.value;
+                if (value === "custom") {
+                  setRangeMode("custom");
+                  return;
+                }
+                setRangeMode("last");
+                setDays(Number(value));
+              }}
+            >
+              <MenuItem value="1">Today</MenuItem>
+              <MenuItem value="7">Last 7 days</MenuItem>
+              <MenuItem value="30">Last 30 days</MenuItem>
+              <MenuItem value="90">Last 90 days</MenuItem>
+              <MenuItem value="180">Last 180 days</MenuItem>
+              <MenuItem value="custom">Custom</MenuItem>
+            </Select>
+          </FormControl>
+          {rangeMode === "custom" && (
+            <>
+              <TextField
+                type="date"
+                size="small"
+                label="From"
+                value={customFrom}
+                onChange={(event) => setCustomFrom(event.target.value)}
+                InputLabelProps={{ shrink: true }}
+              />
+              <TextField
+                type="date"
+                size="small"
+                label="To"
+                value={customTo}
+                onChange={(event) => setCustomTo(event.target.value)}
+                InputLabelProps={{ shrink: true }}
+              />
+            </>
+          )}
+        </Stack>
+      </Box>
 
-              {rangeMode === "custom" && (
-                <div className="d-flex gap-2">
-                  <Form.Control
-                    type="date"
-                    value={customFrom}
-                    onChange={(e) => setCustomFrom(e.target.value)}
-                    style={{ maxWidth: 160 }}
-                  />
-                  <Form.Control
-                    type="date"
-                    value={customTo}
-                    onChange={(e) => setCustomTo(e.target.value)}
-                    style={{ maxWidth: 160 }}
-                  />
-                </div>
-              )}
-            </div>
-          </div>
-        </Col>
-      </Row>
+      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', xl: 'repeat(4, 1fr)' }, gap: 2.5, mb: 2.5 }}>
+        {primaryMetrics.map((metric) => <MetricCard key={metric.label} {...metric} />)}
+      </Box>
 
-      <Row className="g-4 mb-4">
-        <Col md={3}>
-          <Card className="h-100 border" style={{ borderColor: "#e2e8f0" }}>
-            <Card.Body className="p-4">
-              <div className="d-flex align-items-center gap-3">
-                <div className="d-flex align-items-center justify-content-center rounded" style={{ width: 48, height: 48, backgroundColor: "#eff6ff" }}>
-                  <svg width="22" height="22" fill="none" stroke="#2563eb" strokeWidth="2" viewBox="0 0 24 24"><path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/><path d="M9 12h6M12 9v6"/></svg>
-                </div>
-                <div>
-                  <div className="text-secondary small mb-1">Sales Today</div>
-                  <div className="h5 mb-0 fw-semibold" style={{ color: "#1e293b" }}>₹{formatMoney(kpi.salesToday)}</div>
-                </div>
-              </div>
-            </Card.Body>
-          </Card>
-        </Col>
+      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', xl: 'repeat(4, 1fr)' }, gap: 2.5, mb: 2.5 }}>
+        {secondaryMetrics.map((metric) => <MetricCard key={metric.label} {...metric} />)}
+      </Box>
 
-        <Col md={3}>
-          <Card className="h-100 border" style={{ borderColor: "#e2e8f0" }}>
-            <Card.Body className="p-4">
-              <div className="d-flex align-items-center gap-3">
-                <div className="d-flex align-items-center justify-content-center rounded" style={{ width: 48, height: 48, backgroundColor: "#f0fdf4" }}>
-                  <svg width="22" height="22" fill="none" stroke="#16a34a" strokeWidth="2" viewBox="0 0 24 24"><path d="M3 3v18h18M18 9l-5 5-3-3-4 4"/></svg>
-                </div>
-                <div>
-                  <div className="text-secondary small mb-1">Sales This Month</div>
-                  <div className="h5 mb-0 fw-semibold" style={{ color: "#1e293b" }}>₹{formatMoney(kpi.salesMonth)}</div>
-                </div>
-              </div>
-            </Card.Body>
-          </Card>
-        </Col>
+      <Box sx={{ mb: 2.5 }}>
+        <SectionCard
+          title="Sales vs purchases"
+          subtitle={trendLabel}
+          icon="fas fa-chart-area"
+          iconColor="#062849"
+          iconBackground="#eaf0f6"
+          action={loading ? <CircularProgress size={20} /> : null}
+        >
+          <TrendChart data={trend} loading={loading} />
+        </SectionCard>
+      </Box>
 
-        <Col md={3}>
-          <Card className="h-100 border" style={{ borderColor: "#e2e8f0" }}>
-            <Card.Body className="p-4">
-              <div className="d-flex align-items-center gap-3">
-                <div className="d-flex align-items-center justify-content-center rounded" style={{ width: 48, height: 48, backgroundColor: "#fff7ed" }}>
-                  <svg width="22" height="22" fill="none" stroke="#ea580c" strokeWidth="2" viewBox="0 0 24 24"><path d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
-                </div>
-                <div>
-                  <div className="text-secondary small mb-1">Purchases This Month</div>
-                  <div className="h5 mb-0 fw-semibold" style={{ color: "#1e293b" }}>₹{formatMoney(kpi.purchasesMonth)}</div>
-                </div>
-              </div>
-            </Card.Body>
-          </Card>
-        </Col>
+      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: 'repeat(2, 1fr)' }, gap: 2.5, mb: 2.5 }}>
+        <SectionCard title="Monthly sales" subtitle="Last 6 months" icon="fas fa-chart-column" iconColor="#6528e8" iconBackground="#f1ebfd">
+          <MonthlySalesChart data={monthlySales} />
+        </SectionCard>
+        <SectionCard title="Top customers" subtitle="Top 5 by sales" icon="fas fa-user-group" iconColor="#006c9c" iconBackground="#caf4ff">
+          <TopCustomersChart data={topCustomers} />
+        </SectionCard>
+      </Box>
 
-        <Col md={3}>
-          <Card className="h-100 border" style={{ borderColor: "#e2e8f0" }}>
-            <Card.Body className="p-4">
-              <div className="d-flex align-items-center gap-3">
-                <div className="d-flex align-items-center justify-content-center rounded" style={{ width: 48, height: 48, backgroundColor: Number(kpi.profitMonth || 0) >= 0 ? "#ecfdf5" : "#fef2f2" }}>
-                  <svg width="22" height="22" fill="none" stroke={Number(kpi.profitMonth || 0) >= 0 ? "#059669" : "#dc2626"} strokeWidth="2" viewBox="0 0 24 24"><path d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                </div>
-                <div>
-                  <div className="text-secondary small mb-1">Profit This Month</div>
-                  <div className="h5 mb-0 fw-semibold" style={{ color: Number(kpi.profitMonth || 0) >= 0 ? "#059669" : "#dc2626" }}>₹{formatMoney(kpi.profitMonth)}</div>
-                </div>
-              </div>
-            </Card.Body>
-          </Card>
-        </Col>
-      </Row>
+      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: 'repeat(2, 1fr)' }, gap: 2.5, mb: 2.5 }}>
+        <SectionCard title="Recent sales" icon="fas fa-file-invoice" iconColor="#118d57" iconBackground="#dbf5e9" contentSx={{ p: 0 }}>
+          <DashboardTable
+            columns={[{ label: 'ID' }, { label: 'Invoice' }, { label: 'Customer' }, { label: 'Amount', align: 'right' }]}
+            rows={recentSales}
+            emptyMessage="No data"
+            renderRow={(row) => (
+              <TableRow key={row.id} hover>
+                <TableCell sx={{ fontWeight: 700 }}>#{row.id}</TableCell>
+                <TableCell><Chip label={row.invoice_number} size="small" variant="outlined" /></TableCell>
+                <TableCell>{row.customer?.name || '-'}</TableCell>
+                <TableCell align="right" sx={{ color: 'success.main', fontWeight: 700 }}>₹{formatMoney(row.grand_total)}</TableCell>
+              </TableRow>
+            )}
+          />
+        </SectionCard>
 
-      <Row className="g-4 mb-4">
-        <Col md={3}>
-          <Card className="h-100 border" style={{ borderColor: "#e2e8f0" }}>
-            <Card.Body className="p-4">
-              <div className="d-flex align-items-center gap-3">
-                <div className="d-flex align-items-center justify-content-center rounded" style={{ width: 48, height: 48, backgroundColor: "#f8fafc" }}>
-                  <svg width="22" height="22" fill="none" stroke="#64748b" strokeWidth="2" viewBox="0 0 24 24"><path d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
-                </div>
-                <div>
-                  <div className="text-secondary small mb-1">Customers</div>
-                  <div className="h5 mb-0 fw-semibold" style={{ color: "#1e293b" }}>{kpi.customersCount || 0}</div>
-                </div>
-              </div>
-            </Card.Body>
-          </Card>
-        </Col>
+        <SectionCard title="Recent purchases" icon="fas fa-cart-shopping" iconColor="#b76e00" iconBackground="#fff4d6" contentSx={{ p: 0 }}>
+          <DashboardTable
+            columns={[{ label: 'ID' }, { label: 'Bill' }, { label: 'Vendor' }, { label: 'Amount', align: 'right' }]}
+            rows={recentPurchases}
+            emptyMessage="No data"
+            renderRow={(row) => (
+              <TableRow key={row.id} hover>
+                <TableCell sx={{ fontWeight: 700 }}>#{row.id}</TableCell>
+                <TableCell><Chip label={row.bill_number} size="small" variant="outlined" /></TableCell>
+                <TableCell>{row.vendor?.name || '-'}</TableCell>
+                <TableCell align="right" sx={{ color: 'warning.main', fontWeight: 700 }}>₹{formatMoney(row.grand_total)}</TableCell>
+              </TableRow>
+            )}
+          />
+        </SectionCard>
+      </Box>
 
-        <Col md={3}>
-          <Card className="h-100 border" style={{ borderColor: "#e2e8f0" }}>
-            <Card.Body className="p-4">
-              <div className="d-flex align-items-center gap-3">
-                <div className="d-flex align-items-center justify-content-center rounded" style={{ width: 48, height: 48, backgroundColor: "#f8fafc" }}>
-                  <svg width="22" height="22" fill="none" stroke="#64748b" strokeWidth="2" viewBox="0 0 24 24"><path d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg>
-                </div>
-                <div>
-                  <div className="text-secondary small mb-1">Vendors</div>
-                  <div className="h5 mb-0 fw-semibold" style={{ color: "#1e293b" }}>{kpi.vendorsCount || 0}</div>
-                </div>
-              </div>
-            </Card.Body>
-          </Card>
-        </Col>
-
-        <Col md={3}>
-          <Card className="h-100 border" style={{ borderColor: "#e2e8f0" }}>
-            <Card.Body className="p-4">
-              <div className="d-flex align-items-center gap-3">
-                <div className="d-flex align-items-center justify-content-center rounded" style={{ width: 48, height: 48, backgroundColor: "#fffbeb" }}>
-                  <svg width="22" height="22" fill="none" stroke="#d97706" strokeWidth="2" viewBox="0 0 24 24"><path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
-                </div>
-                <div>
-                  <div className="text-secondary small mb-1">Low Stock Items</div>
-                  <div className="h5 mb-0 fw-semibold" style={{ color: "#d97706" }}>{kpi.lowStockCount || 0}</div>
-                </div>
-              </div>
-            </Card.Body>
-          </Card>
-        </Col>
-
-        <Col md={3}>
-          <Card className="h-100 border" style={{ borderColor: "#e2e8f0" }}>
-            <Card.Body className="p-4">
-              <div className="d-flex align-items-center gap-3">
-                <div className="d-flex align-items-center justify-content-center rounded" style={{ width: 48, height: 48, backgroundColor: "#fef2f2" }}>
-                  <svg width="22" height="22" fill="none" stroke="#dc2626" strokeWidth="2" viewBox="0 0 24 24"><path d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                </div>
-                <div>
-                  <div className="text-secondary small mb-1">Out of Stock</div>
-                  <div className="h5 mb-0 fw-semibold" style={{ color: "#dc2626" }}>{kpi.outOfStockCount || 0}</div>
-                </div>
-              </div>
-            </Card.Body>
-          </Card>
-        </Col>
-      </Row>
-
-      <Row className="g-4 mb-4">
-        <Col lg={12}>
-          <Card className="border" style={{ borderColor: "#e2e8f0" }}>
-            <Card.Header className="bg-white border-bottom py-3 d-flex align-items-center justify-content-between" style={{ borderColor: "#e2e8f0" }}>
-              <div className="d-flex align-items-center gap-3">
-                <div className="d-flex align-items-center justify-content-center rounded" style={{ width: 40, height: 40, backgroundColor: "#eff6ff" }}>
-                  <svg width="20" height="20" fill="none" stroke="#2563eb" strokeWidth="2" viewBox="0 0 24 24"><path d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z"/></svg>
-                </div>
-                <div>
-                  <div className="fw-semibold" style={{ color: "#1e293b" }}>Sales vs Purchases Trend</div>
-                  <div className="text-secondary small">{trendLabel}</div>
-                </div>
-              </div>
-              {loading && <div className="text-secondary small">Loading...</div>}
-            </Card.Header>
-            <Card.Body className="py-4">
-              <TrendChart data={trend} loading={loading} />
-            </Card.Body>
-          </Card>
-        </Col>
-      </Row>
-
-      <Row className="g-4">
-        <Col lg={6}>
-          <Card className="h-100 border" style={{ borderColor: "#e2e8f0" }}>
-            <Card.Header className="bg-white border-bottom py-3 d-flex align-items-center gap-3" style={{ borderColor: "#e2e8f0" }}>
-              <div className="d-flex align-items-center justify-content-center rounded" style={{ width: 36, height: 36, backgroundColor: "#f0fdf4" }}>
-                <svg width="18" height="18" fill="none" stroke="#16a34a" strokeWidth="2" viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
-              </div>
-              <div className="fw-semibold" style={{ color: "#1e293b" }}>Recent Sales</div>
-            </Card.Header>
-            <Card.Body className="p-0">
-              <Table responsive hover className="mb-0">
-                <thead style={{ backgroundColor: "#f8fafc" }}>
-                  <tr>
-                    <th style={{ width: 70, color: "#64748b", fontWeight: 500, fontSize: "0.75rem", textTransform: "uppercase", letterSpacing: "0.5px" }}>ID</th>
-                    <th style={{ color: "#64748b", fontWeight: 500, fontSize: "0.75rem", textTransform: "uppercase", letterSpacing: "0.5px" }}>Invoice</th>
-                    <th style={{ color: "#64748b", fontWeight: 500, fontSize: "0.75rem", textTransform: "uppercase", letterSpacing: "0.5px" }}>Customer</th>
-                    <th className="text-end" style={{ color: "#64748b", fontWeight: 500, fontSize: "0.75rem", textTransform: "uppercase", letterSpacing: "0.5px" }}>Amount</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {recentSales.length === 0 ? (
-                    <tr><td colSpan={4} className="text-center text-secondary py-4">No data</td></tr>
-                  ) : recentSales.map(r => (
-                    <tr key={r.id} style={{ borderColor: "#f1f5f9" }}>
-                      <td className="fw-medium" style={{ color: "#1e293b" }}>#{r.id}</td>
-                      <td><Badge bg="light" text="dark" className="border" style={{ backgroundColor: "#f8fafc", borderColor: "#e2e8f0" }}>{r.invoice_number}</Badge></td>
-                      <td style={{ color: "#475569" }}>{r.customer?.name || "-"}</td>
-                      <td className="text-end fw-medium" style={{ color: "#059669" }}>₹{formatMoney(r.grand_total)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </Table>
-            </Card.Body>
-          </Card>
-        </Col>
-
-        <Col lg={6}>
-          <Card className="h-100 border" style={{ borderColor: "#e2e8f0" }}>
-            <Card.Header className="bg-white border-bottom py-3 d-flex align-items-center gap-3" style={{ borderColor: "#e2e8f0" }}>
-              <div className="d-flex align-items-center justify-content-center rounded" style={{ width: 36, height: 36, backgroundColor: "#fff7ed" }}>
-                <svg width="18" height="18" fill="none" stroke="#ea580c" strokeWidth="2" viewBox="0 0 24 24"><path d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
-              </div>
-              <div className="fw-semibold" style={{ color: "#1e293b" }}>Recent Purchases</div>
-            </Card.Header>
-            <Card.Body className="p-0">
-              <Table responsive hover className="mb-0">
-                <thead style={{ backgroundColor: "#f8fafc" }}>
-                  <tr>
-                    <th style={{ width: 70, color: "#64748b", fontWeight: 500, fontSize: "0.75rem", textTransform: "uppercase", letterSpacing: "0.5px" }}>ID</th>
-                    <th style={{ color: "#64748b", fontWeight: 500, fontSize: "0.75rem", textTransform: "uppercase", letterSpacing: "0.5px" }}>Bill</th>
-                    <th style={{ color: "#64748b", fontWeight: 500, fontSize: "0.75rem", textTransform: "uppercase", letterSpacing: "0.5px" }}>Vendor</th>
-                    <th className="text-end" style={{ color: "#64748b", fontWeight: 500, fontSize: "0.75rem", textTransform: "uppercase", letterSpacing: "0.5px" }}>Amount</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {recentPurchases.length === 0 ? (
-                    <tr><td colSpan={4} className="text-center text-secondary py-4">No data</td></tr>
-                  ) : recentPurchases.map(r => (
-                    <tr key={r.id} style={{ borderColor: "#f1f5f9" }}>
-                      <td className="fw-medium" style={{ color: "#1e293b" }}>#{r.id}</td>
-                      <td><Badge bg="light" text="dark" className="border" style={{ backgroundColor: "#f8fafc", borderColor: "#e2e8f0" }}>{r.bill_number}</Badge></td>
-                      <td style={{ color: "#475569" }}>{r.vendor?.name || "-"}</td>
-                      <td className="text-end fw-medium" style={{ color: "#ea580c" }}>₹{formatMoney(r.grand_total)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </Table>
-            </Card.Body>
-          </Card>
-        </Col>
-      </Row>
-
-      <Row className="g-4 mb-4">
-        <Col lg={6}>
-          <Card className="h-100 border" style={{ borderColor: "#e2e8f0" }}>
-            <Card.Header className="bg-white border-bottom py-3 d-flex align-items-center gap-3" style={{ borderColor: "#e2e8f0" }}>
-              <div className="d-flex align-items-center justify-content-center rounded" style={{ width: 36, height: 36, backgroundColor: "#eff6ff" }}>
-                <svg width="18" height="18" fill="none" stroke="#2563eb" strokeWidth="2" viewBox="0 0 24 24"><path d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
-              </div>
-              <div className="fw-semibold" style={{ color: "#1e293b" }}>Monthly Sales (Last 6 Months)</div>
-            </Card.Header>
-            <Card.Body className="py-3">
-              <MonthlySalesChart data={monthlySales} />
-            </Card.Body>
-          </Card>
-        </Col>
-
-        <Col lg={6}>
-          <Card className="h-100 border" style={{ borderColor: "#e2e8f0" }}>
-            <Card.Header className="bg-white border-bottom py-3 d-flex align-items-center gap-3" style={{ borderColor: "#e2e8f0" }}>
-              <div className="d-flex align-items-center justify-content-center rounded" style={{ width: 36, height: 36, backgroundColor: "#ecfdf5" }}>
-                <svg width="18" height="18" fill="none" stroke="#059669" strokeWidth="2" viewBox="0 0 24 24"><path d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
-              </div>
-              <div className="fw-semibold" style={{ color: "#1e293b" }}>Top 5 Customers by Sales</div>
-            </Card.Header>
-            <Card.Body className="py-3">
-              <TopCustomersChart data={topCustomers} />
-            </Card.Body>
-          </Card>
-        </Col>
-      </Row>
-
-      <Row className="g-4">
-        <Col lg={12}>
-          <Card className="h-100 border" style={{ borderColor: "#e2e8f0" }}>
-            <Card.Header className="bg-white border-bottom py-3 d-flex align-items-center gap-3" style={{ borderColor: "#e2e8f0" }}>
-              <div className="d-flex align-items-center justify-content-center rounded" style={{ width: 36, height: 36, backgroundColor: "#fffbeb" }}>
-                <svg width="18" height="18" fill="none" stroke="#d97706" strokeWidth="2" viewBox="0 0 24 24"><path d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg>
-              </div>
-              <div className="fw-semibold" style={{ color: "#1e293b" }}>Low Stock Items</div>
-            </Card.Header>
-            <Card.Body className="p-0">
-              <Table responsive hover className="mb-0">
-                <thead style={{ backgroundColor: "#f8fafc" }}>
-                  <tr>
-                    <th style={{ width: 70, color: "#64748b", fontWeight: 500, fontSize: "0.75rem", textTransform: "uppercase", letterSpacing: "0.5px" }}>ID</th>
-                    <th style={{ color: "#64748b", fontWeight: 500, fontSize: "0.75rem", textTransform: "uppercase", letterSpacing: "0.5px" }}>SKU</th>
-                    <th style={{ color: "#64748b", fontWeight: 500, fontSize: "0.75rem", textTransform: "uppercase", letterSpacing: "0.5px" }}>Name</th>
-                    <th className="text-center" style={{ color: "#64748b", fontWeight: 500, fontSize: "0.75rem", textTransform: "uppercase", letterSpacing: "0.5px" }}>Current Stock</th>
-                    <th className="text-center" style={{ color: "#64748b", fontWeight: 500, fontSize: "0.75rem", textTransform: "uppercase", letterSpacing: "0.5px" }}>Min Stock</th>
-                    <th className="text-center" style={{ color: "#64748b", fontWeight: 500, fontSize: "0.75rem", textTransform: "uppercase", letterSpacing: "0.5px" }}>Status</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {lowStockItems.length === 0 ? (
-                    <tr><td colSpan={6} className="text-center text-secondary py-4">No low stock items</td></tr>
-                  ) : lowStockItems.map(item => (
-                    <tr key={item.id} style={{ borderColor: "#f1f5f9" }}>
-                      <td className="fw-medium" style={{ color: "#1e293b" }}>#{item.id}</td>
-                      <td style={{ color: "#475569" }}><Badge bg="light" text="dark" className="border" style={{ backgroundColor: "#f8fafc", borderColor: "#e2e8f0" }}>{item.sku}</Badge></td>
-                      <td style={{ color: "#1e293b" }}>{item.name}</td>
-                      <td className="text-center fw-medium" style={{ color: "#d97706" }}>{item.current_stock}</td>
-                      <td className="text-center" style={{ color: "#64748b" }}>{item.min_stock}</td>
-                      <td className="text-center">
-                        <Badge bg="warning" text="dark" style={{ fontSize: "0.75rem" }}>Low Stock</Badge>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </Table>
-            </Card.Body>
-          </Card>
-        </Col>
-      </Row>
-    </div>
+      <SectionCard title="Low stock items" icon="fas fa-boxes-stacked" iconColor="#b76e00" iconBackground="#fff4d6" contentSx={{ p: 0 }}>
+        <DashboardTable
+          columns={[{ label: 'ID' }, { label: 'SKU' }, { label: 'Name' }, { label: 'Current stock', align: 'center' }, { label: 'Min stock', align: 'center' }, { label: 'Status', align: 'center' }]}
+          rows={lowStockItems}
+          emptyMessage="No low stock items"
+          renderRow={(item) => (
+            <TableRow key={item.id} hover>
+              <TableCell sx={{ fontWeight: 700 }}>#{item.id}</TableCell>
+              <TableCell><Chip label={item.sku} size="small" variant="outlined" /></TableCell>
+              <TableCell>{item.name}</TableCell>
+              <TableCell align="center" sx={{ color: 'warning.main', fontWeight: 700 }}>{item.current_stock}</TableCell>
+              <TableCell align="center" sx={{ color: 'text.secondary' }}>{item.min_stock}</TableCell>
+              <TableCell align="center"><Chip label="Low stock" size="small" color="warning" variant="outlined" /></TableCell>
+            </TableRow>
+          )}
+        />
+      </SectionCard>
+    </Box>
   );
 }

@@ -63,6 +63,7 @@ const Webhooks = lazy(() => import("./pages/Webhooks"));
 const GoogleSheetsImport = lazy(() => import("./pages/GoogleSheetsImport"));
 const WhatsAppSettings = lazy(() => import("./pages/WhatsAppSettings"));
 const InvoiceSettings = lazy(() => import("./pages/InvoiceSettings"));
+const QuotationTemplate = lazy(() => import("./pages/QuotationTemplate"));
 
 // Loading component
 const LoadingSpinner = () => (
@@ -290,6 +291,13 @@ export default function App() {
           <PermissionRoute permission="sales-view">
             <Suspense fallback={<LoadingSpinner />}>
               <InvoiceSettings />
+            </Suspense>
+          </PermissionRoute>
+        } />
+        <Route path="/inventory/quotation-template" element={
+          <PermissionRoute permission="quotations-view">
+            <Suspense fallback={<LoadingSpinner />}>
+              <QuotationTemplate />
             </Suspense>
           </PermissionRoute>
         } />
