@@ -1,7 +1,38 @@
-import { useEffect, useMemo, useReducer, useRef, useState, useCallback } from "react";
+import { useEffect, useReducer, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import DataTable from "react-data-table-component";
-import { Modal, Button, Form, Badge, Row, Col, Table } from "react-bootstrap";
+import {
+  Alert,
+  AlertTitle,
+  Box,
+  Button,
+  Card,
+  CardContent,
+  Chip,
+  CircularProgress,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  FormControl,
+  IconButton,
+  InputAdornment,
+  InputLabel,
+  LinearProgress,
+  MenuItem,
+  Select,
+  Stack,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TablePagination,
+  TableRow,
+  TableSortLabel,
+  TextField,
+  Tooltip,
+  Typography,
+} from "@mui/material";
 import Swal from "sweetalert2";
 import { toast } from "react-toastify";
 import api from "../api";
@@ -21,18 +52,86 @@ const getNum = (v, fallback = 1) => {
   return isNaN(n) || n < 1 ? fallback : n;
 };
 
+const toArray = (value) => {
+  if (Array.isArray(value)) return value;
+  if (Array.isArray(value?.data)) return value.data;
+  if (Array.isArray(value?.data?.data)) return value.data.data;
+  if (Array.isArray(value?.items)) return value.items;
+  if (Array.isArray(value?.results)) return value.results;
+  return [];
+};
+
 const formatMoney = (v) => {
   const n = Number(v || 0);
   return n.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 };
 
-const statusColors = { draft: 'warning', posted: 'success' };
-const typeColors = { return: 'info', discount: 'primary', damaged: 'danger' };
+const statusChipSx = {
+  draft: { bgcolor: '#fff4d6', color: '#b76e00' },
+  posted: { bgcolor: '#dbf5e9', color: '#118d57' },
+};
+
+const typeChipSx = {
+  return: { bgcolor: '#caf4ff', color: '#006c9c' },
+  discount: { bgcolor: '#f1ebfd', color: '#6528e8' },
+  damaged: { bgcolor: '#ffe4de', color: '#b71d18' },
+};
+
+const pageCardSx = {
+  border: '1px solid',
+  borderColor: 'divider',
+  borderRadius: 3,
+  boxShadow: '0 8px 24px rgba(28,37,46,.05)',
+};
+
+const headerCellSx = {
+  color: 'text.secondary',
+  fontSize: 12,
+  fontWeight: 700,
+  textTransform: 'uppercase',
+  letterSpacing: '.04em',
+  px: 2,
+  py: 1.5,
+  borderBottom: '1px solid',
+  borderColor: 'divider',
+};
+
+const bodyCellSx = {
+  verticalAlign: 'middle',
+  px: 2,
+  py: 1.5,
+  borderBottom: '1px solid #f1f5f9',
+};
+
+const sectionBoxSx = {
+  p: 2,
+  bgcolor: '#f8fafc',
+  border: '1px solid',
+  borderColor: 'divider',
+  borderRadius: 2,
+};
+
+const borderedTableSx = {
+  border: '1px solid',
+  borderColor: 'divider',
+  borderRadius: 2,
+  overflow: 'hidden',
+  bgcolor: '#fff',
+};
+
+const borderedCellSx = {
+  borderBottom: '1px solid',
+  borderColor: 'divider',
+  borderRight: '1px solid',
+  borderRightColor: 'divider',
+  '&:last-child': { borderRight: 0 },
+};
 
 export default function CreditNotes() {
   const [params, setParams] = useSearchParams();
   const canViewNotes = canView("credit-notes");
   const prefillAppliedRef = useRef(false);
+  const pendingSaleIdRef = useRef(params.get("saleId"));
 
   const initialTable = { page: getNum(params.get("page"), 1), perPage: getNum(params.get("perPage"), 10), search: params.get("search") || "" };
   const [table, dispatch] = useReducer(tableReducer, initialTable);
@@ -41,6 +140,7 @@ export default function CreditNotes() {
   const [loading, setLoading] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
   const [searchInput, setSearchInput] = useState(initialTable.search);
+  const [sort, setSort] = useState({ field: null, dir: 'asc' });
 
   const [sales, setSales] = useState([]);
   const [items, setItems] = useState([]);
@@ -66,16 +166,29 @@ export default function CreditNotes() {
     return () => clearTimeout(t);
   }, [searchInput, table.search]);
 
+  useEffect(() => {
+    const controller = new AbortController();
+    const timer = setTimeout(() => loadTable(controller.signal), 0);
+    return () => { clearTimeout(timer); controller.abort(); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [table, reloadKey, canViewNotes]);
+
   const loadTable = async (signal) => {
     if (!canViewNotes) return;
     setLoading(true);
     try {
       const res = await api.get("/credit-notes", { params: table, signal });
-      setRows(res.data.data || []);
-      setTotal(res.data.total || 0);
+      setRows(toArray(res.data));
+      setTotal(Number(res.data?.total ?? res.data?.data?.total ?? 0));
     } catch { setRows([]); setTotal(0); }
     finally { setLoading(false); }
   };
+
+  useEffect(() => {
+    const controller = new AbortController();
+    const timer = setTimeout(() => loadDropdowns(controller.signal), 0);
+    return () => { clearTimeout(timer); controller.abort(); };
+  }, [reloadKey]);
 
   const loadDropdowns = async (signal) => {
     const [salesRes, itemsRes, warehousesRes] = await Promise.allSettled([
@@ -83,17 +196,13 @@ export default function CreditNotes() {
       api.get("/items", { params: { perPage: 200 }, signal }),
       api.get("/warehouses/list", { signal })
     ]);
-    if (salesRes.status === 'fulfilled') setSales(salesRes.value.data.data || []);
+    if (salesRes.status === 'fulfilled') setSales(toArray(salesRes.value.data));
     else { setSales([]); toast.error("Failed to load sales"); }
-    if (itemsRes.status === 'fulfilled') setItems(itemsRes.value.data.data || []);
+    if (itemsRes.status === 'fulfilled') setItems(toArray(itemsRes.value.data));
     else { setItems([]); toast.error("Failed to load items"); }
-    if (warehousesRes.status === 'fulfilled') setWarehouses(warehousesRes.value.data.data || []);
+    if (warehousesRes.status === 'fulfilled') setWarehouses(toArray(warehousesRes.value.data));
     else { setWarehouses([]); toast.error("Failed to load warehouses"); }
   };
-
-  useEffect(() => { const controller = new AbortController(); loadTable(controller.signal); return () => controller.abort(); }, [table, reloadKey, canViewNotes]);
-
-  useEffect(() => { const controller = new AbortController(); loadDropdowns(controller.signal); return () => controller.abort(); }, [reloadKey]);
 
   const selectSale = (saleId) => {
     const sale = sales.find(s => String(s.id) === String(saleId));
@@ -115,18 +224,31 @@ export default function CreditNotes() {
     }
   };
 
+  const openForSale = (saleId) => {
+    setShow(true);
+    selectSale(saleId);
+  };
+
   // Option B: open modal + preselect invoice based on URL param (?saleId=123)
   useEffect(() => {
     if (!canViewNotes) return;
-    const saleId = params.get("saleId");
+    const saleId = pendingSaleIdRef.current;
     if (!saleId) return;
     if (prefillAppliedRef.current) return;
     if (!sales || sales.length === 0) return;
 
     prefillAppliedRef.current = true;
+    openForSale(saleId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sales, canViewNotes]);
+
+  const openAdd = () => {
+    setSelectedSale(null);
+    setForm({
+      sale_id: "", warehouse_id: "", credit_note_date: new Date().toISOString().split('T')[0], type: "return", reason: "", items: []
+    });
     setShow(true);
-    selectSale(saleId);
-  }, [params, sales, canViewNotes]);
+  };
 
   const updateItemQty = (idx, qty) => {
     setForm(f => { const items = [...f.items]; items[idx] = { ...items[idx], quantity: Math.max(0, parseFloat(qty) || 0) }; return { ...f, items }; });
@@ -175,160 +297,420 @@ export default function CreditNotes() {
     });
   };
 
-  const columns = useMemo(() => [
-    { name: "CN #", selector: r => r.credit_note_number, sortable: true },
-    { name: "Date", selector: r => r.credit_note_date, width: "110px" },
-    { name: "Invoice", selector: r => r.sale?.invoice_number },
-    { name: "Customer", selector: r => r.sale?.customer?.name },
-    { name: "Type", cell: r => <Badge bg={typeColors[r.type]}>{r.type}</Badge>, width: "100px" },
-    { name: "Amount", selector: r => `₹${formatMoney(r.grand_total)}`, sortable: true },
-    { name: "Status", cell: r => <Badge bg={statusColors[r.status]}>{r.status}</Badge>, width: "90px" },
-    { name: "Action", width: "180px", cell: row => (
-      <div className="btn-group btn-group-sm">
-        <button className="btn btn-outline-info" onClick={() => { setViewData(row); setViewShow(true); }}><i className="fas fa-eye"></i></button>
-        {row.status === 'draft' && canEdit("credit-notes") && <button className="btn btn-outline-success" onClick={() => postNote(row)}><i className="fas fa-check"></i></button>}
-        {row.status === 'draft' && canDelete("credit-notes") && <button className="btn btn-outline-danger" onClick={() => deleteNote(row)}><i className="fas fa-trash"></i></button>}
-      </div>
-    )},
-  ], []);
+  const columns = [
+    { key: 'credit_note_number', label: 'CN #', minWidth: 130, sortValue: (r) => r.credit_note_number },
+    { key: 'credit_note_date', label: 'Date', minWidth: 110, sortValue: (r) => r.credit_note_date, render: (row) => row.credit_note_date || '-' },
+    { key: 'invoice', label: 'Invoice', minWidth: 120, render: (row) => row.sale?.invoice_number || '-' },
+    { key: 'customer', label: 'Customer', minWidth: 150, render: (row) => row.sale?.customer?.name || '-' },
+    {
+      key: 'type', label: 'Type', minWidth: 100,
+      render: (row) => (
+        <Chip
+          label={row.type}
+          size="small"
+          sx={{ ...(typeChipSx[row.type] || { bgcolor: '#f1f5f9', color: '#475569' }), fontWeight: 700 }}
+        />
+      ),
+    },
+    { key: 'grand_total', label: 'Amount', minWidth: 110, sortValue: (r) => Number(r.grand_total) || 0, render: (row) => `₹${formatMoney(row.grand_total)}` },
+    {
+      key: 'status', label: 'Status', minWidth: 90,
+      render: (row) => (
+        <Chip
+          label={row.status}
+          size="small"
+          sx={{ ...(statusChipSx[row.status] || { bgcolor: '#f1f5f9', color: '#475569' }), fontWeight: 700 }}
+        />
+      ),
+    },
+    {
+      key: 'action', label: 'Action', minWidth: 130, align: 'right',
+      render: (row) => (
+        <Stack direction="row" spacing={0.5} justifyContent="flex-end">
+          <Tooltip title="View">
+            <IconButton size="small" color="info" onClick={() => { setViewData(row); setViewShow(true); }} aria-label="View credit note" sx={{ border: '1px solid', borderColor: 'divider' }}>
+              <i className="fas fa-eye" style={{ fontSize: 12 }} aria-hidden="true" />
+            </IconButton>
+          </Tooltip>
+          {row.status === 'draft' && canEdit("credit-notes") && (
+            <Tooltip title="Post">
+              <IconButton size="small" color="success" onClick={() => postNote(row)} aria-label="Post credit note" sx={{ border: '1px solid', borderColor: 'divider' }}>
+                <i className="fas fa-check" style={{ fontSize: 12 }} aria-hidden="true" />
+              </IconButton>
+            </Tooltip>
+          )}
+          {row.status === 'draft' && canDelete("credit-notes") && (
+            <Tooltip title="Delete">
+              <IconButton size="small" color="error" onClick={() => deleteNote(row)} aria-label="Delete credit note" sx={{ border: '1px solid', borderColor: 'divider' }}>
+                <i className="fas fa-trash" style={{ fontSize: 12 }} aria-hidden="true" />
+              </IconButton>
+            </Tooltip>
+          )}
+        </Stack>
+      ),
+    },
+  ];
+
+  const sortedRows = (() => {
+    if (!sort.field) return rows;
+    const column = columns.find(c => c.key === sort.field);
+    if (!column?.sortValue) return rows;
+    const dir = sort.dir === 'asc' ? 1 : -1;
+    return [...rows].sort((a, b) => {
+      const av = column.sortValue(a);
+      const bv = column.sortValue(b);
+      if (av == null && bv == null) return 0;
+      if (av == null) return 1;
+      if (bv == null) return -1;
+      if (typeof av === 'number' && typeof bv === 'number') return (av - bv) * dir;
+      return String(av).localeCompare(String(bv)) * dir;
+    });
+  })();
+
+  const handleLocalSort = (field) => {
+    setSort((s) => ({ field, dir: s.field === field && s.dir === 'asc' ? 'desc' : 'asc' }));
+  };
 
   const totals = calculateTotals();
 
-  if (!canViewNotes) return <div className="p-4"><div className="card"><div className="card-body text-center py-5"><div className="text-secondary">Access denied</div></div></div></div>;
+  if (!canViewNotes) {
+    return (
+      <Alert severity="error" sx={{ borderRadius: 3 }}>
+        <AlertTitle>Access denied</AlertTitle>
+        You don’t have permission to view credit notes.
+      </Alert>
+    );
+  }
 
   return (
-    <div className="card card-outline card-primary">
-      <div className="card-header">
-        <div className="row g-2 align-items-center">
-          <div className="col-12 col-md-6"><h3 className="card-title">Credit Notes</h3></div>
-          <div className="col-12 col-md-6">
-            <div className="d-flex gap-2 flex-wrap justify-content-md-end">
-              <input className="form-control form-control-sm" style={{ maxWidth: 220 }} placeholder="Search..." value={searchInput} onChange={e => setSearchInput(e.target.value)} />
-              {canCreate("credit-notes") && <button className="btn btn-primary btn-sm" onClick={() => setShow(true)}><i className="fas fa-plus"></i> New Credit Note</button>}
-            </div>
-          </div>
-        </div>
-      </div>
+    <Box>
 
-      <div className="card-body p-0">
-        <DataTable columns={columns} data={rows} progressPending={loading} persistTableHead
-          className="modern-datatable"
-          pagination paginationServer paginationTotalRows={total} paginationPerPage={table.perPage}
-          onChangePage={(p) => p !== table.page && dispatch({ type: "PAGE", page: p })}
-          onChangeRowsPerPage={(n) => n !== table.perPage && dispatch({ type: "PER_PAGE", perPage: n })}
-          progressComponent={<div className="p-4 text-center"><div className="spinner-border spinner-border-sm me-2"></div>Loading...</div>}
-          noDataComponent={
-            <div className="p-5 text-center">
-              <i className="fas fa-folder-open text-muted mb-3" style={{ fontSize: 48, opacity: 0.4 }}></i>
-              <div className="fw-semibold text-secondary mb-1">No data found</div>
-              <div className="small text-muted">Try adjusting your filters or check back later</div>
-            </div>
-          }
-          striped highlightOnHover dense keyField="id" />
-      </div>
+      <Card sx={pageCardSx}>
+        <CardContent sx={{ p: 3 }}>
+          <Box sx={{ display: 'flex', alignItems: { md: 'center' }, justifyContent: 'space-between', flexDirection: { xs: 'column', md: 'row' }, gap: 2 }}>
+            <Box>
+              <Typography variant="h4" sx={{ color: 'text.primary', fontWeight: 700 }}>
+                Credit Notes
+              </Typography>
+              <Typography variant="body2" sx={{ color: 'text.secondary', mt: .5 }}>
+                {total} total credit notes
+              </Typography>
+            </Box>
+            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} alignItems={{ sm: 'center' }}>
+              <TextField
+                size="small"
+                placeholder="Search..."
+                value={searchInput}
+                onChange={e => setSearchInput(e.target.value)}
+                sx={{ minWidth: { xs: '100%', sm: 240 } }}
+                slotProps={{
+                  input: {
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <i className="fas fa-search" style={{ fontSize: 13 }} aria-hidden="true" />
+                      </InputAdornment>
+                    ),
+                  },
+                }}
+              />
+              {canCreate("credit-notes") && (
+                <Button variant="contained" onClick={openAdd} startIcon={<i className="fas fa-plus" aria-hidden="true" />}>
+                  New Credit Note
+                </Button>
+              )}
+            </Stack>
+          </Box>
+        </CardContent>
 
-      <Modal show={show} onHide={() => setShow(false)} backdrop="static" size="xl">
-        <Modal.Header closeButton><Modal.Title>New Credit Note</Modal.Title></Modal.Header>
-        <Modal.Body>
-          <Row className="mb-3">
-            <Col md={3}>
-              <Form.Group><Form.Label>Select Invoice <span className="text-danger">*</span></Form.Label>
-                <Form.Select value={form.sale_id} onChange={e => selectSale(e.target.value)}>
-                  <option value="">-- Select --</option>
-                  {sales.map(s => <option key={s.id} value={s.id}>#{s.invoice_number} - {s.customer?.name} - ₹{formatMoney(s.grand_total)}</option>)}
-                </Form.Select>
-              </Form.Group>
-            </Col>
-            <Col md={3}>
-              <Form.Group><Form.Label>Return to Godown <span className="text-danger">*</span></Form.Label>
-                <Form.Select value={form.warehouse_id} onChange={e => setForm(f => ({ ...f, warehouse_id: e.target.value }))}>
-                  <option value="">-- Select Godown --</option>
-                  {warehouses.map(w => <option key={w.id} value={w.id}>{w.name} {w.is_primary ? '(Primary)' : ''}</option>)}
-                </Form.Select>
-              </Form.Group>
-            </Col>
-            <Col md={3}>
-              <Form.Group><Form.Label>Date <span className="text-danger">*</span></Form.Label>
-                <Form.Control type="date" value={form.credit_note_date} onChange={e => setForm(f => ({ ...f, credit_note_date: e.target.value }))} />
-              </Form.Group>
-            </Col>
-            <Col md={3}>
-              <Form.Group><Form.Label>Type</Form.Label>
-                <Form.Select value={form.type} onChange={e => setForm(f => ({ ...f, type: e.target.value }))}>
-                  <option value="return">Return</option><option value="discount">Discount</option><option value="damaged">Damaged</option>
-                </Form.Select>
-              </Form.Group>
-            </Col>
-          </Row>
+        {loading && <LinearProgress />}
+        <TableContainer sx={{ overflowX: 'auto' }}>
+          <Table sx={{ minWidth: 960 }} size="small">
+            <TableHead>
+              <TableRow sx={{ bgcolor: '#f8fafc' }}>
+                {columns.map((column) => (
+                  <TableCell
+                    key={column.key}
+                    align={column.align || 'left'}
+                    sx={{ ...headerCellSx, minWidth: column.minWidth, width: column.width }}
+                  >
+                    {column.sortValue ? (
+                      <TableSortLabel
+                        active={sort.field === column.key}
+                        direction={sort.field === column.key ? sort.dir : 'asc'}
+                        onClick={() => handleLocalSort(column.key)}
+                      >
+                        {column.label}
+                      </TableSortLabel>
+                    ) : column.label}
+                  </TableCell>
+                ))}
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {sortedRows.length === 0 && !loading ? (
+                <TableRow>
+                  <TableCell colSpan={Math.max(columns.length, 1)} align="center" sx={{ py: 7 }}>
+                    <i className="fas fa-folder-open" style={{ color: '#637381', fontSize: 42, opacity: .4 }} aria-hidden="true" />
+                    <Typography variant="subtitle2" sx={{ color: 'text.secondary', mt: 1.5 }}>
+                      No data found
+                    </Typography>
+                    <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                      Try adjusting your filters or check back later
+                    </Typography>
+                  </TableCell>
+                </TableRow>
+              ) : sortedRows.map((row) => (
+                <TableRow
+                  key={row.id}
+                  hover
+                  sx={{
+                    '&:hover': { bgcolor: 'rgba(6,40,73,.035)' },
+                    '&:last-child td': { borderBottom: 0 },
+                  }}
+                >
+                  {columns.map((column) => (
+                    <TableCell
+                      key={`${row.id}-${column.key}`}
+                      align={column.align || 'left'}
+                      sx={bodyCellSx}
+                    >
+                      {column.render ? column.render(row) : column.sortValue?.(row) ?? '-'}
+                    </TableCell>
+                  ))}
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </TableContainer>
+
+        <TablePagination
+          component="div"
+          count={total}
+          page={Math.max(table.page - 1, 0)}
+          rowsPerPage={table.perPage}
+          rowsPerPageOptions={[10, 20, 50, 100, 200]}
+          onPageChange={(event, page) => {
+            const nextPage = page + 1;
+            if (nextPage !== table.page) dispatch({ type: 'PAGE', page: nextPage });
+          }}
+          onRowsPerPageChange={(event) => {
+            const nextSize = Number(event.target.value);
+            if (nextSize !== table.perPage) dispatch({ type: 'PER_PAGE', perPage: nextSize });
+          }}
+          sx={{ borderTop: '1px solid', borderColor: 'divider' }}
+        />
+      </Card>
+
+      {/* New Credit Note Dialog */}
+      <Dialog
+        open={show}
+        onClose={(event, reason) => { if (reason === 'backdropClick' || reason === 'escapeKeyDown') return; setShow(false); }}
+        maxWidth="xl"
+        fullWidth
+      >
+        <DialogTitle sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 2 }}>
+          <Typography variant="h6" sx={{ fontWeight: 700 }}>New Credit Note</Typography>
+          <IconButton size="small" onClick={() => setShow(false)} aria-label="Close">
+            <i className="fas fa-times" style={{ fontSize: 14 }} aria-hidden="true" />
+          </IconButton>
+        </DialogTitle>
+        <DialogContent dividers>
+          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', lg: 'repeat(4, 1fr)' }, gap: 2, mb: 3 }}>
+            <FormControl size="small" fullWidth required>
+              <InputLabel>Select Invoice</InputLabel>
+              <Select
+                label="Select Invoice"
+                value={form.sale_id === '' ? '' : String(form.sale_id)}
+                onChange={e => selectSale(e.target.value)}
+              >
+                <MenuItem value=""><em>-- Select --</em></MenuItem>
+                {sales.map(s => <MenuItem key={s.id} value={String(s.id)}>#{s.invoice_number} - {s.customer?.name} - ₹{formatMoney(s.grand_total)}</MenuItem>)}
+              </Select>
+            </FormControl>
+            <FormControl size="small" fullWidth required>
+              <InputLabel>Return to Godown</InputLabel>
+              <Select
+                label="Return to Godown"
+                value={form.warehouse_id === '' ? '' : String(form.warehouse_id)}
+                onChange={e => setForm(f => ({ ...f, warehouse_id: e.target.value }))}
+              >
+                <MenuItem value=""><em>-- Select Godown --</em></MenuItem>
+                {warehouses.map(w => <MenuItem key={w.id} value={String(w.id)}>{w.name} {w.is_primary ? '(Primary)' : ''}</MenuItem>)}
+              </Select>
+            </FormControl>
+            <TextField
+              size="small"
+              type="date"
+              label="Date"
+              required
+              value={form.credit_note_date}
+              onChange={e => setForm(f => ({ ...f, credit_note_date: e.target.value }))}
+              slotProps={{ inputLabel: { shrink: true } }}
+            />
+            <FormControl size="small" fullWidth>
+              <InputLabel>Type</InputLabel>
+              <Select
+                label="Type"
+                value={form.type}
+                onChange={e => setForm(f => ({ ...f, type: e.target.value }))}
+              >
+                <MenuItem value="return">Return</MenuItem>
+                <MenuItem value="discount">Discount</MenuItem>
+                <MenuItem value="damaged">Damaged</MenuItem>
+              </Select>
+            </FormControl>
+          </Box>
 
           {selectedSale && (
-            <div className="bg-light p-2 rounded border mb-3">
-              <h6 className="text-primary mb-2 px-2">Items to Return/Credit</h6>
-              <Table bordered size="sm" className="bg-white">
-                <thead className="bg-light"><tr><th>Item</th><th>Original Qty</th><th>Credit Qty</th><th>Price</th><th>Reason</th></tr></thead>
-                <tbody>
-                  {form.items.map((it, idx) => (
-                    <tr key={idx}>
-                      <td>{items.find(i => String(i.id) === String(it.item_id))?.name || it.item_id}</td>
-                      <td>{it.original_quantity}</td>
-                      <td><Form.Control type="number" size="sm" min="0" max={it.original_quantity} value={it.quantity ?? ''} onChange={e => updateItemQty(idx, e.target.value)} /></td>
-                      <td>₹{it.price}</td>
-                      <td><Form.Control size="sm" placeholder="Reason" value={it.reason} onChange={e => { const items = [...form.items]; items[idx].reason = e.target.value; setForm(f => ({ ...f, items })); }} /></td>
-                    </tr>
-                  ))}
-                </tbody>
-              </Table>
-            </div>
+            <Box sx={{ ...sectionBoxSx, mb: 3 }}>
+              <Typography sx={{ color: 'primary.main', fontWeight: 700, fontSize: 15, mb: 1.5 }}>
+                Items to Return/Credit
+              </Typography>
+              <Box sx={borderedTableSx}>
+                <TableContainer sx={{ overflowX: 'auto' }}>
+                  <Table size="small" sx={{ minWidth: 640 }}>
+                    <TableHead>
+                      <TableRow sx={{ bgcolor: '#f8fafc' }}>
+                        <TableCell sx={{ ...headerCellSx, ...borderedCellSx }}>Item</TableCell>
+                        <TableCell sx={{ ...headerCellSx, ...borderedCellSx, width: 110 }}>Original Qty</TableCell>
+                        <TableCell sx={{ ...headerCellSx, ...borderedCellSx, width: 110 }}>Credit Qty</TableCell>
+                        <TableCell sx={{ ...headerCellSx, ...borderedCellSx, width: 100 }}>Price</TableCell>
+                        <TableCell sx={{ ...headerCellSx, ...borderedCellSx, minWidth: 160 }}>Reason</TableCell>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {form.items.map((it, idx) => (
+                        <TableRow key={idx}>
+                          <TableCell sx={borderedCellSx}>{items.find(i => String(i.id) === String(it.item_id))?.name || it.item_id}</TableCell>
+                          <TableCell sx={borderedCellSx}>{it.original_quantity}</TableCell>
+                          <TableCell sx={borderedCellSx}>
+                            <TextField type="number" size="small" inputProps={{ min: 0, max: it.original_quantity }} value={it.quantity ?? ''} onChange={e => updateItemQty(idx, e.target.value)} />
+                          </TableCell>
+                          <TableCell sx={borderedCellSx}>₹{it.price}</TableCell>
+                          <TableCell sx={borderedCellSx}>
+                            <TextField size="small" fullWidth placeholder="Reason" value={it.reason} onChange={e => { const items = [...form.items]; items[idx] = { ...items[idx], reason: e.target.value }; setForm(f => ({ ...f, items })); }} />
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </TableContainer>
+              </Box>
+            </Box>
           )}
 
-          <Row>
-            <Col md={6}><Form.Group><Form.Label>Reason/Notes</Form.Label><Form.Control as="textarea" rows={3} value={form.reason} onChange={e => setForm(f => ({ ...f, reason: e.target.value }))} /></Form.Group></Col>
-            <Col md={6}>
-              <div className="bg-light p-3 rounded border">
-                <Table bordered size="sm" className="mb-0 bg-white">
-                  <tbody>
-                    <tr><td className="text-end fw-bold">Subtotal:</td><td className="text-end">₹{totals.subtotal.toFixed(2)}</td></tr>
-                    <tr><td className="text-end">Discount:</td><td className="text-end text-danger">-₹{totals.discount.toFixed(2)}</td></tr>
-                    <tr><td className="text-end">Tax:</td><td className="text-end">₹{totals.tax.toFixed(2)}</td></tr>
-                    <tr className="bg-primary text-white"><td className="text-end fw-bold">Grand Total:</td><td className="text-end fw-bold">₹{totals.grandTotal.toFixed(2)}</td></tr>
-                  </tbody>
+          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(2, 1fr)' }, gap: 2.5 }}>
+            <TextField
+              size="small"
+              label="Reason/Notes"
+              multiline
+              rows={3}
+              fullWidth
+              value={form.reason}
+              onChange={e => setForm(f => ({ ...f, reason: e.target.value }))}
+            />
+            <Box sx={sectionBoxSx}>
+              <Box sx={borderedTableSx}>
+                <Table size="small">
+                  <TableBody>
+                    <TableRow>
+                      <TableCell align="right" sx={{ ...borderedCellSx, fontWeight: 700 }}>Subtotal:</TableCell>
+                      <TableCell align="right" sx={borderedCellSx}>₹{totals.subtotal.toFixed(2)}</TableCell>
+                    </TableRow>
+                    <TableRow>
+                      <TableCell align="right" sx={borderedCellSx}>Discount:</TableCell>
+                      <TableCell align="right" sx={{ ...borderedCellSx, color: 'error.main' }}>-₹{totals.discount.toFixed(2)}</TableCell>
+                    </TableRow>
+                    <TableRow>
+                      <TableCell align="right" sx={borderedCellSx}>Tax:</TableCell>
+                      <TableCell align="right" sx={borderedCellSx}>₹{totals.tax.toFixed(2)}</TableCell>
+                    </TableRow>
+                    <TableRow sx={{ bgcolor: 'primary.main' }}>
+                      <TableCell align="right" sx={{ borderBottom: 0, color: '#fff', fontWeight: 700 }}>Grand Total:</TableCell>
+                      <TableCell align="right" sx={{ borderBottom: 0, color: '#fff', fontWeight: 700 }}>₹{totals.grandTotal.toFixed(2)}</TableCell>
+                    </TableRow>
+                  </TableBody>
                 </Table>
-              </div>
-            </Col>
-          </Row>
-        </Modal.Body>
-        <Modal.Footer>
-          <Button variant="secondary" onClick={() => setShow(false)}>Cancel</Button>
-          <Button variant="primary" onClick={save} disabled={saving}>{saving && <span className="spinner-border spinner-border-sm me-2"></span>} Save</Button>
-        </Modal.Footer>
-      </Modal>
+              </Box>
+            </Box>
+          </Box>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, py: 2 }}>
+          <Button variant="outlined" onClick={() => setShow(false)}>Cancel</Button>
+          <Button variant="contained" onClick={save} disabled={saving} startIcon={saving ? <CircularProgress size={14} color="inherit" /> : null}>
+            Save
+          </Button>
+        </DialogActions>
+      </Dialog>
 
-      <Modal show={viewShow} onHide={() => setViewShow(false)} size="lg">
-        <Modal.Header closeButton><Modal.Title>Credit Note #{viewData?.credit_note_number}</Modal.Title></Modal.Header>
-        <Modal.Body>
+      {/* View Credit Note Dialog */}
+      <Dialog open={viewShow} onClose={() => setViewShow(false)} maxWidth="lg" fullWidth>
+        <DialogTitle sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 2 }}>
+          <Typography variant="h6" sx={{ fontWeight: 700 }}>Credit Note #{viewData?.credit_note_number}</Typography>
+          <IconButton size="small" onClick={() => setViewShow(false)} aria-label="Close">
+            <i className="fas fa-times" style={{ fontSize: 14 }} aria-hidden="true" />
+          </IconButton>
+        </DialogTitle>
+        <DialogContent dividers>
           {viewData && (<>
-            <div className="bg-light p-3 rounded border mb-3">
-              <Row>
-                <Col md={4}><strong className="text-muted small">Invoice:</strong><br/>{viewData.sale?.invoice_number}</Col>
-                <Col md={4}><strong className="text-muted small">Date:</strong><br/>{viewData.credit_note_date}</Col>
-                <Col md={4}><strong className="text-muted small">Status:</strong><br/><Badge bg={statusColors[viewData.status]}>{viewData.status}</Badge></Col>
-              </Row>
-            </div>
-            <Table bordered size="sm">
-              <thead className="bg-light"><tr><th>Item</th><th>Qty</th><th>Price</th><th>Amount</th></tr></thead>
-              <tbody>
-                {viewData.items?.map((it, idx) => (<tr key={idx}><td>{it.item?.name}</td><td>{it.quantity}</td><td>₹{it.price}</td><td>₹{it.amount}</td></tr>))}
-              </tbody>
-            </Table>
-            <div className="mt-3"><Table bordered size="sm" className="mb-0" style={{ maxWidth: '400px', marginLeft: 'auto' }}>
-              <tbody>
-                <tr><td className="text-end fw-bold">Grand Total:</td><td className="text-end fw-bold">₹{viewData.grand_total}</td></tr>
-              </tbody>
-            </Table></div>
+            <Box sx={{ ...sectionBoxSx, p: 2.5, mb: 3 }}>
+              <Box sx={{ display: 'grid', gridTemplateColumns: { xs: 'repeat(2, 1fr)', md: 'repeat(3, 1fr)' }, gap: 2 }}>
+                <Box>
+                  <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 700 }}>Invoice:</Typography>
+                  <Typography variant="body2">{viewData.sale?.invoice_number}</Typography>
+                </Box>
+                <Box>
+                  <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 700 }}>Date:</Typography>
+                  <Typography variant="body2">{viewData.credit_note_date}</Typography>
+                </Box>
+                <Box>
+                  <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 700 }}>Status:</Typography>
+                  <Box><Chip label={viewData.status} size="small" sx={{ ...(statusChipSx[viewData.status] || { bgcolor: '#f1f5f9', color: '#475569' }), fontWeight: 700 }} /></Box>
+                </Box>
+              </Box>
+            </Box>
+            <Box sx={{ ...borderedTableSx, mb: 3 }}>
+              <TableContainer sx={{ overflowX: 'auto' }}>
+                <Table size="small">
+                  <TableHead>
+                    <TableRow sx={{ bgcolor: '#f8fafc' }}>
+                      <TableCell sx={{ ...headerCellSx, ...borderedCellSx }}>Item</TableCell>
+                      <TableCell sx={{ ...headerCellSx, ...borderedCellSx }}>Qty</TableCell>
+                      <TableCell sx={{ ...headerCellSx, ...borderedCellSx }}>Price</TableCell>
+                      <TableCell align="right" sx={{ ...headerCellSx, ...borderedCellSx }}>Amount</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {viewData.items?.map((it, idx) => (
+                      <TableRow key={idx}>
+                        <TableCell sx={borderedCellSx}>{it.item?.name}</TableCell>
+                        <TableCell sx={borderedCellSx}>{it.quantity}</TableCell>
+                        <TableCell sx={borderedCellSx}>₹{it.price}</TableCell>
+                        <TableCell align="right" sx={borderedCellSx}>₹{it.amount}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+            </Box>
+            <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
+              <Box sx={{ ...borderedTableSx, maxWidth: 400, width: '100%' }}>
+                <Table size="small">
+                  <TableBody>
+                    <TableRow sx={{ bgcolor: 'primary.main' }}>
+                      <TableCell align="right" sx={{ borderBottom: 0, color: '#fff', fontWeight: 700 }}>Grand Total:</TableCell>
+                      <TableCell align="right" sx={{ borderBottom: 0, color: '#fff', fontWeight: 700 }}>₹{viewData.grand_total}</TableCell>
+                    </TableRow>
+                  </TableBody>
+                </Table>
+              </Box>
+            </Box>
           </>)}
-        </Modal.Body>
-        <Modal.Footer><Button variant="secondary" onClick={() => setViewShow(false)}>Close</Button></Modal.Footer>
-      </Modal>
-    </div>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, py: 2 }}>
+          <Button variant="outlined" onClick={() => setViewShow(false)}>Close</Button>
+        </DialogActions>
+      </Dialog>
+    </Box>
   );
 }

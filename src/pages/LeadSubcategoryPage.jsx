@@ -1,7 +1,33 @@
 import { useParams, useSearchParams } from "react-router-dom";
-import { useEffect, useMemo, useReducer, useState } from "react";
-import DataTable from "react-data-table-component";
-import { Modal, Button, Form } from "react-bootstrap";
+import { useCallback, useEffect, useMemo, useReducer, useState } from "react";
+import {
+  Box,
+  Button,
+  Card,
+  CardContent,
+  Checkbox,
+  CircularProgress,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  Divider,
+  FormControlLabel,
+  IconButton,
+  InputAdornment,
+  LinearProgress,
+  Stack,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TablePagination,
+  TableRow,
+  TableSortLabel,
+  TextField,
+  Typography,
+} from "@mui/material";
 import Swal from "sweetalert2";
 import { toast } from "react-toastify";
 import api from "../api";
@@ -25,6 +51,37 @@ function tableReducer(state, action) {
       return state;
   }
 }
+
+const cardSx = {
+  border: '1px solid',
+  borderColor: 'divider',
+  borderRadius: 3,
+  boxShadow: '0 8px 24px rgba(28,37,46,.05)',
+};
+
+const headCellSx = {
+  color: 'text.secondary',
+  fontSize: 12,
+  fontWeight: 700,
+  textTransform: 'uppercase',
+  letterSpacing: '.04em',
+  px: 2,
+  py: 1.5,
+  borderBottom: '1px solid',
+  borderColor: 'divider',
+};
+
+const bodyCellSx = {
+  verticalAlign: 'middle',
+  px: 2,
+  py: 1.5,
+  borderBottom: '1px solid #f1f5f9',
+};
+
+const dialogPaperSx = {
+  borderRadius: 3,
+  boxShadow: '0 8px 24px rgba(28,37,46,.12)',
+};
 
 export default function LeadSubcategoryPage() {
 
@@ -87,7 +144,7 @@ export default function LeadSubcategoryPage() {
     return () => clearTimeout(t);
   }, [searchInput, table.search]);
 
-  const load = async (signal) => {
+  const load = useCallback(async (signal) => {
     if (!id) {
       setRawRows([]);
       setRows([]);
@@ -124,13 +181,13 @@ export default function LeadSubcategoryPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [id, table]);
 
   useEffect(() => {
     const controller = new AbortController();
     load(controller.signal);
     return () => controller.abort();
-  }, [id, reloadKey, table]);
+  }, [reloadKey, load]);
 
   const clientRows = useMemo(() => {
     if (serverMode) return [];
@@ -165,17 +222,16 @@ export default function LeadSubcategoryPage() {
     return sorted.slice(start, end);
   }, [rawRows, serverMode, table.page, table.perPage, table.search, table.sortDir, table.sortField]);
 
-  useEffect(() => {
-    if (serverMode) return;
-
+  const clientTotal = useMemo(() => {
     const q = table.search.trim().toLowerCase();
     const filtered = q
       ? rawRows.filter(r => (r?.name ?? "").toLowerCase().includes(q))
       : rawRows;
+    return filtered.length;
+  }, [rawRows, table.search]);
 
-    setTotal(filtered.length);
-    setRows(clientRows);
-  }, [clientRows, rawRows, serverMode, table.search]);
+  const displayRows = serverMode ? rows : clientRows;
+  const displayTotal = serverMode ? total : clientTotal;
 
   const openAdd = () => {
     setEditRow(null);
@@ -240,156 +296,226 @@ export default function LeadSubcategoryPage() {
     });
   };
 
-  const columns = useMemo(() => {
-    const all = [
-      visibleCols.id && {
-        name: "ID",
-        selector: r => r.id,
-        sortable: true,
-        sortField: "id",
-        width: "100px",
-      },
-      visibleCols.name && {
-        name: "Subcategory Name",
-        selector: r => r.name,
-        sortable: true,
-        sortField: "name",
-      },
-      visibleCols.action && {
-        name: "Action",
-        width: "140px",
-        cell: row => (
-          <div className="btn-group btn-group-sm">
-            <button className="btn btn-outline-primary" onClick={() => openEdit(row)}>
-              <i className="fas fa-edit"></i>
-            </button>
-            <button className="btn btn-outline-danger" onClick={() => remove(row)}>
-              <i className="fas fa-trash"></i>
-            </button>
-          </div>
-        ),
-      },
-    ];
+  const handleSort = (field) => {
+    const dir = table.sortField === field
+      ? (table.sortDir === 'asc' ? 'desc' : 'asc')
+      : 'asc';
+    dispatch({ type: "SORT", field, dir });
+  };
 
-    return all.filter(Boolean);
-  }, [visibleCols]);
+  const handleDialogClose = (event, reason) => {
+    if (reason === 'backdropClick') return;
+    setShow(false);
+  };
+
+  const columns = [
+    visibleCols.id && { key: 'id', label: 'ID', sortField: 'id', width: 100 },
+    visibleCols.name && { key: 'name', label: 'Subcategory Name', sortField: 'name' },
+    visibleCols.action && {
+      key: 'action',
+      label: 'Action',
+      width: 140,
+      align: 'right',
+      render: (row) => (
+        <Stack direction="row" spacing={0.5} justifyContent="flex-end">
+          <IconButton size="small" color="primary" onClick={() => openEdit(row)} sx={{ border: '1px solid', borderColor: 'divider' }} aria-label="Edit">
+            <i className="fas fa-edit" style={{ fontSize: 13 }} aria-hidden="true" />
+          </IconButton>
+          <IconButton size="small" color="error" onClick={() => remove(row)} sx={{ border: '1px solid', borderColor: 'divider' }} aria-label="Delete">
+            <i className="fas fa-trash" style={{ fontSize: 13 }} aria-hidden="true" />
+          </IconButton>
+        </Stack>
+      ),
+    },
+  ].filter(Boolean);
 
   return (
-    <>
-      <div className="card card-outline card-primary">
-        <div className="card-header">
-          <div className="row g-2 align-items-center">
-            <div className="col-12 col-md-6">
-              <h3 className="card-title">Subcategories — Category #{id ?? "-"}</h3>
-            </div>
+    <Box>
+      <Card sx={cardSx}>
+        <CardContent sx={{ p: 3 }}>
+          <Box sx={{ display: 'flex', alignItems: { md: 'center' }, justifyContent: 'space-between', flexDirection: { xs: 'column', md: 'row' }, gap: 2 }}>
+            <Box>
+              <Typography variant="h4" sx={{ color: 'text.primary', fontWeight: 700 }}>
+                Subcategories — Category #{id ?? "-"}
+              </Typography>
+            </Box>
+            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} alignItems={{ sm: 'center' }}>
+              <TextField
+                size="small"
+                placeholder="Search..."
+                value={searchInput}
+                onChange={e => setSearchInput(e.target.value)}
+                disabled={!id}
+                sx={{ minWidth: { xs: '100%', sm: 220 } }}
+                slotProps={{
+                  input: {
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <i className="fas fa-search" style={{ fontSize: 13 }} aria-hidden="true" />
+                      </InputAdornment>
+                    ),
+                  },
+                }}
+              />
+              <Button
+                variant="contained"
+                onClick={openAdd}
+                disabled={!id}
+                startIcon={<i className="fas fa-plus" aria-hidden="true" />}
+              >
+                Add
+              </Button>
+            </Stack>
+          </Box>
+        </CardContent>
 
-            <div className="col-12 col-md-6">
-              <div className="d-flex gap-2 flex-wrap justify-content-md-end">
-                <input
-                  className="form-control form-control-sm"
-                  style={{ maxWidth: 220 }}
-                  placeholder="Search..."
-                  value={searchInput}
-                  onChange={e => setSearchInput(e.target.value)}
-                  disabled={!id}
-                />
-
-                <button
-                  className="btn btn-primary btn-sm"
-                  onClick={openAdd}
-                  disabled={!id}
-                >
-                  <i className="fas fa-plus"></i> Add
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div className="p-2 border-bottom">
-          <label className="me-3">
-            <input
-              type="checkbox"
-              checked={visibleCols.id}
-              onChange={() => setVisibleCols(v => ({ ...v, id: !v.id }))}
-            /> ID
-          </label>
-
-          <label className="me-3">
-            <input
-              type="checkbox"
-              checked={visibleCols.name}
-              onChange={() => setVisibleCols(v => ({ ...v, name: !v.name }))}
-            /> Name
-          </label>
-        </div>
-
-        <div className="card-body p-0">
-          <DataTable keyField="id"
-          className="modern-datatable"
-            columns={columns}
-            data={rows}
-            progressPending={loading}
-          progressComponent={<div className="p-4 text-center"><div className="spinner-border spinner-border-sm me-2"></div>Loading...</div>}
-            persistTableHead
-            pagination
-            paginationServer
-            paginationTotalRows={total}
-            paginationPerPage={table.perPage}
-            onChangePage={(p) => {
-              if (p !== table.page) {
-                dispatch({ type: "PAGE", page: p });
-              }
-            }}
-            onChangeRowsPerPage={(n) => {
-              if (n !== table.perPage) {
-                dispatch({ type: "PER_PAGE", perPage: n });
-              }
-            }}
-            sortServer
-            onSort={(col, dir) => {
-              if (col.sortField) {
-                dispatch({ type: "SORT", field: col.sortField, dir });
-              }
-            }}
-            striped
-            highlightOnHover
-            dense
-          noDataComponent={
-            <div className="p-5 text-center">
-              <i className="fas fa-folder-open text-muted mb-3" style={{ fontSize: 48, opacity: 0.4 }}></i>
-              <div className="fw-semibold text-secondary mb-1">No data found</div>
-              <div className="small text-muted">Try adjusting your filters or check back later</div>
-            </div>
-          }
+        <Divider />
+        <Box sx={{ px: 3, py: 1.5, display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
+          <Typography variant="body2" sx={{ color: 'text.secondary', fontWeight: 700 }}>
+            Show columns:
+          </Typography>
+          <FormControlLabel
+            control={
+              <Checkbox
+                size="small"
+                checked={visibleCols.id}
+                onChange={() => setVisibleCols(v => ({ ...v, id: !v.id }))}
+              />
+            }
+            label="ID"
           />
-        </div>
-      </div>
+          <FormControlLabel
+            control={
+              <Checkbox
+                size="small"
+                checked={visibleCols.name}
+                onChange={() => setVisibleCols(v => ({ ...v, name: !v.name }))}
+              />
+            }
+            label="Name"
+          />
+        </Box>
 
-      <Modal show={show} onHide={() => setShow(false)} backdrop="static">
-        <Modal.Header closeButton>
-          <Modal.Title>
+        {loading && <LinearProgress />}
+        <TableContainer sx={{ overflowX: 'auto' }}>
+          <Table sx={{ minWidth: 560 }} size="small">
+            <TableHead>
+              <TableRow sx={{ bgcolor: '#f8fafc' }}>
+                {columns.map((column) => (
+                  <TableCell
+                    key={column.key}
+                    align={column.align || 'left'}
+                    sx={{ ...headCellSx, width: column.width }}
+                  >
+                    {column.sortField ? (
+                      <TableSortLabel
+                        active={table.sortField === column.sortField}
+                        direction={table.sortField === column.sortField ? table.sortDir : 'asc'}
+                        onClick={() => handleSort(column.sortField)}
+                      >
+                        {column.label}
+                      </TableSortLabel>
+                    ) : column.label}
+                  </TableCell>
+                ))}
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {displayRows.length === 0 && !loading ? (
+                <TableRow>
+                  <TableCell colSpan={Math.max(columns.length, 1)} align="center" sx={{ py: 7 }}>
+                    <i className="fas fa-folder-open" style={{ color: '#637381', fontSize: 42, opacity: .4 }} aria-hidden="true" />
+                    <Typography variant="subtitle2" sx={{ color: 'text.secondary', mt: 1.5 }}>
+                      No data found
+                    </Typography>
+                    <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                      Try adjusting your filters or check back later
+                    </Typography>
+                  </TableCell>
+                </TableRow>
+              ) : displayRows.map((r) => (
+                <TableRow
+                  key={r.id}
+                  hover
+                  sx={{ '&:last-child td': { borderBottom: 0 } }}
+                >
+                  {columns.map((column) => (
+                    <TableCell
+                      key={`${r.id}-${column.key}`}
+                      align={column.align || 'left'}
+                      sx={bodyCellSx}
+                    >
+                      {column.render ? column.render(r) : (
+                        column.key === 'id'
+                          ? <Typography variant="body2" sx={{ fontWeight: 700 }}>#{r.id}</Typography>
+                          : r[column.key]
+                      )}
+                    </TableCell>
+                  ))}
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </TableContainer>
+
+        <TablePagination
+          component="div"
+          count={displayTotal}
+          page={Math.max(table.page - 1, 0)}
+          rowsPerPage={table.perPage}
+          rowsPerPageOptions={[10, 15, 20, 25, 30]}
+          onPageChange={(event, page) => {
+            const nextPage = page + 1;
+            if (nextPage !== table.page) dispatch({ type: 'PAGE', page: nextPage });
+          }}
+          onRowsPerPageChange={(event) => {
+            const nextSize = Number(event.target.value);
+            if (nextSize !== table.perPage) dispatch({ type: 'PER_PAGE', perPage: nextSize });
+          }}
+          sx={{ borderTop: '1px solid', borderColor: 'divider' }}
+        />
+      </Card>
+
+      <Dialog
+        open={show}
+        onClose={handleDialogClose}
+        maxWidth="xs"
+        fullWidth
+        slotProps={{ paper: { sx: dialogPaperSx } }}
+      >
+        <DialogTitle sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 2, py: 2 }}>
+          <Typography variant="h6" sx={{ fontWeight: 700 }}>
             {editRow ? "Edit Subcategory" : "Add Subcategory"}
-          </Modal.Title>
-        </Modal.Header>
+          </Typography>
+          <IconButton size="small" onClick={() => setShow(false)} aria-label="Close">
+            <i className="fas fa-times" style={{ fontSize: 14 }} aria-hidden="true" />
+          </IconButton>
+        </DialogTitle>
 
-        <Modal.Body>
-          <Form.Label>Name</Form.Label>
-          <Form.Control value={name} onChange={e => setName(e.target.value)} />
-        </Modal.Body>
+        <DialogContent dividers sx={{ p: 3 }}>
+          <TextField
+            size="small"
+            label="Name"
+            value={name}
+            onChange={e => setName(e.target.value)}
+            fullWidth
+          />
+        </DialogContent>
 
-        <Modal.Footer>
-          <Button variant="secondary" onClick={() => setShow(false)}>
+        <DialogActions sx={{ px: 3, py: 2 }}>
+          <Button variant="outlined" color="inherit" onClick={() => setShow(false)}>
             Cancel
           </Button>
-          <Button variant="primary" onClick={save} disabled={saving || !id}>
-            {saving && (
-              <span className="spinner-border spinner-border-sm me-2"></span>
-            )}
+          <Button
+            variant="contained"
+            onClick={save}
+            disabled={saving || !id}
+            startIcon={saving ? <CircularProgress size={16} color="inherit" /> : null}
+          >
             {saving ? "Saving..." : "Save"}
           </Button>
-        </Modal.Footer>
-      </Modal>
-    </>
+        </DialogActions>
+      </Dialog>
+    </Box>
   );
 }

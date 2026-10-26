@@ -1,11 +1,43 @@
-import { useEffect, useState } from "react";
-import { Card, Row, Col, Form, Table, Button, Badge } from "react-bootstrap";
+import { useCallback, useEffect, useState } from "react";
+import {
+  Alert,
+  AlertTitle,
+  Box,
+  Button,
+  Card,
+  CardContent,
+  Chip,
+  Divider,
+  FormControl,
+  InputLabel,
+  LinearProgress,
+  MenuItem,
+  Select,
+  Stack,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  TextField,
+  Typography,
+} from "@mui/material";
 import api from "../../api";
 import { canView } from "../../utils/permissions";
 
 const formatMoney = (v) => {
   const n = Number(v || 0);
   return n.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+};
+
+const toArray = (value) => {
+  if (Array.isArray(value)) return value;
+  if (Array.isArray(value?.data)) return value.data;
+  if (Array.isArray(value?.data?.data)) return value.data.data;
+  if (Array.isArray(value?.items)) return value.items;
+  if (Array.isArray(value?.results)) return value.results;
+  return [];
 };
 
 const downloadCsv = (filename, rows) => {
@@ -58,10 +90,58 @@ const downloadCsv = (filename, rows) => {
   URL.revokeObjectURL(url);
 };
 
-const badge = {
-  status: (s) => (s === "posted" ? "success" : "warning"),
-  type: (t) => (t === "return" ? "info" : t === "discount" ? "primary" : "danger"),
+const cardSx = {
+  border: '1px solid',
+  borderColor: 'divider',
+  borderRadius: 3,
+  boxShadow: '0 8px 24px rgba(28,37,46,.05)',
 };
+
+const headCellSx = {
+  color: 'text.secondary',
+  fontSize: 12,
+  fontWeight: 700,
+  textTransform: 'uppercase',
+  letterSpacing: '.04em',
+  px: 2,
+  py: 1.5,
+};
+
+const statusChipColor = (s) => (s === "posted" ? "success" : "warning");
+const typeChipColor = (t) => (t === "return" ? "info" : t === "discount" ? "primary" : "error");
+
+const initialDates = () => {
+  const today = new Date();
+  const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
+  return {
+    from: firstDay.toISOString().split("T")[0],
+    to: today.toISOString().split("T")[0],
+  };
+};
+
+const EMPTY_SUMMARY = { count: 0, grand_total: 0, draft_count: 0, posted_count: 0 };
+
+function StatCard({ label, value, icon, color, background }) {
+  return (
+    <Card sx={{ ...cardSx, height: '100%' }}>
+      <CardContent sx={{ p: 2.5 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+          <Box sx={{ width: 44, height: 44, borderRadius: 2, display: 'grid', placeItems: 'center', bgcolor: background, color, flexShrink: 0 }}>
+            <i className={icon} style={{ fontSize: 18 }} aria-hidden="true" />
+          </Box>
+          <Box sx={{ minWidth: 0 }}>
+            <Typography variant="body2" sx={{ color: 'text.secondary', mb: .25 }}>
+              {label}
+            </Typography>
+            <Typography variant="h6" sx={{ color, fontWeight: 700 }}>
+              {value}
+            </Typography>
+          </Box>
+        </Box>
+      </CardContent>
+    </Card>
+  );
+}
 
 export default function DebitNotesReport() {
   const canViewReport = canView("debit-notes-report");
@@ -69,44 +149,46 @@ export default function DebitNotesReport() {
   const [pdfLoading, setPdfLoading] = useState(false);
   const [csvLoading, setCsvLoading] = useState(false);
   const [data, setData] = useState([]);
-  const [summary, setSummary] = useState({ count: 0, grand_total: 0, draft_count: 0, posted_count: 0 });
+  const [summary, setSummary] = useState(EMPTY_SUMMARY);
   const [warehouses, setWarehouses] = useState([]);
 
-  const [filters, setFilters] = useState({
-    from: "",
-    to: "",
+  const [filters, setFilters] = useState(() => ({
+    ...initialDates(),
     status: "",
     type: "",
     warehouse_id: "",
-  });
+  }));
 
-  const loadData = async () => {
+  const loadData = useCallback(async (f) => {
     if (!canViewReport) return;
     setLoading(true);
     try {
       const params = {};
-      if (filters.from) params.from = filters.from;
-      if (filters.to) params.to = filters.to;
-      if (filters.status) params.status = filters.status;
-      if (filters.type) params.type = filters.type;
-      if (filters.warehouse_id) params.warehouse_id = filters.warehouse_id;
+      if (f.from) params.from = f.from;
+      if (f.to) params.to = f.to;
+      if (f.status) params.status = f.status;
+      if (f.type) params.type = f.type;
+      if (f.warehouse_id) params.warehouse_id = f.warehouse_id;
 
       const res = await api.get("/reports/debit-notes", { params });
-      setData(res.data.data || []);
-      setSummary(res.data.summary || summary);
-
-      // Load warehouses on first load
-      if (warehouses.length === 0) {
-        const warehouseRes = await api.get("/warehouses/list");
-        setWarehouses(warehouseRes.data?.data || warehouseRes.data || []);
-      }
+      setData(toArray(res.data?.data ?? res.data));
+      setSummary(res.data?.summary || summary);
     } catch {
       setData([]);
-      setSummary({ count: 0, grand_total: 0, draft_count: 0, posted_count: 0 });
+      setSummary(EMPTY_SUMMARY);
     } finally {
       setLoading(false);
     }
-  };
+  }, [canViewReport, summary]);
+
+  const loadWarehouses = useCallback(async () => {
+    try {
+      const warehouseRes = await api.get("/warehouses/list");
+      setWarehouses(toArray(warehouseRes.data));
+    } catch {
+      setWarehouses([]);
+    }
+  }, []);
 
   const handleDownloadCSV = () => {
     if (csvLoading) return;
@@ -143,209 +225,205 @@ export default function DebitNotesReport() {
     }
   };
 
+  const handleClear = () => {
+    setFilters({
+      ...initialDates(),
+      status: "",
+      type: "",
+      warehouse_id: "",
+    });
+  };
+
   useEffect(() => {
     if (!canViewReport) return;
-    const today = new Date();
-    const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
-    setFilters(prev => ({
-      ...prev,
-      from: firstDay.toISOString().split("T")[0],
-      to: today.toISOString().split("T")[0],
-    }));
-  }, [canViewReport]);
+    loadWarehouses();
+  }, [canViewReport, loadWarehouses]);
 
   useEffect(() => {
     if (!canViewReport) return;
     if (!filters.from || !filters.to) return;
-    loadData();
+    loadData(filters);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [canViewReport, filters.from, filters.to]);
 
   if (!canViewReport) {
     return (
-      <div className="p-4">
-        <Card className="border" style={{ borderColor: "#e2e8f0" }}>
-          <Card.Body className="text-center py-5">
-            <div className="text-secondary">Access denied</div>
-          </Card.Body>
-        </Card>
-      </div>
+      <Alert severity="error" sx={{ borderRadius: 3 }}>
+        <AlertTitle>Access denied</AlertTitle>
+        You don’t have permission to view this report.
+      </Alert>
     );
   }
 
   return (
-    <div className="p-4">
-      <div className="mb-4">
-        <h4 className="fw-semibold mb-1" style={{ color: "#1e293b" }}>Debit Notes Report</h4>
-        <div className="text-secondary small">Vendor returns/discount adjustments summary</div>
-      </div>
+    <Box>
+      <Box sx={{ mb: 2.5 }}>
+        <Typography variant="h4" sx={{ color: 'text.primary', fontWeight: 700, mb: .5 }}>
+          Debit Notes Report
+        </Typography>
+        <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+          Vendor returns/discount adjustments summary
+        </Typography>
+      </Box>
 
-      <Card className="mb-4 border" style={{ borderColor: "#e2e8f0" }}>
-        <Card.Body>
-          <Form onSubmit={(e) => { e.preventDefault(); loadData(); }}>
-            <Row className="g-3 align-items-end">
-              <Col md={3}>
-                <Form.Group>
-                  <Form.Label>From</Form.Label>
-                  <Form.Control type="date" value={filters.from} onChange={(e) => setFilters(f => ({ ...f, from: e.target.value }))} />
-                </Form.Group>
-              </Col>
-              <Col md={3}>
-                <Form.Group>
-                  <Form.Label>To</Form.Label>
-                  <Form.Control type="date" value={filters.to} onChange={(e) => setFilters(f => ({ ...f, to: e.target.value }))} />
-                </Form.Group>
-              </Col>
-              <Col md={2}>
-                <Form.Group>
-                  <Form.Label>Status</Form.Label>
-                  <Form.Select value={filters.status} onChange={(e) => setFilters(f => ({ ...f, status: e.target.value }))}>
-                    <option value="">All</option>
-                    <option value="draft">Draft</option>
-                    <option value="posted">Posted</option>
-                  </Form.Select>
-                </Form.Group>
-              </Col>
-              <Col md={2}>
-                <Form.Group>
-                  <Form.Label>Type</Form.Label>
-                  <Form.Select value={filters.type} onChange={(e) => setFilters(f => ({ ...f, type: e.target.value }))}>
-                    <option value="">All</option>
-                    <option value="return">Return</option>
-                    <option value="discount">Discount</option>
-                    <option value="damaged">Damaged</option>
-                  </Form.Select>
-                </Form.Group>
-              </Col>
-              <Col md={2}>
-                <Form.Group>
-                  <Form.Label>Warehouse</Form.Label>
-                  <Form.Select value={filters.warehouse_id} onChange={(e) => setFilters(f => ({ ...f, warehouse_id: e.target.value }))}>
-                    <option value="">All</option>
-                    {warehouses.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
-                  </Form.Select>
-                </Form.Group>
-              </Col>
-              <Col md={2} className="d-flex gap-2">
-                <Button type="submit" variant="primary" disabled={loading}>
-                  {loading ? "Loading..." : "Filter"}
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline-secondary"
-                  disabled={loading}
-                  onClick={() => {
-                    const today = new Date();
-                    const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
-                    setFilters({
-                      from: firstDay.toISOString().split("T")[0],
-                      to: today.toISOString().split("T")[0],
-                      status: "",
-                      type: "",
-                      warehouse_id: "",
-                    });
-                  }}
+      <Card sx={{ ...cardSx, mb: 2.5 }}>
+        <CardContent sx={{ p: 3 }}>
+          <Box component="form" onSubmit={(e) => { e.preventDefault(); loadData(filters); }}>
+            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', lg: 'repeat(5, 1fr)' }, gap: 2 }}>
+              <TextField
+                type="date"
+                size="small"
+                label="From"
+                value={filters.from}
+                onChange={(e) => setFilters(f => ({ ...f, from: e.target.value }))}
+                slotProps={{ inputLabel: { shrink: true } }}
+                fullWidth
+              />
+              <TextField
+                type="date"
+                size="small"
+                label="To"
+                value={filters.to}
+                onChange={(e) => setFilters(f => ({ ...f, to: e.target.value }))}
+                slotProps={{ inputLabel: { shrink: true } }}
+                fullWidth
+              />
+              <FormControl size="small" fullWidth>
+                <InputLabel>Status</InputLabel>
+                <Select
+                  label="Status"
+                  value={filters.status}
+                  onChange={(e) => setFilters(f => ({ ...f, status: e.target.value }))}
                 >
-                  Clear
-                </Button>
-              </Col>
-            </Row>
-          </Form>
-        </Card.Body>
+                  <MenuItem value=""><em>All</em></MenuItem>
+                  <MenuItem value="draft">Draft</MenuItem>
+                  <MenuItem value="posted">Posted</MenuItem>
+                </Select>
+              </FormControl>
+              <FormControl size="small" fullWidth>
+                <InputLabel>Type</InputLabel>
+                <Select
+                  label="Type"
+                  value={filters.type}
+                  onChange={(e) => setFilters(f => ({ ...f, type: e.target.value }))}
+                >
+                  <MenuItem value=""><em>All</em></MenuItem>
+                  <MenuItem value="return">Return</MenuItem>
+                  <MenuItem value="discount">Discount</MenuItem>
+                  <MenuItem value="damaged">Damaged</MenuItem>
+                </Select>
+              </FormControl>
+              <FormControl size="small" fullWidth>
+                <InputLabel>Warehouse</InputLabel>
+                <Select
+                  label="Warehouse"
+                  value={filters.warehouse_id}
+                  onChange={(e) => setFilters(f => ({ ...f, warehouse_id: e.target.value }))}
+                >
+                  <MenuItem value=""><em>All</em></MenuItem>
+                  {warehouses.map(w => <MenuItem key={w.id} value={w.id}>{w.name}</MenuItem>)}
+                </Select>
+              </FormControl>
+            </Box>
+            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} sx={{ mt: 2 }}>
+              <Button type="submit" variant="contained" disabled={loading}>
+                {loading ? "Loading..." : "Apply Filters"}
+              </Button>
+              <Button type="button" variant="outlined" disabled={loading} onClick={handleClear}>
+                Clear
+              </Button>
+            </Stack>
+          </Box>
+        </CardContent>
       </Card>
 
-      <Row className="g-3 mb-4">
-        <Col md={3}><Card className="border" style={{ borderColor: "#e2e8f0" }}><Card.Body><div className="text-secondary small">Count</div><div className="fw-bold">{summary.count}</div></Card.Body></Card></Col>
-        <Col md={3}><Card className="border" style={{ borderColor: "#e2e8f0" }}><Card.Body><div className="text-secondary small">Grand Total</div><div className="fw-bold">₹{formatMoney(summary.grand_total)}</div></Card.Body></Card></Col>
-        <Col md={6}><Card className="border" style={{ borderColor: "#e2e8f0" }}><Card.Body>
-          <div className="text-secondary small mb-2">Status Counts</div>
-          <div className="d-flex gap-2 flex-wrap">
-            <Badge bg="warning">Draft: {summary.draft_count}</Badge>
-            <Badge bg="success">Posted: {summary.posted_count}</Badge>
-          </div>
-        </Card.Body></Card></Col>
-      </Row>
+      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', lg: 'repeat(4, 1fr)' }, gap: 2.5, mb: 2.5 }}>
+        <StatCard label="Count" value={summary.count} icon="fas fa-file-lines" color="#062849" background="#eaf0f6" />
+        <StatCard label="Grand Total" value={`₹${formatMoney(summary.grand_total)}`} icon="fas fa-coins" color="#6528e8" background="#f1ebfd" />
+        <StatCard label="Draft" value={summary.draft_count} icon="fas fa-file-pen" color="#b76e00" background="#fff4d6" />
+        <StatCard label="Posted" value={summary.posted_count} icon="fas fa-circle-check" color="#118d57" background="#dbf5e9" />
+      </Box>
 
-      <Card className="border" style={{ borderColor: "#e2e8f0" }}>
-        <Card.Header className="bg-white d-flex justify-content-between align-items-center">
-          <div className="fw-semibold">Debit Notes</div>
-          <div className="d-flex gap-2">
+      <Card sx={cardSx}>
+        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 2, px: 3, py: 2.5, flexWrap: 'wrap' }}>
+          <Typography variant="subtitle1" sx={{ color: 'text.primary', fontWeight: 700 }}>
+            Debit Notes
+          </Typography>
+          <Stack direction="row" spacing={1}>
             <Button
-              variant="outline-secondary"
-              size="sm"
+              variant="outlined"
+              size="small"
               disabled={loading || data.length === 0 || csvLoading}
               onClick={handleDownloadCSV}
+              startIcon={<i className="fas fa-download" aria-hidden="true" />}
             >
-              {csvLoading ? (
-                <>
-                  <span className="spinner-border spinner-border-sm me-1"></span>
-                  Exporting...
-                </>
-              ) : (
-                "Export CSV"
-              )}
+              {csvLoading ? "Exporting..." : "Export CSV"}
             </Button>
             <Button
-              variant="outline-danger"
-              size="sm"
+              variant="outlined"
+              color="error"
+              size="small"
               disabled={loading || data.length === 0 || pdfLoading}
               onClick={handleDownloadPDF}
+              startIcon={<i className="fas fa-file-pdf" aria-hidden="true" />}
             >
-              {pdfLoading ? (
-                <>
-                  <span className="spinner-border spinner-border-sm me-1"></span>
-                  Downloading...
-                </>
-              ) : (
-                "Download PDF"
-              )}
+              {pdfLoading ? "Downloading..." : "Download PDF"}
             </Button>
-          </div>
-        </Card.Header>
-        <Card.Body className="p-0">
-          <div className="table-responsive">
-            <Table hover className="mb-0">
-              <thead className="table-light">
-                <tr>
-                  <th>Date</th>
-                  <th>DN #</th>
-                  <th>Bill</th>
-                  <th>Vendor</th>
-                  <th>Warehouse</th>
-                  <th>Type</th>
-                  <th>Status</th>
-                  <th className="text-end">Subtotal</th>
-                  <th className="text-end">Discount</th>
-                  <th className="text-end">Tax</th>
-                  <th className="text-end">Grand Total</th>
-                </tr>
-              </thead>
-              <tbody>
-                {loading ? (
-                  <tr><td colSpan={11} className="text-center py-4 text-secondary">Loading...</td></tr>
-                ) : data.length === 0 ? (
-                  <tr><td colSpan={11} className="text-center py-4 text-secondary">No data</td></tr>
-                ) : (
-                  data.map((r) => (
-                    <tr key={r.id}>
-                      <td>{r.debit_note_date}</td>
-                      <td className="fw-semibold">{r.debit_note_number}</td>
-                      <td>{r.bill_number}</td>
-                      <td>{r.vendor_name}</td>
-                      <td>{r.warehouse_name || '-'}</td>
-                      <td><Badge bg={badge.type(r.type)}>{r.type}</Badge></td>
-                      <td><Badge bg={badge.status(r.status)}>{r.status}</Badge></td>
-                      <td className="text-end">₹{formatMoney(r.subtotal)}</td>
-                      <td className="text-end text-danger">-₹{formatMoney(r.discount)}</td>
-                      <td className="text-end">₹{formatMoney(r.tax)}</td>
-                      <td className="text-end fw-semibold">₹{formatMoney(r.grand_total)}</td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </Table>
-          </div>
-        </Card.Body>
+          </Stack>
+        </Box>
+        <Divider />
+        {loading && <LinearProgress />}
+        <TableContainer sx={{ overflowX: 'auto' }}>
+          <Table size="small" sx={{ minWidth: 1000 }}>
+            <TableHead>
+              <TableRow sx={{ bgcolor: '#f8fafc' }}>
+                <TableCell sx={headCellSx}>Date</TableCell>
+                <TableCell sx={headCellSx}>DN #</TableCell>
+                <TableCell sx={headCellSx}>Bill</TableCell>
+                <TableCell sx={headCellSx}>Vendor</TableCell>
+                <TableCell sx={headCellSx}>Warehouse</TableCell>
+                <TableCell sx={headCellSx}>Type</TableCell>
+                <TableCell sx={headCellSx}>Status</TableCell>
+                <TableCell align="right" sx={headCellSx}>Subtotal</TableCell>
+                <TableCell align="right" sx={headCellSx}>Discount</TableCell>
+                <TableCell align="right" sx={headCellSx}>Tax</TableCell>
+                <TableCell align="right" sx={headCellSx}>Grand Total</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {loading ? (
+                <TableRow>
+                  <TableCell colSpan={11} align="center" sx={{ color: 'text.secondary', py: 4 }}>Loading...</TableCell>
+                </TableRow>
+              ) : data.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={11} align="center" sx={{ color: 'text.secondary', py: 4 }}>No data</TableCell>
+                </TableRow>
+              ) : (
+                data.map((r) => (
+                  <TableRow key={r.id} hover>
+                    <TableCell sx={{ px: 2 }}>{r.debit_note_date}</TableCell>
+                    <TableCell sx={{ px: 2, fontWeight: 700 }}>{r.debit_note_number}</TableCell>
+                    <TableCell sx={{ px: 2 }}>{r.bill_number}</TableCell>
+                    <TableCell sx={{ px: 2 }}>{r.vendor_name}</TableCell>
+                    <TableCell sx={{ px: 2 }}>{r.warehouse_name || '-'}</TableCell>
+                    <TableCell sx={{ px: 2 }}>
+                      <Chip label={r.type} size="small" color={typeChipColor(r.type)} sx={{ fontWeight: 700, textTransform: 'capitalize' }} />
+                    </TableCell>
+                    <TableCell sx={{ px: 2 }}>
+                      <Chip label={r.status} size="small" color={statusChipColor(r.status)} sx={{ fontWeight: 700, textTransform: 'capitalize' }} />
+                    </TableCell>
+                    <TableCell align="right" sx={{ px: 2 }}>₹{formatMoney(r.subtotal)}</TableCell>
+                    <TableCell align="right" sx={{ px: 2, color: 'error.main' }}>-₹{formatMoney(r.discount)}</TableCell>
+                    <TableCell align="right" sx={{ px: 2 }}>₹{formatMoney(r.tax)}</TableCell>
+                    <TableCell align="right" sx={{ px: 2, fontWeight: 700 }}>₹{formatMoney(r.grand_total)}</TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </TableContainer>
       </Card>
-    </div>
+    </Box>
   );
 }

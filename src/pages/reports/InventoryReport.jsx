@@ -1,5 +1,28 @@
-import { useEffect, useState } from "react";
-import { Card, Row, Col, Form, Table, Badge, Button } from "react-bootstrap";
+import { useCallback, useEffect, useState } from "react";
+import {
+  Alert,
+  AlertTitle,
+  Box,
+  Button,
+  Card,
+  CardContent,
+  Chip,
+  Divider,
+  FormControl,
+  InputLabel,
+  LinearProgress,
+  MenuItem,
+  Select,
+  Stack,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  TextField,
+  Typography,
+} from "@mui/material";
 import api from "../../api";
 import { canView } from "../../utils/permissions";
 
@@ -8,75 +31,125 @@ const formatMoney = (v) => {
   return n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 };
 
-const formatDate = (dateStr) => {
-  if (!dateStr) return '-';
-  const date = new Date(dateStr);
-  return date.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' });
+const toArray = (value) => {
+  if (Array.isArray(value)) return value;
+  if (Array.isArray(value?.data)) return value.data;
+  if (Array.isArray(value?.data?.data)) return value.data.data;
+  if (Array.isArray(value?.items)) return value.items;
+  if (Array.isArray(value?.results)) return value.results;
+  return [];
 };
+
+const cardSx = {
+  border: '1px solid',
+  borderColor: 'divider',
+  borderRadius: 3,
+  boxShadow: '0 8px 24px rgba(28,37,46,.05)',
+};
+
+const headCellSx = {
+  color: 'text.secondary',
+  fontSize: 12,
+  fontWeight: 700,
+  textTransform: 'uppercase',
+  letterSpacing: '.04em',
+  px: 2,
+  py: 1.5,
+};
+
+const initialDates = () => {
+  const today = new Date();
+  const lastMonth = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+  return {
+    from: lastMonth.toISOString().split("T")[0],
+    to: today.toISOString().split("T")[0],
+  };
+};
+
+const EMPTY_FILTERS = { stock_status: "all", from: "", to: "" };
+
+const EMPTY_SUMMARY = {
+  total_items: 0,
+  total_stock_value: 0,
+  total_stock_quantity: 0,
+  in_stock_count: 0,
+  low_stock_count: 0,
+  out_of_stock_count: 0,
+};
+
+const chipColorMap = {
+  success: "success",
+  warning: "warning",
+  danger: "error",
+  error: "error",
+  info: "info",
+  primary: "primary",
+  secondary: "default",
+};
+
+function StatCard({ label, value, icon, color, background }) {
+  return (
+    <Card sx={{ ...cardSx, height: '100%' }}>
+      <CardContent sx={{ p: 2.5 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+          <Box sx={{ width: 44, height: 44, borderRadius: 2, display: 'grid', placeItems: 'center', bgcolor: background, color, flexShrink: 0 }}>
+            <i className={icon} style={{ fontSize: 18 }} aria-hidden="true" />
+          </Box>
+          <Box sx={{ minWidth: 0 }}>
+            <Typography variant="body2" sx={{ color: 'text.secondary', mb: .25 }}>
+              {label}
+            </Typography>
+            <Typography variant="h6" sx={{ color, fontWeight: 700 }}>
+              {value}
+            </Typography>
+          </Box>
+        </Box>
+      </CardContent>
+    </Card>
+  );
+}
 
 export default function InventoryReport() {
   const [data, setData] = useState([]);
-  const [summary, setSummary] = useState({
-    total_items: 0,
-    total_stock_value: 0,
-    total_stock_quantity: 0,
-    in_stock_count: 0,
-    low_stock_count: 0,
-    out_of_stock_count: 0,
-  });
+  const [summary, setSummary] = useState(EMPTY_SUMMARY);
   const [loading, setLoading] = useState(false);
-  const [filters, setFilters] = useState({
+  const [filters, setFilters] = useState(() => ({
     stock_status: "all",
-    from: "",
-    to: "",
-  });
+    ...initialDates(),
+  }));
 
   const canViewReport = canView("inventory-report");
 
-  const loadData = async () => {
+  const loadData = useCallback(async (f) => {
     if (!canViewReport) return;
 
     setLoading(true);
     try {
       const params = {};
-      if (filters.stock_status && filters.stock_status !== "all") params.stock_status = filters.stock_status;
-      if (filters.from) params.from = filters.from;
-      if (filters.to) params.to = filters.to;
+      if (f.stock_status && f.stock_status !== "all") params.stock_status = f.stock_status;
+      if (f.from) params.from = f.from;
+      if (f.to) params.to = f.to;
 
       const res = await api.get("/reports/inventory", { params });
-      setData(res.data.data || []);
-      setSummary(res.data.summary || {
-        total_items: 0,
-        total_stock_value: 0,
-        total_stock_quantity: 0,
-        in_stock_count: 0,
-        low_stock_count: 0,
-        out_of_stock_count: 0,
-      });
+      setData(toArray(res.data?.data ?? res.data));
+      setSummary(res.data?.summary || EMPTY_SUMMARY);
     } catch (err) {
       console.error("Failed to load inventory report:", err);
       setData([]);
     } finally {
       setLoading(false);
     }
-  };
+  }, [canViewReport]);
 
   useEffect(() => {
     if (canViewReport) {
-      const today = new Date();
-      const lastMonth = new Date(today.getFullYear(), today.getMonth() - 1, 1);
-      setFilters(prev => ({
-        ...prev,
-        from: lastMonth.toISOString().split("T")[0],
-        to: today.toISOString().split("T")[0],
-      }));
-      loadData();
+      loadData(EMPTY_FILTERS);
     }
-  }, []);
+  }, [canViewReport, loadData]);
 
   const handleFilter = (e) => {
     e.preventDefault();
-    loadData();
+    loadData(filters);
   };
 
   const handleDownloadPDF = () => {
@@ -105,191 +178,165 @@ export default function InventoryReport() {
   };
 
   const handleClear = () => {
-    const today = new Date();
-    const lastMonth = new Date(today.getFullYear(), today.getMonth() - 1, 1);
-    setFilters({
+    const reset = {
       stock_status: "all",
-      from: lastMonth.toISOString().split("T")[0],
-      to: today.toISOString().split("T")[0],
-    });
-    loadData();
+      ...initialDates(),
+    };
+    setFilters(reset);
+    loadData(reset);
   };
 
   if (!canViewReport) {
     return (
-      <div className="p-4">
-        <Card className="border" style={{ borderColor: "#e2e8f0" }}>
-          <Card.Body className="text-center py-5">
-            <div className="text-secondary">Access denied</div>
-          </Card.Body>
-        </Card>
-      </div>
+      <Alert severity="error" sx={{ borderRadius: 3 }}>
+        <AlertTitle>Access denied</AlertTitle>
+        You don’t have permission to view this report.
+      </Alert>
     );
   }
 
   return (
-    <div className="p-4">
-      <div className="mb-4">
-        <h4 className="fw-semibold mb-1" style={{ color: "#1e293b" }}>Inventory Report</h4>
-        <div className="text-secondary small">Stock levels, valuation and movement summary</div>
-      </div>
+    <Box>
+      <Box sx={{ mb: 2.5 }}>
+        <Typography variant="h4" sx={{ color: 'text.primary', fontWeight: 700, mb: .5 }}>
+          Inventory Report
+        </Typography>
+        <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+          Stock levels, valuation and movement summary
+        </Typography>
+      </Box>
 
-      <Card className="mb-4 border" style={{ borderColor: "#e2e8f0" }}>
-        <Card.Body className="p-4">
-          <Form onSubmit={handleFilter}>
-            <Row className="g-3 align-items-end">
-              <Col md={3}>
-                <Form.Label className="small text-secondary mb-1">Stock Status</Form.Label>
-                <Form.Select
+      <Card sx={{ ...cardSx, mb: 2.5 }}>
+        <CardContent sx={{ p: 3 }}>
+          <Box component="form" onSubmit={handleFilter}>
+            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', lg: 'repeat(3, 1fr)' }, gap: 2 }}>
+              <FormControl size="small" fullWidth>
+                <InputLabel>Stock Status</InputLabel>
+                <Select
+                  label="Stock Status"
                   value={filters.stock_status}
                   onChange={(e) => setFilters({ ...filters, stock_status: e.target.value })}
-                  style={{ borderColor: "#e2e8f0" }}
                 >
-                  <option value="all">All Items</option>
-                  <option value="in_stock">In Stock</option>
-                  <option value="low">Low Stock</option>
-                  <option value="out">Out of Stock</option>
-                </Form.Select>
-              </Col>
-              <Col md={2}>
-                <Form.Label className="small text-secondary mb-1">Movement From</Form.Label>
-                <Form.Control
-                  type="date"
-                  value={filters.from}
-                  onChange={(e) => setFilters({ ...filters, from: e.target.value })}
-                  style={{ borderColor: "#e2e8f0" }}
-                />
-              </Col>
-              <Col md={2}>
-                <Form.Label className="small text-secondary mb-1">Movement To</Form.Label>
-                <Form.Control
-                  type="date"
-                  value={filters.to}
-                  onChange={(e) => setFilters({ ...filters, to: e.target.value })}
-                  style={{ borderColor: "#e2e8f0" }}
-                />
-              </Col>
-              <Col md="auto">
-                <div className="d-flex gap-2">
-                  <Button type="submit" variant="primary" disabled={loading}>
-                    {loading ? "Loading..." : "Apply Filters"}
-                  </Button>
-                  <Button type="button" variant="outline-secondary" onClick={handleClear} disabled={loading}>
-                    Clear
-                  </Button>
-                  <Button type="button" variant="success" onClick={handleDownloadPDF} disabled={loading}>
-                    <i className="fas fa-file-pdf me-1"></i> PDF
-                  </Button>
-                </div>
-              </Col>
-            </Row>
-          </Form>
-        </Card.Body>
+                  <MenuItem value="all">All Items</MenuItem>
+                  <MenuItem value="in_stock">In Stock</MenuItem>
+                  <MenuItem value="low">Low Stock</MenuItem>
+                  <MenuItem value="out">Out of Stock</MenuItem>
+                </Select>
+              </FormControl>
+              <TextField
+                type="date"
+                size="small"
+                label="Movement From"
+                value={filters.from}
+                onChange={(e) => setFilters({ ...filters, from: e.target.value })}
+                slotProps={{ inputLabel: { shrink: true } }}
+                fullWidth
+              />
+              <TextField
+                type="date"
+                size="small"
+                label="Movement To"
+                value={filters.to}
+                onChange={(e) => setFilters({ ...filters, to: e.target.value })}
+                slotProps={{ inputLabel: { shrink: true } }}
+                fullWidth
+              />
+            </Box>
+            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} sx={{ mt: 2 }}>
+              <Button type="submit" variant="contained" disabled={loading}>
+                {loading ? "Loading..." : "Apply Filters"}
+              </Button>
+              <Button type="button" variant="outlined" onClick={handleClear} disabled={loading}>
+                Clear
+              </Button>
+              <Button
+                type="button"
+                variant="outlined"
+                color="error"
+                onClick={handleDownloadPDF}
+                disabled={loading}
+                startIcon={<i className="fas fa-file-pdf" aria-hidden="true" />}
+              >
+                PDF
+              </Button>
+            </Stack>
+          </Box>
+        </CardContent>
       </Card>
 
-      <Row className="g-4 mb-4">
-        <Col md={2}>
-          <Card className="border h-100" style={{ borderColor: "#e2e8f0" }}>
-            <Card.Body className="p-3">
-              <div className="small text-secondary mb-1">Total Items</div>
-              <div className="h5 mb-0 fw-semibold" style={{ color: "#1e293b" }}>{summary.total_items}</div>
-            </Card.Body>
-          </Card>
-        </Col>
-        <Col md={2}>
-          <Card className="border h-100" style={{ borderColor: "#e2e8f0", backgroundColor: "#f0fdf4" }}>
-            <Card.Body className="p-3">
-              <div className="small text-secondary mb-1">In Stock</div>
-              <div className="h5 mb-0 fw-semibold" style={{ color: "#059669" }}>{summary.in_stock_count}</div>
-            </Card.Body>
-          </Card>
-        </Col>
-        <Col md={2}>
-          <Card className="border h-100" style={{ borderColor: "#e2e8f0", backgroundColor: "#fffbeb" }}>
-            <Card.Body className="p-3">
-              <div className="small text-secondary mb-1">Low Stock</div>
-              <div className="h5 mb-0 fw-semibold" style={{ color: "#d97706" }}>{summary.low_stock_count}</div>
-            </Card.Body>
-          </Card>
-        </Col>
-        <Col md={2}>
-          <Card className="border h-100" style={{ borderColor: "#e2e8f0", backgroundColor: "#fef2f2" }}>
-            <Card.Body className="p-3">
-              <div className="small text-secondary mb-1">Out of Stock</div>
-              <div className="h5 mb-0 fw-semibold" style={{ color: "#dc2626" }}>{summary.out_of_stock_count}</div>
-            </Card.Body>
-          </Card>
-        </Col>
-        <Col md={2}>
-          <Card className="border h-100" style={{ borderColor: "#e2e8f0" }}>
-            <Card.Body className="p-3">
-              <div className="small text-secondary mb-1">Total Stock Qty</div>
-              <div className="h5 mb-0 fw-semibold" style={{ color: "#2563eb" }}>{summary.total_stock_quantity.toFixed(3)}</div>
-            </Card.Body>
-          </Card>
-        </Col>
-        <Col md={2}>
-          <Card className="border h-100" style={{ borderColor: "#e2e8f0", backgroundColor: "#f8fafc" }}>
-            <Card.Body className="p-3">
-              <div className="small text-secondary mb-1">Stock Value</div>
-              <div className="h5 mb-0 fw-bold" style={{ color: "#1e293b" }}>₹{formatMoney(summary.total_stock_value)}</div>
-            </Card.Body>
-          </Card>
-        </Col>
-      </Row>
+      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', lg: 'repeat(3, 1fr)', xl: 'repeat(6, 1fr)' }, gap: 2.5, mb: 2.5 }}>
+        <StatCard label="Total Items" value={summary.total_items} icon="fas fa-boxes-stacked" color="#062849" background="#eaf0f6" />
+        <StatCard label="In Stock" value={summary.in_stock_count} icon="fas fa-circle-check" color="#118d57" background="#dbf5e9" />
+        <StatCard label="Low Stock" value={summary.low_stock_count} icon="fas fa-triangle-exclamation" color="#b76e00" background="#fff4d6" />
+        <StatCard label="Out of Stock" value={summary.out_of_stock_count} icon="fas fa-ban" color="#b71d18" background="#ffe4de" />
+        <StatCard label="Total Stock Qty" value={Number(summary.total_stock_quantity || 0).toFixed(3)} icon="fas fa-cubes" color="#006c9c" background="#caf4ff" />
+        <StatCard label="Stock Value" value={`₹${formatMoney(summary.total_stock_value)}`} icon="fas fa-coins" color="#6528e8" background="#f1ebfd" />
+      </Box>
 
-      <Card className="border" style={{ borderColor: "#e2e8f0" }}>
-        <Card.Header className="bg-white border-bottom py-3" style={{ borderColor: "#e2e8f0" }}>
-          <div className="fw-semibold" style={{ color: "#1e293b" }}>Item Stock Details</div>
-        </Card.Header>
-        <Card.Body className="p-0">
-          <Table responsive hover className="mb-0">
-            <thead style={{ backgroundColor: "#f8fafc" }}>
-              <tr>
-                <th style={{ color: "#64748b", fontWeight: 500, fontSize: "0.75rem", textTransform: "uppercase", letterSpacing: "0.5px" }}>Item</th>
-                <th style={{ color: "#64748b", fontWeight: 500, fontSize: "0.75rem", textTransform: "uppercase", letterSpacing: "0.5px" }}>SKU</th>
-                <th style={{ color: "#64748b", fontWeight: 500, fontSize: "0.75rem", textTransform: "uppercase", letterSpacing: "0.5px" }}>Unit</th>
-                <th className="text-end" style={{ color: "#64748b", fontWeight: 500, fontSize: "0.75rem", textTransform: "uppercase", letterSpacing: "0.5px" }}>Current Stock</th>
-                <th className="text-end" style={{ color: "#64748b", fontWeight: 500, fontSize: "0.75rem", textTransform: "uppercase", letterSpacing: "0.5px" }}>Min Stock</th>
-                <th className="text-end" style={{ color: "#64748b", fontWeight: 500, fontSize: "0.75rem", textTransform: "uppercase", letterSpacing: "0.5px" }}>Sale Price</th>
-                <th className="text-end" style={{ color: "#64748b", fontWeight: 500, fontSize: "0.75rem", textTransform: "uppercase", letterSpacing: "0.5px" }}>Stock Value</th>
-                <th className="text-center" style={{ color: "#64748b", fontWeight: 500, fontSize: "0.75rem", textTransform: "uppercase", letterSpacing: "0.5px" }}>Purchases (Period)</th>
-                <th className="text-center" style={{ color: "#64748b", fontWeight: 500, fontSize: "0.75rem", textTransform: "uppercase", letterSpacing: "0.5px" }}>Sales (Period)</th>
-                <th className="text-center" style={{ color: "#64748b", fontWeight: 500, fontSize: "0.75rem", textTransform: "uppercase", letterSpacing: "0.5px" }}>Status</th>
-              </tr>
-            </thead>
-            <tbody>
+      <Card sx={cardSx}>
+        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 2, px: 3, py: 2.5, flexWrap: 'wrap' }}>
+          <Typography variant="subtitle1" sx={{ color: 'text.primary', fontWeight: 700 }}>
+            Item Stock Details
+          </Typography>
+        </Box>
+        <Divider />
+        {loading && <LinearProgress />}
+        <TableContainer sx={{ overflowX: 'auto' }}>
+          <Table size="small" sx={{ minWidth: 1000 }}>
+            <TableHead>
+              <TableRow sx={{ bgcolor: '#f8fafc' }}>
+                <TableCell sx={headCellSx}>Item</TableCell>
+                <TableCell sx={headCellSx}>SKU</TableCell>
+                <TableCell sx={headCellSx}>Unit</TableCell>
+                <TableCell align="right" sx={headCellSx}>Current Stock</TableCell>
+                <TableCell align="right" sx={headCellSx}>Min Stock</TableCell>
+                <TableCell align="right" sx={headCellSx}>Sale Price</TableCell>
+                <TableCell align="right" sx={headCellSx}>Stock Value</TableCell>
+                <TableCell align="center" sx={headCellSx}>Purchases (Period)</TableCell>
+                <TableCell align="center" sx={headCellSx}>Sales (Period)</TableCell>
+                <TableCell align="center" sx={headCellSx}>Status</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
               {loading ? (
-                <tr><td colSpan={10} className="text-center text-secondary py-4">Loading...</td></tr>
+                <TableRow>
+                  <TableCell colSpan={10} align="center" sx={{ color: 'text.secondary', py: 4 }}>Loading...</TableCell>
+                </TableRow>
               ) : data.length === 0 ? (
-                <tr><td colSpan={10} className="text-center text-secondary py-4">No items found</td></tr>
+                <TableRow>
+                  <TableCell colSpan={10} align="center" sx={{ color: 'text.secondary', py: 4 }}>No items found</TableCell>
+                </TableRow>
               ) : (
                 data.map((item) => (
-                  <tr key={item.id} style={{ borderColor: "#f1f5f9" }}>
-                    <td style={{ color: "#1e293b" }} className="fw-medium">{item.name}</td>
-                    <td style={{ color: "#475569" }}><Badge bg="light" text="dark" className="border">{item.sku}</Badge></td>
-                    <td style={{ color: "#64748b" }}>{item.unit}</td>
-                    <td className="text-end fw-medium" style={{ color: "#2563eb" }}>{item.current_stock.toFixed(3)}</td>
-                    <td className="text-end" style={{ color: "#64748b" }}>{item.min_stock.toFixed(3)}</td>
-                    <td className="text-end" style={{ color: "#475569" }}>₹{formatMoney(item.sale_price)}</td>
-                    <td className="text-end fw-semibold" style={{ color: "#059669" }}>₹{formatMoney(item.stock_value)}</td>
-                    <td className="text-center" style={{ color: "#059669" }}>{item.purchases_in_period > 0 ? '+' + item.purchases_in_period.toFixed(3) : '-'}</td>
-                    <td className="text-center" style={{ color: "#dc2626" }}>{item.sales_in_period > 0 ? '-' + item.sales_in_period.toFixed(3) : '-'}</td>
-                    <td className="text-center">
-                      <Badge
-                        bg={item.status_color}
-                        style={{ fontSize: "0.75rem", fontWeight: 500 }}
-                      >
-                        {item.status}
-                      </Badge>
-                    </td>
-                  </tr>
+                  <TableRow key={item.id} hover>
+                    <TableCell sx={{ px: 2, fontWeight: 600 }}>{item.name}</TableCell>
+                    <TableCell sx={{ px: 2 }}><Chip label={item.sku} size="small" variant="outlined" /></TableCell>
+                    <TableCell sx={{ px: 2, color: 'text.secondary' }}>{item.unit}</TableCell>
+                    <TableCell align="right" sx={{ px: 2, color: 'info.main', fontWeight: 600 }}>{Number(item.current_stock || 0).toFixed(3)}</TableCell>
+                    <TableCell align="right" sx={{ px: 2, color: 'text.secondary' }}>{Number(item.min_stock || 0).toFixed(3)}</TableCell>
+                    <TableCell align="right" sx={{ px: 2 }}>₹{formatMoney(item.sale_price)}</TableCell>
+                    <TableCell align="right" sx={{ px: 2, color: 'success.main', fontWeight: 700 }}>₹{formatMoney(item.stock_value)}</TableCell>
+                    <TableCell align="center" sx={{ px: 2, color: 'success.main' }}>
+                      {item.purchases_in_period > 0 ? '+' + Number(item.purchases_in_period).toFixed(3) : '-'}
+                    </TableCell>
+                    <TableCell align="center" sx={{ px: 2, color: 'error.main' }}>
+                      {item.sales_in_period > 0 ? '-' + Number(item.sales_in_period).toFixed(3) : '-'}
+                    </TableCell>
+                    <TableCell align="center" sx={{ px: 2 }}>
+                      <Chip
+                        label={item.status}
+                        size="small"
+                        color={chipColorMap[item.status_color] || "default"}
+                        sx={{ fontWeight: 700 }}
+                      />
+                    </TableCell>
+                  </TableRow>
                 ))
               )}
-            </tbody>
+            </TableBody>
           </Table>
-        </Card.Body>
+        </TableContainer>
       </Card>
-    </div>
+    </Box>
   );
 }

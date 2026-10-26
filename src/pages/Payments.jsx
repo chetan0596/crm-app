@@ -1,7 +1,40 @@
-import { useEffect, useMemo, useReducer, useState, useCallback } from "react";
+import { useEffect, useReducer, useState, useCallback } from "react";
 import { useSearchParams } from "react-router-dom";
-import DataTable from "react-data-table-component";
-import { Modal, Button, Form, Badge, Row, Col, Card, Tab, Tabs } from "react-bootstrap";
+import {
+  Alert,
+  AlertTitle,
+  Box,
+  Button,
+  Card,
+  CardContent,
+  Chip,
+  CircularProgress,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  FormControl,
+  IconButton,
+  InputAdornment,
+  InputLabel,
+  LinearProgress,
+  MenuItem,
+  Select,
+  Stack,
+  Tab,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TablePagination,
+  TableRow,
+  TableSortLabel,
+  Tabs,
+  TextField,
+  Tooltip,
+  Typography,
+} from "@mui/material";
 import Swal from "sweetalert2";
 import { toast } from "react-toastify";
 import api from "../api";
@@ -23,9 +56,63 @@ const getNum = (v, fallback = 1) => {
   return isNaN(n) || n < 1 ? fallback : n;
 };
 
+const toArray = (value) => {
+  if (Array.isArray(value)) return value;
+  if (Array.isArray(value?.data)) return value.data;
+  if (Array.isArray(value?.data?.data)) return value.data.data;
+  if (Array.isArray(value?.items)) return value.items;
+  if (Array.isArray(value?.results)) return value.results;
+  return [];
+};
+
 const formatMoney = (v) => {
   const n = Number(v || 0);
   return n.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+};
+
+const pageCardSx = {
+  border: '1px solid',
+  borderColor: 'divider',
+  borderRadius: 3,
+  boxShadow: '0 8px 24px rgba(28,37,46,.05)',
+};
+
+const metricCardSx = {
+  height: '100%',
+  border: '1px solid',
+  borderColor: 'divider',
+  borderRadius: 3,
+  boxShadow: '0 8px 24px rgba(28,37,46,.05)',
+};
+
+const headerCellSx = {
+  color: 'text.secondary',
+  fontSize: 12,
+  fontWeight: 700,
+  textTransform: 'uppercase',
+  letterSpacing: '.04em',
+  px: 2,
+  py: 1.5,
+  borderBottom: '1px solid',
+  borderColor: 'divider',
+};
+
+const bodyCellSx = {
+  verticalAlign: 'middle',
+  px: 2,
+  py: 1.5,
+  borderBottom: '1px solid #f1f5f9',
+};
+
+const typeChipSx = {
+  sale: { bgcolor: '#dbf5e9', color: '#118d57' },
+  purchase: { bgcolor: '#fff4d6', color: '#b76e00' },
+};
+
+const statusChipSx = {
+  paid: { bgcolor: '#dbf5e9', color: '#118d57' },
+  partial: { bgcolor: '#fff4d6', color: '#b76e00' },
+  unpaid: { bgcolor: '#ffe4de', color: '#b71d18' },
 };
 
 export default function Payments() {
@@ -46,6 +133,7 @@ export default function Payments() {
   const [reloadKey, setReloadKey] = useState(0);
   const [searchInput, setSearchInput] = useState(initialTable.search);
   const [activeTab, setActiveTab] = useState("payments");
+  const [sort, setSort] = useState({ field: null, dir: 'asc' });
 
   const [outstanding, setOutstanding] = useState([]);
   const [outstandingTotal, setOutstandingTotal] = useState(0);
@@ -157,13 +245,27 @@ export default function Payments() {
     return () => clearTimeout(t);
   }, [searchInput, table.search]);
 
+  useEffect(() => {
+    const controller = new AbortController();
+    const timer = setTimeout(() => {
+      if (activeTab === "payments") {
+        loadTable(controller.signal);
+      } else {
+        loadOutstanding(controller.signal);
+      }
+    }, 0);
+    return () => { clearTimeout(timer); controller.abort(); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [table, reloadKey, activeTab, canViewPayments, outstandingFilters]);
+
   const loadTable = async (signal) => {
     if (!canViewPayments) return;
+    setOutstanding([]);
     setLoading(true);
     try {
-      const res = await api.get("/payments", { params: { page: table.page, perPage: table.perPage, type: form.type }, signal });
-      setRows(res.data.data || []);
-      setTotal(res.data.total || 0);
+      const res = await api.get("/payments", { params: { page: table.page, perPage: table.perPage, search: table.search, type: form.type }, signal });
+      setRows(toArray(res.data));
+      setTotal(Number(res.data?.total ?? res.data?.data?.total ?? 0));
     } catch { setRows([]); setTotal(0); }
     finally { setLoading(false); }
   };
@@ -171,6 +273,7 @@ export default function Payments() {
   const loadOutstanding = async (signal) => {
     if (!canViewPayments) return;
     const type = activeTab === "outstanding-sales" ? "sale" : "purchase";
+    setRows([]);
     setLoading(true);
     try {
       const res = await api.get("/outstanding", {
@@ -188,35 +291,24 @@ export default function Payments() {
         },
         signal,
       });
-      setOutstanding(res.data.data || []);
-      setOutstandingTotal(res.data.total || 0);
+      setOutstanding(toArray(res.data));
+      setOutstandingTotal(Number(res.data?.total ?? res.data?.data?.total ?? 0));
     } catch { setOutstanding([]); setOutstandingTotal(0); }
     finally { setLoading(false); }
   };
 
-  const loadSummary = async (signal) => {
+  const loadSummary = useCallback(async (signal) => {
     try {
       const res = await api.get("/payment-summary", { signal });
       setSummary(res.data);
     } catch { setSummary(null); }
-  };
+  }, []);
 
   useEffect(() => {
     const controller = new AbortController();
-    if (activeTab === "payments") {
-      setOutstanding([]);
-      loadTable(controller.signal);
-    } else {
-      setRows([]);
-      loadOutstanding(controller.signal);
-    }
-    return () => controller.abort();
-  }, [table, reloadKey, activeTab, canViewPayments, outstandingFilters]);
-
-  useEffect(() => {
-    const controller = new AbortController();
-    loadSummary(controller.signal);
-    return () => controller.abort();
+    const timer = setTimeout(() => loadSummary(controller.signal), 0);
+    return () => { clearTimeout(timer); controller.abort(); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [reloadKey, activeTab]);
 
   useEffect(() => {
@@ -229,14 +321,15 @@ export default function Payments() {
           api.get("/vendors", { params: { perPage: 200 } }),
           api.get("/warehouses/list"),
         ]);
-        setSales(salesRes.data?.data || []);
-        setPurchases(purchRes.data?.data || []);
-        setCustomers(custRes.data?.data || []);
-        setVendors(vendRes.data?.data || []);
-        setWarehouses(warehouseRes.data?.data || warehouseRes.data || []);
-      } catch {}
+        setSales(toArray(salesRes.data));
+        setPurchases(toArray(purchRes.data));
+        setCustomers(toArray(custRes.data));
+        setVendors(toArray(vendRes.data));
+        setWarehouses(toArray(warehouseRes.data));
+      } catch { /* ignore */ }
     };
-    loadDropdowns();
+    const timer = setTimeout(() => loadDropdowns(), 0);
+    return () => clearTimeout(timer);
   }, []);
 
   const openAdd = () => {
@@ -250,6 +343,21 @@ export default function Payments() {
       reference_number: "",
       payment_date: new Date().toISOString().split("T")[0],
       notes: "",
+    });
+    setShow(true);
+  };
+
+  const openEdit = (row) => {
+    setEditingId(row.id);
+    setForm({
+      type: row.type || "sale",
+      sale_id: row.sale_id || "",
+      purchase_id: row.purchase_id || "",
+      amount: row.amount || "",
+      payment_method: row.payment_method || "cash",
+      reference_number: row.reference_number || "",
+      payment_date: row.payment_date ? row.payment_date.split("T")[0] : new Date().toISOString().split("T")[0],
+      notes: row.notes || "",
     });
     setShow(true);
   };
@@ -307,390 +415,483 @@ export default function Payments() {
     });
   };
 
-  const paymentColumns = useMemo(() => [
-    { name: "ID", selector: (r) => r.id, sortable: true, sortField: "id", width: "70px" },
-    { name: "Date", selector: (r) => r.payment_date, sortable: true, sortField: "payment_date", width: "110px" },
-    { name: "Type", cell: (row) => <Badge bg={row.type === "sale" ? "success" : "warning"}>{row.type === "sale" ? "Received" : "Paid"}</Badge>, width: "100px" },
-    { name: "Invoice/Bill", selector: (r) => r.sale?.invoice_number || r.purchase?.bill_number || "-" },
-    { name: "Party", selector: (r) => r.sale?.customer?.name || r.purchase?.vendor?.name || "-" },
-    { name: "Method", selector: (r) => r.payment_method.replace(/_/g, " ").toUpperCase() },
-    { name: "Amount", selector: (r) => `₹${formatMoney(r.amount)}`, sortable: true, sortField: "amount" },
-    { name: "Reference", selector: (r) => r.reference_number || "-" },
+  const paymentColumns = [
+    { key: 'id', label: 'ID', width: 70, sortValue: (r) => r.id, render: (row) => <Typography variant="body2" sx={{ fontWeight: 700 }}>#{row.id}</Typography> },
+    { key: 'payment_date', label: 'Date', minWidth: 110, sortValue: (r) => r.payment_date },
     {
-      name: "Action",
-      width: "120px",
-      cell: (row) => (
-        <div className="btn-group btn-group-sm">
+      key: 'type', label: 'Type', minWidth: 100,
+      render: (row) => (
+        <Chip
+          label={row.type === "sale" ? "Received" : "Paid"}
+          size="small"
+          sx={{ ...(typeChipSx[row.type] || typeChipSx.purchase), fontWeight: 700 }}
+        />
+      ),
+    },
+    { key: 'doc', label: 'Invoice/Bill', minWidth: 130, render: (row) => row.sale?.invoice_number || row.purchase?.bill_number || "-" },
+    { key: 'party', label: 'Party', minWidth: 140, render: (row) => row.sale?.customer?.name || row.purchase?.vendor?.name || "-" },
+    { key: 'method', label: 'Method', minWidth: 120, render: (row) => (row.payment_method || '').replace(/_/g, " ").toUpperCase() },
+    { key: 'amount', label: 'Amount', minWidth: 110, sortValue: (r) => Number(r.amount) || 0, render: (row) => `₹${formatMoney(row.amount)}` },
+    { key: 'reference_number', label: 'Reference', minWidth: 120, render: (row) => row.reference_number || "-" },
+    {
+      key: 'action', label: 'Action', minWidth: 110, align: 'right',
+      render: (row) => (
+        <Stack direction="row" spacing={0.5} justifyContent="flex-end">
+          {canEdit("payments") && (
+            <Tooltip title="Edit">
+              <IconButton size="small" color="primary" onClick={() => openEdit(row)} aria-label="Edit payment" sx={{ border: '1px solid', borderColor: 'divider' }}>
+                <i className="fas fa-edit" style={{ fontSize: 12 }} aria-hidden="true" />
+              </IconButton>
+            </Tooltip>
+          )}
           {canDelete("payments") && (
-            <button className="btn btn-outline-danger" onClick={() => deletePayment(row)}><i className="fas fa-trash"></i></button>
+            <Tooltip title="Delete">
+              <IconButton size="small" color="error" onClick={() => deletePayment(row)} aria-label="Delete payment" sx={{ border: '1px solid', borderColor: 'divider' }}>
+                <i className="fas fa-trash" style={{ fontSize: 12 }} aria-hidden="true" />
+              </IconButton>
+            </Tooltip>
           )}
           {(row.sale?.customer?.phone || row.purchase?.vendor?.phone) && (
-            <button className="btn btn-outline-success" onClick={() => { setWaTarget(row); setWaShow(true); }} title="Send WhatsApp">
-              <i className="fab fa-whatsapp"></i>
-            </button>
+            <Tooltip title="Send WhatsApp">
+              <IconButton size="small" color="success" onClick={() => { setWaTarget(row); setWaShow(true); }} aria-label="Send WhatsApp" sx={{ border: '1px solid', borderColor: 'divider' }}>
+                <i className="fab fa-whatsapp" style={{ fontSize: 12 }} aria-hidden="true" />
+              </IconButton>
+            </Tooltip>
           )}
-        </div>
+        </Stack>
       ),
     },
-  ], []);
+  ];
 
-  const outstandingColumns = useMemo(() => [
-    { name: "Number", selector: (r) => r.number, sortable: true },
-    { name: "Date", selector: (r) => r.date, sortable: true, width: "110px" },
-    { name: "Party", selector: (r) => r.party },
-    { name: "Warehouse", selector: (r) => r.warehouse_name || "-" },
+  const outstandingColumns = [
+    { key: 'number', label: 'Number', minWidth: 130, sortValue: (r) => r.number },
+    { key: 'date', label: 'Date', minWidth: 110, sortValue: (r) => r.date },
+    { key: 'party', label: 'Party', minWidth: 140, render: (row) => row.party },
+    { key: 'warehouse_name', label: 'Warehouse', minWidth: 120, render: (row) => row.warehouse_name || "-" },
     {
-      name: "Total",
-      selector: (r) => `₹${formatMoney(r.total)}`,
-      sortable: true,
-      cell: (row) => <span className="text-primary fw-bold">₹{formatMoney(row.total)}</span>,
+      key: 'total', label: 'Total', minWidth: 110, sortValue: (r) => Number(r.total) || 0,
+      render: (row) => <Typography variant="body2" sx={{ color: 'primary.main', fontWeight: 700 }}>₹{formatMoney(row.total)}</Typography>,
     },
     {
-      name: "Paid",
-      selector: (r) => `₹${formatMoney(r.paid)}`,
-      sortable: true,
-      cell: (row) => <span className="text-success">₹{formatMoney(row.paid)}</span>,
+      key: 'paid', label: 'Paid', minWidth: 110, sortValue: (r) => Number(r.paid) || 0,
+      render: (row) => <Typography variant="body2" sx={{ color: 'success.main' }}>₹{formatMoney(row.paid)}</Typography>,
     },
     {
-      name: "Outstanding",
-      selector: (r) => `₹${formatMoney(r.outstanding)}`,
-      sortable: true,
-      cell: (row) => <span className="text-danger fw-bold">₹{formatMoney(row.outstanding)}</span>,
+      key: 'outstanding', label: 'Outstanding', minWidth: 120, sortValue: (r) => Number(r.outstanding) || 0,
+      render: (row) => <Typography variant="body2" sx={{ color: 'error.main', fontWeight: 700 }}>₹{formatMoney(row.outstanding)}</Typography>,
     },
     {
-      name: "Status",
-      cell: (row) => (
-        <Badge bg={row.status === "paid" ? "success" : row.status === "partial" ? "warning" : "danger"}>
-          {row.status}
-        </Badge>
+      key: 'status', label: 'Status', minWidth: 100,
+      render: (row) => (
+        <Chip
+          label={row.status}
+          size="small"
+          sx={{ ...(statusChipSx[row.status] || statusChipSx.unpaid), fontWeight: 700 }}
+        />
       ),
     },
     {
-      name: "Action",
-      width: "140px",
-      cell: (row) => (
+      key: 'action', label: 'Action', minWidth: 130, align: 'right',
+      render: (row) => (
         row.outstanding > 0 && canCreate("payments") ? (
-          <button className="btn btn-primary btn-sm" onClick={() => openPaymentFor(row, row.type)}>
-            <i className="fas fa-plus me-1"></i> Pay
-          </button>
+          <Button variant="contained" size="small" onClick={() => openPaymentFor(row, row.type)} startIcon={<i className="fas fa-plus" aria-hidden="true" />}>
+            Pay
+          </Button>
         ) : (
-          <span className="text-success"><i className="fas fa-check-circle"></i> Paid</span>
+          <Typography variant="body2" sx={{ color: 'success.main', display: 'inline-flex', alignItems: 'center', gap: .75 }}>
+            <i className="fas fa-check-circle" aria-hidden="true" /> Paid
+          </Typography>
         )
       ),
     },
-  ], []);
+  ];
+
+  const activeColumns = activeTab === "payments" ? paymentColumns : outstandingColumns;
+  const activeRows = activeTab === "payments" ? rows : outstanding;
+  const activeTotal = activeTab === "payments" ? total : outstandingTotal;
+
+  const sortedRows = (() => {
+    if (!sort.field) return activeRows;
+    const column = activeColumns.find(c => c.key === sort.field);
+    if (!column?.sortValue) return activeRows;
+    const dir = sort.dir === 'asc' ? 1 : -1;
+    return [...activeRows].sort((a, b) => {
+      const av = column.sortValue(a);
+      const bv = column.sortValue(b);
+      if (av == null && bv == null) return 0;
+      if (av == null) return 1;
+      if (bv == null) return -1;
+      if (typeof av === 'number' && typeof bv === 'number') return (av - bv) * dir;
+      return String(av).localeCompare(String(bv)) * dir;
+    });
+  })();
+
+  const handleLocalSort = (field) => {
+    setSort((s) => ({ field, dir: s.field === field && s.dir === 'asc' ? 'desc' : 'asc' }));
+  };
+
+  const summaryCards = [
+    { label: 'Today Received', value: summary?.today_received, color: '#118d57', bg: '#dbf5e9' },
+    { label: 'Today Paid', value: summary?.today_paid, color: '#b76e00', bg: '#fff4d6' },
+    { label: 'Month Received', value: summary?.month_received, color: '#006c9c', bg: '#caf4ff' },
+    { label: 'Month Paid', value: summary?.month_paid, color: '#637381', bg: '#f4f6f8' },
+    { label: 'Outstanding Sales', value: summary?.total_outstanding_sales, color: '#b71d18', bg: '#ffe4de' },
+    { label: 'Outstanding Purchases', value: summary?.total_outstanding_purchases, color: '#b71d18', bg: '#ffe4de' },
+  ];
 
   if (!canViewPayments) {
     return (
-      <div className="p-4">
-        <Card className="border" style={{ borderColor: "#e2e8f0" }}>
-          <Card.Body className="text-center py-5">
-            <div className="text-secondary">Access denied</div>
-          </Card.Body>
-        </Card>
-      </div>
+      <Alert severity="error" sx={{ borderRadius: 3 }}>
+        <AlertTitle>Access denied</AlertTitle>
+        You don’t have permission to view payments.
+      </Alert>
     );
   }
 
   return (
-    <div className="p-4">
-      <div className="mb-4">
-        <h4 className="fw-semibold mb-1" style={{ color: "#1e293b" }}>Payments</h4>
-        <div className="text-secondary small">Record payments and track outstanding amounts</div>
-      </div>
+    <Box>
+      <Box sx={{ mb: 3 }}>
+        <Typography variant="h4" sx={{ color: 'text.primary', fontWeight: 700, mb: .5 }}>Payments</Typography>
+        <Typography variant="body2" sx={{ color: 'text.secondary' }}>Record payments and track outstanding amounts</Typography>
+      </Box>
 
       {/* Summary Cards */}
-      <Row className="g-3 mb-4">
-        <Col md={2}>
-          <Card className="border h-100" style={{ borderColor: "#e2e8f0", backgroundColor: "#f0fdf4" }}>
-            <Card.Body className="p-3">
-              <div className="small text-secondary mb-1">Today Received</div>
-              <div className="h5 mb-0 fw-semibold" style={{ color: "#059669" }}>₹{formatMoney(summary.today_received)}</div>
-            </Card.Body>
+      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: 'repeat(2, 1fr)', sm: 'repeat(3, 1fr)', xl: 'repeat(6, 1fr)' }, gap: 2.5, mb: 2.5 }}>
+        {summaryCards.map((card) => (
+          <Card key={card.label} sx={{ ...metricCardSx, bgcolor: card.bg }}>
+            <CardContent sx={{ p: 2.5, '&:last-child': { pb: 2.5 } }}>
+              <Typography variant="body2" sx={{ color: 'text.secondary', mb: .5 }}>{card.label}</Typography>
+              <Typography variant="h5" sx={{ color: card.color, fontWeight: 700 }}>₹{formatMoney(card.value)}</Typography>
+            </CardContent>
           </Card>
-        </Col>
-        <Col md={2}>
-          <Card className="border h-100" style={{ borderColor: "#e2e8f0", backgroundColor: "#fef3c7" }}>
-            <Card.Body className="p-3">
-              <div className="small text-secondary mb-1">Today Paid</div>
-              <div className="h5 mb-0 fw-semibold" style={{ color: "#d97706" }}>₹{formatMoney(summary.today_paid)}</div>
-            </Card.Body>
-          </Card>
-        </Col>
-        <Col md={2}>
-          <Card className="border h-100" style={{ borderColor: "#e2e8f0", backgroundColor: "#eff6ff" }}>
-            <Card.Body className="p-3">
-              <div className="small text-secondary mb-1">Month Received</div>
-              <div className="h5 mb-0 fw-semibold" style={{ color: "#2563eb" }}>₹{formatMoney(summary.month_received)}</div>
-            </Card.Body>
-          </Card>
-        </Col>
-        <Col md={2}>
-          <Card className="border h-100" style={{ borderColor: "#e2e8f0" }}>
-            <Card.Body className="p-3">
-              <div className="small text-secondary mb-1">Month Paid</div>
-              <div className="h5 mb-0 fw-semibold" style={{ color: "#64748b" }}>₹{formatMoney(summary.month_paid)}</div>
-            </Card.Body>
-          </Card>
-        </Col>
-        <Col md={2}>
-          <Card className="border h-100" style={{ borderColor: "#e2e8f0", backgroundColor: "#fef2f2" }}>
-            <Card.Body className="p-3">
-              <div className="small text-secondary mb-1">Outstanding Sales</div>
-              <div className="h5 mb-0 fw-semibold" style={{ color: "#dc2626" }}>₹{formatMoney(summary.total_outstanding_sales)}</div>
-            </Card.Body>
-          </Card>
-        </Col>
-        <Col md={2}>
-          <Card className="border h-100" style={{ borderColor: "#e2e8f0", backgroundColor: "#fef2f2" }}>
-            <Card.Body className="p-3">
-              <div className="small text-secondary mb-1">Outstanding Purchases</div>
-              <div className="h5 mb-0 fw-semibold" style={{ color: "#dc2626" }}>₹{formatMoney(summary.total_outstanding_purchases)}</div>
-            </Card.Body>
-          </Card>
-        </Col>
-      </Row>
+        ))}
+      </Box>
 
-      <Card className="border" style={{ borderColor: "#e2e8f0" }}>
-        <Card.Header className="bg-white border-bottom py-3" style={{ borderColor: "#e2e8f0" }}>
-          <div className="row g-2 align-items-center">
-            <div className="col-12 col-md-6">
-              <Tabs activeKey={activeTab} onSelect={(k) => setActiveTab(k)} className="border-0">
-                <Tab eventKey="payments" title={<>Payments</>} />
-                <Tab eventKey="outstanding-sales" title={<>Outstanding Sales</>} />
-                <Tab eventKey="outstanding-purchases" title={<>Outstanding Purchases</>} />
-              </Tabs>
-            </div>
-            <div className="col-12 col-md-6">
-              <div className="d-flex gap-2 flex-wrap justify-content-md-end">
-                <input
-                  className="form-control form-control-sm"
-                  style={{ maxWidth: 220 }}
-                  placeholder={activeTab === "payments" ? "Search payments..." : "Search..."}
-                  value={searchInput}
-                  onChange={(e) => setSearchInput(e.target.value)}
-                />
-                {activeTab === "payments" && canCreate("payments") && (
-                  <button className="btn btn-primary btn-sm" onClick={openAdd}>
-                    <i className="fas fa-plus"></i> Record Payment
-                  </button>
-                )}
+      <Card sx={pageCardSx}>
+        <Box sx={{ px: 3, pt: 2, display: 'flex', alignItems: { md: 'center' }, justifyContent: 'space-between', flexDirection: { xs: 'column', md: 'row' }, gap: 2 }}>
+          <Tabs
+            value={activeTab}
+            onChange={(e, k) => { if (k) setActiveTab(k); }}
+            sx={{
+              minHeight: 42,
+              '& .MuiTab-root': { minHeight: 42, textTransform: 'none', fontWeight: 600 },
+            }}
+          >
+            <Tab value="payments" label="Payments" />
+            <Tab value="outstanding-sales" label="Outstanding Sales" />
+            <Tab value="outstanding-purchases" label="Outstanding Purchases" />
+          </Tabs>
+          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} alignItems={{ sm: 'center' }}>
+            <TextField
+              size="small"
+              placeholder={activeTab === "payments" ? "Search payments..." : "Search..."}
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
+              sx={{ minWidth: { xs: '100%', sm: 220 } }}
+              slotProps={{
+                input: {
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <i className="fas fa-search" style={{ fontSize: 13 }} aria-hidden="true" />
+                    </InputAdornment>
+                  ),
+                },
+              }}
+            />
+            {activeTab === "payments" && canCreate("payments") && (
+              <Button variant="contained" onClick={openAdd} startIcon={<i className="fas fa-plus" aria-hidden="true" />}>
+                Record Payment
+              </Button>
+            )}
+            {activeTab !== "payments" && (
+              <>
+                <Button variant="contained" color="success" onClick={downloadOutstandingExcel} disabled={loading} startIcon={<i className="fas fa-file-excel" aria-hidden="true" />}>
+                  Excel
+                </Button>
+                <Button variant="contained" color="error" onClick={downloadOutstandingPDF} disabled={loading} startIcon={<i className="fas fa-file-pdf" aria-hidden="true" />}>
+                  PDF
+                </Button>
+              </>
+            )}
+          </Stack>
+        </Box>
 
-                {activeTab !== "payments" && (
-                  <>
-                    <button className="btn btn-success btn-sm" onClick={downloadOutstandingExcel} disabled={loading}>
-                      <i className="fas fa-file-excel me-1"></i> Excel
-                    </button>
-                    <button className="btn btn-danger btn-sm" onClick={downloadOutstandingPDF} disabled={loading}>
-                      <i className="fas fa-file-pdf me-1"></i> PDF
-                    </button>
-                  </>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {activeTab !== "payments" && (
-            <div className="row g-2 mt-2">
-              <div className="col-12 col-md-2">
-                <input
-                  type="date"
-                  className="form-control form-control-sm"
-                  value={outstandingFilters.from}
-                  onChange={(e) => setOutstandingFilters((f) => ({ ...f, from: e.target.value }))}
-                />
-              </div>
-              <div className="col-12 col-md-2">
-                <input
-                  type="date"
-                  className="form-control form-control-sm"
-                  value={outstandingFilters.to}
-                  onChange={(e) => setOutstandingFilters((f) => ({ ...f, to: e.target.value }))}
-                />
-              </div>
-              <div className="col-12 col-md-2">
-                <Form.Select
-                  size="sm"
+        {activeTab !== "payments" && (
+          <Box sx={{ px: 3, py: 2, borderBottom: '1px solid', borderColor: 'divider', bgcolor: '#f8fafc' }}>
+            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', lg: 'repeat(5, 1fr)' }, gap: 2 }}>
+              <TextField
+                size="small"
+                type="date"
+                label="From"
+                value={outstandingFilters.from}
+                onChange={(e) => setOutstandingFilters((f) => ({ ...f, from: e.target.value }))}
+                slotProps={{ inputLabel: { shrink: true } }}
+                fullWidth
+              />
+              <TextField
+                size="small"
+                type="date"
+                label="To"
+                value={outstandingFilters.to}
+                onChange={(e) => setOutstandingFilters((f) => ({ ...f, to: e.target.value }))}
+                slotProps={{ inputLabel: { shrink: true } }}
+                fullWidth
+              />
+              <FormControl size="small" fullWidth>
+                <InputLabel>Status</InputLabel>
+                <Select
+                  label="Status"
                   value={outstandingFilters.status}
                   onChange={(e) => setOutstandingFilters((f) => ({ ...f, status: e.target.value }))}
                 >
-                  <option value="">All Status</option>
-                  <option value="unpaid">Unpaid</option>
-                  <option value="partial">Partial</option>
-                  <option value="paid">Paid</option>
-                </Form.Select>
-              </div>
-              <div className="col-12 col-md-3">
-                <Form.Select
-                  size="sm"
-                  value={outstandingFilters.warehouse_id}
+                  <MenuItem value=""><em>All Status</em></MenuItem>
+                  <MenuItem value="unpaid">Unpaid</MenuItem>
+                  <MenuItem value="partial">Partial</MenuItem>
+                  <MenuItem value="paid">Paid</MenuItem>
+                </Select>
+              </FormControl>
+              <FormControl size="small" fullWidth>
+                <InputLabel>Warehouse</InputLabel>
+                <Select
+                  label="Warehouse"
+                  value={outstandingFilters.warehouse_id === '' ? '' : String(outstandingFilters.warehouse_id)}
                   onChange={(e) => setOutstandingFilters((f) => ({ ...f, warehouse_id: e.target.value }))}
                 >
-                  <option value="">All Warehouses</option>
+                  <MenuItem value=""><em>All Warehouses</em></MenuItem>
                   {warehouses.map((w) => (
-                    <option key={w.id} value={w.id}>{w.name}</option>
+                    <MenuItem key={w.id} value={String(w.id)}>{w.name}</MenuItem>
                   ))}
-                </Form.Select>
-              </div>
-              <div className="col-12 col-md-3">
-                {activeTab === "outstanding-sales" ? (
-                  <Form.Select
-                    size="sm"
-                    value={outstandingFilters.customer_id}
+                </Select>
+              </FormControl>
+              {activeTab === "outstanding-sales" ? (
+                <FormControl size="small" fullWidth>
+                  <InputLabel>Customer</InputLabel>
+                  <Select
+                    label="Customer"
+                    value={outstandingFilters.customer_id === '' ? '' : String(outstandingFilters.customer_id)}
                     onChange={(e) => setOutstandingFilters((f) => ({ ...f, customer_id: e.target.value }))}
                   >
-                    <option value="">All Customers</option>
+                    <MenuItem value=""><em>All Customers</em></MenuItem>
                     {customers.map((c) => (
-                      <option key={c.id} value={c.id}>{c.name}</option>
+                      <MenuItem key={c.id} value={String(c.id)}>{c.name}</MenuItem>
                     ))}
-                  </Form.Select>
-                ) : (
-                  <Form.Select
-                    size="sm"
-                    value={outstandingFilters.vendor_id}
+                  </Select>
+                </FormControl>
+              ) : (
+                <FormControl size="small" fullWidth>
+                  <InputLabel>Vendor</InputLabel>
+                  <Select
+                    label="Vendor"
+                    value={outstandingFilters.vendor_id === '' ? '' : String(outstandingFilters.vendor_id)}
                     onChange={(e) => setOutstandingFilters((f) => ({ ...f, vendor_id: e.target.value }))}
                   >
-                    <option value="">All Vendors</option>
+                    <MenuItem value=""><em>All Vendors</em></MenuItem>
                     {vendors.map((v) => (
-                      <option key={v.id} value={v.id}>{v.name}</option>
+                      <MenuItem key={v.id} value={String(v.id)}>{v.name}</MenuItem>
                     ))}
-                  </Form.Select>
-                )}
-              </div>
-            </div>
-          )}
-        </Card.Header>
-        <Card.Body className="p-0">
-          {activeTab === "payments" ? (
-            <DataTable
-          className="modern-datatable"
-              columns={paymentColumns}
-              data={rows}
-              progressPending={loading}
-          progressComponent={<div className="p-4 text-center"><div className="spinner-border spinner-border-sm me-2"></div>Loading...</div>}
-persistTableHead
-              pagination
-              paginationServer
-              paginationTotalRows={total}
-              paginationPerPage={table.perPage}
-              onChangePage={(p) => p !== table.page && dispatch({ type: "PAGE", page: p })}
-              onChangeRowsPerPage={(n) => n !== table.perPage && dispatch({ type: "PER_PAGE", perPage: n })}
-              striped
-              highlightOnHover
-              dense
-              keyField="id"
-          noDataComponent={
-            <div className="p-5 text-center">
-              <i className="fas fa-folder-open text-muted mb-3" style={{ fontSize: 48, opacity: 0.4 }}></i>
-              <div className="fw-semibold text-secondary mb-1">No data found</div>
-              <div className="small text-muted">Try adjusting your filters or check back later</div>
-            </div>
-          }
-            />
-          ) : (
-            <DataTable
-              columns={outstandingColumns}
-              data={outstanding}
-              progressPending={loading}
-              persistTableHead
-              pagination
-              paginationServer
-              paginationTotalRows={outstandingTotal}
-              paginationPerPage={table.perPage}
-              onChangePage={(p) => p !== table.page && dispatch({ type: "PAGE", page: p })}
-              onChangeRowsPerPage={(n) => n !== table.perPage && dispatch({ type: "PER_PAGE", perPage: n })}
-              striped
-              highlightOnHover
-              dense
-              keyField="id"
-            />
-          )}
-        </Card.Body>
+                  </Select>
+                </FormControl>
+              )}
+            </Box>
+          </Box>
+        )}
+
+        {loading && <LinearProgress />}
+        <TableContainer sx={{ overflowX: 'auto' }}>
+          <Table sx={{ minWidth: 1000 }} size="small">
+            <TableHead>
+              <TableRow sx={{ bgcolor: '#f8fafc' }}>
+                {activeColumns.map((column) => (
+                  <TableCell
+                    key={column.key}
+                    align={column.align || 'left'}
+                    sx={{ ...headerCellSx, minWidth: column.minWidth, width: column.width }}
+                  >
+                    {column.sortValue ? (
+                      <TableSortLabel
+                        active={sort.field === column.key}
+                        direction={sort.field === column.key ? sort.dir : 'asc'}
+                        onClick={() => handleLocalSort(column.key)}
+                      >
+                        {column.label}
+                      </TableSortLabel>
+                    ) : column.label}
+                  </TableCell>
+                ))}
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {sortedRows.length === 0 && !loading ? (
+                <TableRow>
+                  <TableCell colSpan={Math.max(activeColumns.length, 1)} align="center" sx={{ py: 7 }}>
+                    <i className="fas fa-folder-open" style={{ color: '#637381', fontSize: 42, opacity: .4 }} aria-hidden="true" />
+                    <Typography variant="subtitle2" sx={{ color: 'text.secondary', mt: 1.5 }}>
+                      No data found
+                    </Typography>
+                    <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                      Try adjusting your filters or check back later
+                    </Typography>
+                  </TableCell>
+                </TableRow>
+              ) : sortedRows.map((row, idx) => (
+                <TableRow
+                  key={row.id ?? idx}
+                  hover
+                  sx={{
+                    '&:hover': { bgcolor: 'rgba(6,40,73,.035)' },
+                    '&:last-child td': { borderBottom: 0 },
+                  }}
+                >
+                  {activeColumns.map((column) => (
+                    <TableCell
+                      key={`${row.id ?? idx}-${column.key}`}
+                      align={column.align || 'left'}
+                      sx={bodyCellSx}
+                    >
+                      {column.render ? column.render(row) : column.sortValue?.(row) ?? '-'}
+                    </TableCell>
+                  ))}
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </TableContainer>
+
+        <TablePagination
+          component="div"
+          count={activeTotal}
+          page={Math.max(table.page - 1, 0)}
+          rowsPerPage={table.perPage}
+          rowsPerPageOptions={[10, 20, 50, 100, 200]}
+          onPageChange={(event, page) => {
+            const nextPage = page + 1;
+            if (nextPage !== table.page) dispatch({ type: 'PAGE', page: nextPage });
+          }}
+          onRowsPerPageChange={(event) => {
+            const nextSize = Number(event.target.value);
+            if (nextSize !== table.perPage) dispatch({ type: 'PER_PAGE', perPage: nextSize });
+          }}
+          sx={{ borderTop: '1px solid', borderColor: 'divider' }}
+        />
       </Card>
 
-      {/* Record Payment Modal */}
-      <Modal show={show} onHide={() => setShow(false)} backdrop="static">
-        <Modal.Header closeButton><Modal.Title>{editingId ? "Edit Payment" : "Record Payment"}</Modal.Title></Modal.Header>
-        <Modal.Body>
-          <Form.Group className="mb-3">
-            <Form.Label>Payment Type</Form.Label>
-            <Form.Select value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value, sale_id: "", purchase_id: "" })}>
-              <option value="sale">Payment Received (from Customer)</option>
-              <option value="purchase">Payment Paid (to Vendor)</option>
-            </Form.Select>
-          </Form.Group>
+      {/* Record Payment Dialog */}
+      <Dialog
+        open={show}
+        onClose={(event, reason) => { if (reason === 'backdropClick' || reason === 'escapeKeyDown') return; setShow(false); }}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 2 }}>
+          <Typography variant="h6" sx={{ fontWeight: 700 }}>{editingId ? "Edit Payment" : "Record Payment"}</Typography>
+          <IconButton size="small" onClick={() => setShow(false)} aria-label="Close">
+            <i className="fas fa-times" style={{ fontSize: 14 }} aria-hidden="true" />
+          </IconButton>
+        </DialogTitle>
+        <DialogContent dividers>
+          <Stack spacing={2.5} sx={{ pt: .5 }}>
+            <FormControl size="small" fullWidth>
+              <InputLabel>Payment Type</InputLabel>
+              <Select
+                label="Payment Type"
+                value={form.type}
+                onChange={(e) => setForm({ ...form, type: e.target.value, sale_id: "", purchase_id: "" })}
+              >
+                <MenuItem value="sale">Payment Received (from Customer)</MenuItem>
+                <MenuItem value="purchase">Payment Paid (to Vendor)</MenuItem>
+              </Select>
+            </FormControl>
 
-          {form.type === "sale" ? (
-            <Form.Group className="mb-3">
-              <Form.Label>Select Invoice <span className="text-danger">*</span></Form.Label>
-              <Form.Select value={form.sale_id} onChange={(e) => setForm({ ...form, sale_id: e.target.value })}>
-                <option value="">-- Select Invoice --</option>
-                {sales.map((s) => (
-                  <option key={s.id} value={s.id}>#{s.invoice_number} - {s.customer?.name} - ₹{formatMoney(s.grand_total)}</option>
-                ))}
-              </Form.Select>
-            </Form.Group>
-          ) : (
-            <Form.Group className="mb-3">
-              <Form.Label>Select Purchase Bill <span className="text-danger">*</span></Form.Label>
-              <Form.Select value={form.purchase_id} onChange={(e) => setForm({ ...form, purchase_id: e.target.value })}>
-                <option value="">-- Select Bill --</option>
-                {purchases.map((p) => (
-                  <option key={p.id} value={p.id}>#{p.bill_number} - {p.vendor?.name} - ₹{formatMoney(p.grand_total)}</option>
-                ))}
-              </Form.Select>
-            </Form.Group>
-          )}
+            {form.type === "sale" ? (
+              <FormControl size="small" fullWidth required>
+                <InputLabel>Select Invoice</InputLabel>
+                <Select
+                  label="Select Invoice"
+                  value={form.sale_id === '' ? '' : String(form.sale_id)}
+                  onChange={(e) => setForm({ ...form, sale_id: e.target.value })}
+                >
+                  <MenuItem value=""><em>-- Select Invoice --</em></MenuItem>
+                  {sales.map((s) => (
+                    <MenuItem key={s.id} value={String(s.id)}>#{s.invoice_number} - {s.customer?.name} - ₹{formatMoney(s.grand_total)}</MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            ) : (
+              <FormControl size="small" fullWidth required>
+                <InputLabel>Select Purchase Bill</InputLabel>
+                <Select
+                  label="Select Purchase Bill"
+                  value={form.purchase_id === '' ? '' : String(form.purchase_id)}
+                  onChange={(e) => setForm({ ...form, purchase_id: e.target.value })}
+                >
+                  <MenuItem value=""><em>-- Select Bill --</em></MenuItem>
+                  {purchases.map((p) => (
+                    <MenuItem key={p.id} value={String(p.id)}>#{p.bill_number} - {p.vendor?.name} - ₹{formatMoney(p.grand_total)}</MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            )}
 
-          <Row>
-            <Col md={6}>
-              <Form.Group className="mb-3">
-                <Form.Label>Amount (₹) <span className="text-danger">*</span></Form.Label>
-                <Form.Control type="number" step="0.01" value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} />
-              </Form.Group>
-            </Col>
-            <Col md={6}>
-              <Form.Group className="mb-3">
-                <Form.Label>Payment Method</Form.Label>
-                <Form.Select value={form.payment_method} onChange={(e) => setForm({ ...form, payment_method: e.target.value })}>
-                  <option value="cash">Cash</option>
-                  <option value="cheque">Cheque</option>
-                  <option value="bank_transfer">Bank Transfer</option>
-                  <option value="upi">UPI</option>
-                  <option value="card">Card</option>
-                  <option value="online">Online</option>
-                </Form.Select>
-              </Form.Group>
-            </Col>
-          </Row>
+            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)' }, gap: 2 }}>
+              <TextField
+                size="small"
+                type="number"
+                label="Amount (₹)"
+                required
+                inputProps={{ step: '0.01' }}
+                value={form.amount}
+                onChange={(e) => setForm({ ...form, amount: e.target.value })}
+              />
+              <FormControl size="small" fullWidth>
+                <InputLabel>Payment Method</InputLabel>
+                <Select
+                  label="Payment Method"
+                  value={form.payment_method}
+                  onChange={(e) => setForm({ ...form, payment_method: e.target.value })}
+                >
+                  <MenuItem value="cash">Cash</MenuItem>
+                  <MenuItem value="cheque">Cheque</MenuItem>
+                  <MenuItem value="bank_transfer">Bank Transfer</MenuItem>
+                  <MenuItem value="upi">UPI</MenuItem>
+                  <MenuItem value="card">Card</MenuItem>
+                  <MenuItem value="online">Online</MenuItem>
+                </Select>
+              </FormControl>
+              <TextField
+                size="small"
+                type="date"
+                label="Payment Date"
+                value={form.payment_date}
+                onChange={(e) => setForm({ ...form, payment_date: e.target.value })}
+                slotProps={{ inputLabel: { shrink: true } }}
+              />
+              <TextField
+                size="small"
+                label="Reference Number"
+                value={form.reference_number}
+                onChange={(e) => setForm({ ...form, reference_number: e.target.value })}
+                placeholder="Cheque/UTR number"
+              />
+            </Box>
 
-          <Row>
-            <Col md={6}>
-              <Form.Group className="mb-3">
-                <Form.Label>Payment Date</Form.Label>
-                <Form.Control type="date" value={form.payment_date} onChange={(e) => setForm({ ...form, payment_date: e.target.value })} />
-              </Form.Group>
-            </Col>
-            <Col md={6}>
-              <Form.Group className="mb-3">
-                <Form.Label>Reference Number</Form.Label>
-                <Form.Control value={form.reference_number} onChange={(e) => setForm({ ...form, reference_number: e.target.value })} placeholder="Cheque/UTR number" />
-              </Form.Group>
-            </Col>
-          </Row>
-
-          <Form.Group className="mb-0">
-            <Form.Label>Notes</Form.Label>
-            <Form.Control as="textarea" rows={2} value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} />
-          </Form.Group>
-        </Modal.Body>
-        <Modal.Footer>
-          <Button variant="secondary" onClick={() => setShow(false)}>Cancel</Button>
-          <Button variant="primary" onClick={save} disabled={saving}>
-            {saving && <span className="spinner-border spinner-border-sm me-2"></span>} Record Payment
+            <TextField
+              size="small"
+              label="Notes"
+              multiline
+              rows={2}
+              fullWidth
+              value={form.notes}
+              onChange={(e) => setForm({ ...form, notes: e.target.value })}
+            />
+          </Stack>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, py: 2 }}>
+          <Button variant="outlined" onClick={() => setShow(false)}>Cancel</Button>
+          <Button variant="contained" onClick={save} disabled={saving} startIcon={saving ? <CircularProgress size={14} color="inherit" /> : null}>
+            Record Payment
           </Button>
-        </Modal.Footer>
-      </Modal>
+        </DialogActions>
+      </Dialog>
 
       <WhatsAppSendModal
         show={waShow}
@@ -700,6 +901,6 @@ persistTableHead
         contextType="payment"
         contextId={waTarget?.id}
       />
-    </div>
+    </Box>
   );
 }

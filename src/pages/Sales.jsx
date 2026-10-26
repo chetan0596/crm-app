@@ -1,7 +1,43 @@
-import { useEffect, useMemo, useReducer, useState, useCallback } from "react";
+import { useEffect, useReducer, useState, useCallback } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import DataTable from "react-data-table-component";
-import { Modal, Button, Form, Dropdown, Row, Col, Table } from "react-bootstrap";
+import {
+  Box,
+  Button,
+  Card,
+  CardContent,
+  Checkbox,
+  CircularProgress,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  Divider,
+  FormControl,
+  FormControlLabel,
+  IconButton,
+  InputAdornment,
+  InputLabel,
+  LinearProgress,
+  ListItemIcon,
+  ListItemText,
+  Menu,
+  MenuItem,
+  Radio,
+  RadioGroup,
+  Select,
+  Stack,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TablePagination,
+  TableRow,
+  TableSortLabel,
+  TextField,
+  Tooltip,
+  Typography,
+} from "@mui/material";
 import Swal from "sweetalert2";
 import { toast } from "react-toastify";
 import api from "../api";
@@ -20,6 +56,90 @@ const tableReducer = (state, action) => {
 const getNum = (v, fallback = 1) => {
   const n = parseInt(v, 10);
   return isNaN(n) || n < 1 ? fallback : n;
+};
+
+const toArray = (value) => {
+  if (Array.isArray(value)) return value;
+  if (Array.isArray(value?.data)) return value.data;
+  if (Array.isArray(value?.data?.data)) return value.data.data;
+  if (Array.isArray(value?.items)) return value.items;
+  if (Array.isArray(value?.results)) return value.results;
+  return [];
+};
+
+const selVal = (v) => (v == null || v === "" ? "" : String(v));
+
+const pageCardSx = {
+  border: '1px solid',
+  borderColor: 'divider',
+  borderRadius: 3,
+  boxShadow: '0 8px 24px rgba(28,37,46,.05)',
+};
+
+const headerCellSx = {
+  color: 'text.secondary',
+  fontSize: 12,
+  fontWeight: 700,
+  textTransform: 'uppercase',
+  letterSpacing: '.04em',
+  px: 2,
+  py: 1.5,
+  borderBottom: '1px solid',
+  borderColor: 'divider',
+};
+
+const bodyCellSx = {
+  verticalAlign: 'middle',
+  px: 2,
+  py: 1.5,
+  borderBottom: '1px solid #f1f5f9',
+};
+
+const sectionBoxSx = {
+  p: 2.5,
+  bgcolor: '#f8fafc',
+  border: '1px solid',
+  borderColor: 'divider',
+  borderRadius: 2,
+  height: '100%',
+};
+
+const sectionTitleSx = {
+  display: 'flex',
+  alignItems: 'center',
+  gap: 1,
+  color: 'primary.main',
+  fontWeight: 700,
+  fontSize: 15,
+  pb: 1.5,
+  mb: 2,
+  borderBottom: '1px solid',
+  borderColor: 'divider',
+};
+
+const borderedTableSx = {
+  border: '1px solid',
+  borderColor: 'divider',
+  borderRadius: 2,
+  overflow: 'hidden',
+  bgcolor: '#fff',
+};
+
+const borderedCellSx = {
+  borderBottom: '1px solid',
+  borderColor: 'divider',
+  borderRight: '1px solid',
+  borderRightColor: 'divider',
+  '&:last-child': { borderRight: 0 },
+};
+
+const menuPaperSx = {
+  mt: .75,
+  minWidth: 168,
+  borderRadius: 2.5,
+  border: '1px solid',
+  borderColor: 'divider',
+  boxShadow: '0 12px 32px rgba(28,37,46,.14)',
 };
 
 export default function Sales() {
@@ -51,10 +171,14 @@ export default function Sales() {
   const [waShow, setWaShow] = useState(false);
   const [waTarget, setWaTarget] = useState(null);
 
+  const [columnAnchorEl, setColumnAnchorEl] = useState(null);
+  const [actionAnchorEl, setActionAnchorEl] = useState(null);
+  const [actionRow, setActionRow] = useState(null);
+
   const [form, setForm] = useState({
-    customer_id: "", 
+    customer_id: "",
     warehouse_id: "",
-    invoice_type: "Retail", 
+    invoice_type: "Retail",
     invoice_date: new Date().toISOString().split('T')[0],
     invoice_number: "", notes: "", discount: 0, discount_percentage: 0, tax: 0, tax_percentage: 0, tax_name: "", addless_amount: 0, addless_title: "Addless", items: []
   });
@@ -63,7 +187,7 @@ export default function Sales() {
 
   const [visibleCols, setVisibleCols] = useState(() => {
     const saved = localStorage.getItem('sales-visible-cols');
-    if (saved) { try { return JSON.parse(saved); } catch {} }
+    if (saved) { try { return JSON.parse(saved); } catch { /* ignore */ } }
     return { id: true, invoice_type: true, invoice_number: true, customer: true, warehouse: true, date: true, total: true, action: true };
   });
 
@@ -91,8 +215,8 @@ export default function Sales() {
     try {
       setLoading(true);
       const res = await api.get("/sales", { params: table, signal });
-      setRows(res.data.data || []);
-      setTotal(res.data.total || 0);
+      setRows(toArray(res.data));
+      setTotal(Number(res.data?.total ?? res.data?.data?.total ?? 0));
     } catch {
       setRows([]); setTotal(0);
     } finally {
@@ -109,25 +233,25 @@ export default function Sales() {
     ]);
 
     if (custRes.status === 'fulfilled') {
-      setCustomers(custRes.value.data.data || []);
+      setCustomers(toArray(custRes.value.data));
     } else {
       setCustomers([]); toast.error("Failed to load customers");
     }
 
     if (itemRes.status === 'fulfilled') {
-      setItems(itemRes.value.data.data || []);
+      setItems(toArray(itemRes.value.data));
     } else {
       setItems([]); toast.error("Failed to load items");
     }
 
     if (taxRes.status === 'fulfilled') {
-      setTaxes(taxRes.value.data.data || []);
+      setTaxes(toArray(taxRes.value.data));
     } else {
       setTaxes([]); toast.error("Failed to load taxes");
     }
 
     if (warehouseRes.status === 'fulfilled') {
-      setWarehouses(warehouseRes.value.data.data || []);
+      setWarehouses(toArray(warehouseRes.value.data));
     } else {
       setWarehouses([]); toast.error("Failed to load warehouses");
     }
@@ -135,14 +259,15 @@ export default function Sales() {
 
   useEffect(() => {
     const controller = new AbortController();
-    loadTable(controller.signal);
-    return () => controller.abort();
+    const timer = setTimeout(() => loadTable(controller.signal), 0);
+    return () => { clearTimeout(timer); controller.abort(); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [table, reloadKey]);
 
   useEffect(() => {
     const controller = new AbortController();
-    loadDropdowns(controller.signal);
-    return () => controller.abort();
+    const timer = setTimeout(() => loadDropdowns(controller.signal), 0);
+    return () => { clearTimeout(timer); controller.abort(); };
   }, [reloadKey]);
 
   // Load invoice prefix from invoice settings
@@ -157,23 +282,27 @@ export default function Sales() {
 
   // Recalculate tax when tax_type or gst_type changes
   useEffect(() => {
-    if (form.invoice_type === 'Tax Invoice') {
-      let totalTax = 0;
-      form.items.forEach(it => {
-        if (it.item_id && it.tax_id) {
-          const taxInfo = getItemTaxInfo(it.item_id, it.tax_id, it.quantity, it.price, it.discount);
-          totalTax += taxInfo.taxAmount;
-        }
-      });
-      setForm(f => ({ ...f, tax: totalTax.toFixed(2) }));
-    }
+    const timer = setTimeout(() => {
+      if (form.invoice_type === 'Tax Invoice') {
+        let totalTax = 0;
+        form.items.forEach(it => {
+          if (it.item_id && it.tax_id) {
+            const taxInfo = getItemTaxInfo(it.item_id, it.tax_id, it.quantity, it.price, it.discount);
+            totalTax += taxInfo.taxAmount;
+          }
+        });
+        setForm(f => ({ ...f, tax: totalTax.toFixed(2) }));
+      }
+    }, 0);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [form.tax_type, form.gst_type, form.invoice_type]);
 
   // Generate next invoice number using configured prefix
   const generateInvoiceNumber = () => {
     const prefix = invoicePrefix || 'INV';
     if (!rows || rows.length === 0) return `${prefix}001`;
-    
+
     // Extract numbers from existing invoice numbers
     const numbers = rows
       .map(row => {
@@ -181,7 +310,7 @@ export default function Sales() {
         return match ? parseInt(match[1]) : 0;
       })
       .filter(n => n > 0);
-    
+
     const maxNum = numbers.length > 0 ? Math.max(...numbers) : 0;
     return `${prefix}${String(maxNum + 1).padStart(3, '0')}`;
   };
@@ -189,21 +318,21 @@ export default function Sales() {
   const openAdd = () => {
     setEditingId(null);
     setForm({
-      customer_id: "", 
-      warehouse_id: "", 
-      invoice_type: "Retail", 
+      customer_id: "",
+      warehouse_id: "",
+      invoice_type: "Retail",
       invoice_date: new Date().toISOString().split('T')[0],
-      invoice_number: generateInvoiceNumber(), 
-      notes: "", 
-      discount: 0, 
-      discount_percentage: 0, 
-      tax: 0, 
-      tax_percentage: 0, 
-      tax_name: "", 
-      tax_type: "Tax Exclusive", 
-      gst_type: "CGST/SGST", 
-      addless_amount: 0, 
-      addless_title: "Addless", 
+      invoice_number: generateInvoiceNumber(),
+      notes: "",
+      discount: 0,
+      discount_percentage: 0,
+      tax: 0,
+      tax_percentage: 0,
+      tax_name: "",
+      tax_type: "Tax Exclusive",
+      gst_type: "CGST/SGST",
+      addless_amount: 0,
+      addless_title: "Addless",
       items: [{ item_id: "", quantity: 1, price: 0, tax_id: null, discount: 0 }]
     });
     setShow(true);
@@ -250,7 +379,7 @@ export default function Sales() {
       link.click();
       document.body.removeChild(link);
       URL.revokeObjectURL(link.href);
-    } catch (err) {
+    } catch {
       toast.error('Failed to download PDF');
     }
   }, []);
@@ -276,16 +405,16 @@ export default function Sales() {
       }
       return { ...f, items: formItems };
     });
-    
+
     // Recalculate tax from items when item, quantity, price, tax_id, or discount changes
     if (field === 'item_id' || field === 'quantity' || field === 'price' || field === 'tax_id' || field === 'discount') {
       setTimeout(() => {
         const subtotal = form.items.reduce((sum, it) => sum + (parseFloat(it.quantity) || 0) * (parseFloat(it.price) || 0), 0);
         const discount = parseFloat(form.discount) || 0;
-        
+
         let totalTax = 0;
         let totalTaxPercentage = 0;
-        
+
         if (form.invoice_type === 'Tax Invoice') {
           form.items.forEach(it => {
             if (it.item_id && it.tax_id) {
@@ -298,14 +427,14 @@ export default function Sales() {
               }
             }
           });
-          
+
           const taxableAmount = subtotal - discount;
           totalTaxPercentage = taxableAmount > 0 ? (totalTax / taxableAmount) * 100 : 0;
         }
-        
-        setForm(f => ({ 
-          ...f, 
-          tax: totalTax.toFixed(2), 
+
+        setForm(f => ({
+          ...f,
+          tax: totalTax.toFixed(2),
           tax_percentage: totalTaxPercentage.toFixed(2)
         }));
       }, 100);
@@ -316,27 +445,27 @@ export default function Sales() {
     if (!itemId || form.invoice_type !== 'Tax Invoice') {
       return { taxAmount: 0, taxPercentage: 0, taxName: '', baseAmount: 0 };
     }
-    
+
     // Use the selected tax_id if available, otherwise fall back to item's default tax
     let effectiveTaxId = taxId;
     if (!effectiveTaxId) {
       const selectedItem = items.find(i => String(i.id) === String(itemId));
       effectiveTaxId = selectedItem?.tax_id;
     }
-    
+
     if (!effectiveTaxId) {
       return { taxAmount: 0, taxPercentage: 0, taxName: '', baseAmount: 0 };
     }
-    
+
     const itemTax = taxes.find(t => String(t.id) === String(effectiveTaxId));
     if (!itemTax) return { taxAmount: 0, taxPercentage: 0, taxName: '', baseAmount: 0 };
-    
+
     const itemTotal = ((parseFloat(quantity) || 0) * (parseFloat(price) || 0)) - (parseFloat(discount) || 0);
     const taxPercentage = parseFloat(itemTax.percentage) || 0;
     const isInclusive = form.tax_type === 'Tax Inclusive';
-    
+
     let baseAmount, taxAmount;
-    
+
     if (isInclusive) {
       // Tax Inclusive: Price already includes tax, extract it
       baseAmount = itemTotal / (1 + taxPercentage / 100);
@@ -346,13 +475,13 @@ export default function Sales() {
       baseAmount = itemTotal;
       taxAmount = (itemTotal * taxPercentage) / 100;
     }
-    
-    return { 
-      taxAmount, 
-      taxPercentage, 
+
+    return {
+      taxAmount,
+      taxPercentage,
       taxName: itemTax.name,
       baseAmount,
-      isInclusive 
+      isInclusive
     };
   };
 
@@ -363,19 +492,19 @@ export default function Sales() {
     let cgstTotal = 0;
     let sgstTotal = 0;
     let igstTotal = 0;
-    
+
     form.items.forEach(it => {
       const taxInfo = getItemTaxInfo(it.item_id, it.tax_id, it.quantity, it.price, it.discount);
-      
+
       // For Tax Inclusive, use baseAmount as the net amount
       // For Tax Exclusive, use itemTotal (which includes tax in the calculation later)
       const itemNetAmount = taxInfo.isInclusive ? taxInfo.baseAmount : ((parseFloat(it.quantity) || 0) * (parseFloat(it.price) || 0) - (parseFloat(it.discount) || 0));
       const itemDiscount = parseFloat(it.discount) || 0;
-      
+
       subtotal += itemNetAmount;
       totalItemDiscount += itemDiscount;
       totalTax += taxInfo.taxAmount;
-      
+
       // Split tax based on GST type
       if (form.gst_type === 'CGST/SGST' && taxInfo.taxAmount > 0) {
         cgstTotal += taxInfo.taxAmount / 2;
@@ -384,20 +513,20 @@ export default function Sales() {
         igstTotal += taxInfo.taxAmount;
       }
     });
-    
+
     const discount = parseFloat(form.discount) || 0;
     const discountPercentage = parseFloat(form.discount_percentage) || 0;
     const addlessAmount = parseFloat(form.addless_amount) || 0;
     const grandTotal = subtotal - discount + totalTax + addlessAmount;
-    
-    return { 
-      subtotal, 
-      discount, 
-      discountPercentage, 
-      tax: totalTax, 
-      taxPercentage: 0, 
-      addlessAmount, 
-      grandTotal, 
+
+    return {
+      subtotal,
+      discount,
+      discountPercentage,
+      tax: totalTax,
+      taxPercentage: 0,
+      addlessAmount,
+      grandTotal,
       totalItemDiscount,
       cgst: cgstTotal,
       sgst: sgstTotal,
@@ -407,7 +536,7 @@ export default function Sales() {
 
   const handleDiscountChange = (field, value) => {
     const subtotal = form.items.reduce((sum, it) => sum + (parseFloat(it.quantity) || 0) * (parseFloat(it.price) || 0), 0);
-    
+
     if (field === 'discount') {
       const discountAmount = parseFloat(value) || 0;
       const percentage = subtotal > 0 ? (discountAmount / subtotal) * 100 : 0;
@@ -417,14 +546,14 @@ export default function Sales() {
       const amount = (percentage / 100) * subtotal;
       setForm(f => ({ ...f, discount_percentage: percentage, discount: amount.toFixed(2) }));
     }
-    
+
     // Recalculate tax after discount change
     setTimeout(() => {
       const discount = parseFloat(field === 'discount' ? value : form.discount) || 0;
-      
+
       let totalTax = 0;
       let totalTaxPercentage = 0;
-      
+
       if (form.invoice_type === 'Tax Invoice') {
         form.items.forEach(it => {
           if (it.item_id && it.tax_id) {
@@ -436,41 +565,17 @@ export default function Sales() {
             }
           }
         });
-        
+
         const taxableAmount = subtotal - discount;
         totalTaxPercentage = taxableAmount > 0 ? (totalTax / taxableAmount) * 100 : 0;
       }
-      
-      setForm(f => ({ 
-        ...f, 
-        tax: totalTax.toFixed(2), 
+
+      setForm(f => ({
+        ...f,
+        tax: totalTax.toFixed(2),
         tax_percentage: totalTaxPercentage.toFixed(2)
       }));
     }, 100);
-  };
-
-  const handleTaxChange = (field, value) => {
-    const subtotal = form.items.reduce((sum, it) => sum + (parseFloat(it.quantity) || 0) * (parseFloat(it.price) || 0), 0);
-    const discount = parseFloat(form.discount) || 0;
-    const taxableAmount = subtotal - discount;
-    
-    if (field === 'tax') {
-      const taxAmount = parseFloat(value) || 0;
-      const percentage = taxableAmount > 0 ? (taxAmount / taxableAmount) * 100 : 0;
-      setForm(f => ({ ...f, tax: taxAmount, tax_percentage: percentage.toFixed(2) }));
-    } else if (field === 'tax_percentage') {
-      const percentage = parseFloat(value) || 0;
-      const amount = (percentage / 100) * taxableAmount;
-      setForm(f => ({ ...f, tax_percentage: percentage, tax: amount.toFixed(2) }));
-    } else if (field === 'tax_name') {
-      const selectedTax = taxes.find(t => t.name === value);
-      if (selectedTax) {
-        const amount = (selectedTax.percentage / 100) * taxableAmount;
-        setForm(f => ({ ...f, tax_name: value, tax_percentage: selectedTax.percentage, tax: amount.toFixed(2) }));
-      } else {
-        setForm(f => ({ ...f, tax_name: value, tax_percentage: 0, tax: 0 }));
-      }
-    }
   };
 
   const save = async () => {
@@ -512,430 +617,725 @@ export default function Sales() {
     });
   }, []);
 
-  const columns = useMemo(() => {
-    const all = [
-      visibleCols.id && { name: "ID", selector: r => r.id, sortable: true, sortField: "id", width: "70px" },
-      visibleCols.invoice_type && { name: "Type", selector: r => r.invoice_type, sortable: true, sortField: "invoice_type", width: "100px" },
-      visibleCols.invoice_number && { name: "Invoice #", selector: r => r.invoice_number, sortable: true, sortField: "invoice_number" },
-      visibleCols.customer && { name: "Customer", selector: r => r.customer?.name, sortable: true, sortField: "customer_id" },
-      visibleCols.warehouse && { name: "Godown", selector: r => r.warehouse?.name || '-', sortable: true, sortField: "warehouse_id", width: "140px" },
-      visibleCols.date && { name: "Date", selector: r => r.invoice_date, sortable: true, sortField: "invoice_date", width: "110px" },
-      visibleCols.total && { name: "Total", selector: r => `₹${r.total_amount}`, sortable: true, sortField: "total_amount", width: "110px" },
-      visibleCols.action && {
-        name: "Action", width: "180px",
-        cell: row => (
-          <div className="btn-group btn-group-sm">
-            <button className="btn btn-outline-info" onClick={() => viewSale(row)}><i className="fas fa-eye"></i></button>
-            <button className="btn btn-outline-success" onClick={() => handleDownloadPDF(row)} title="Download PDF"><i className="fas fa-file-pdf"></i></button>
-            <button className="btn btn-outline-primary" onClick={() => openEdit(row)}><i className="fas fa-edit"></i></button>
-            <button className="btn btn-outline-danger" onClick={() => deleteSale(row)}><i className="fas fa-trash"></i></button>
-            {row.customer?.phone && (
-              <button className="btn btn-outline-success" onClick={() => { setWaTarget(row); setWaShow(true); }} title="Send WhatsApp">
-                <i className="fab fa-whatsapp"></i>
-              </button>
-            )}
-          </div>
-        ),
-      },
-    ];
-    return all.filter(Boolean);
-  }, [visibleCols, viewSale, handleDownloadPDF, openEdit, deleteSale]);
+  const closeActionMenu = () => {
+    setActionAnchorEl(null);
+    setActionRow(null);
+  };
 
-  const totals = useMemo(() => calculateTotals(), [form]);
-  const { subtotal, discount, discountPercentage, tax, addlessAmount, grandTotal, cgst, sgst, igst } = totals;
+  const runRowAction = (callback) => () => {
+    const row = actionRow;
+    closeActionMenu();
+    if (row) callback(row);
+  };
 
-  const progressComponent = useMemo(() => (
-    <div className="p-4 text-center"><div className="spinner-border spinner-border-sm me-2"></div>Loading...</div>
-  ), []);
+  const handleSort = (field) => {
+    const isAsc = table.sortField === field && table.sortDir === 'asc';
+    dispatch({ type: 'SORT', field, dir: isAsc ? 'desc' : 'asc' });
+  };
 
-  const noDataComponent = useMemo(() => (
-    <div className="p-5 text-center">
-      <i className="fas fa-folder-open text-muted mb-3" style={{ fontSize: 48, opacity: 0.4 }}></i>
-      <div className="fw-semibold text-secondary mb-1">No data found</div>
-      <div className="small text-muted">Try adjusting your filters or check back later</div>
-    </div>
-  ), []);
+  const columns = [
+    visibleCols.id && {
+      key: 'id', label: 'ID', sortField: 'id', width: 80,
+      render: (row) => <Typography variant="body2" sx={{ fontWeight: 700 }}>#{row.id}</Typography>,
+    },
+    visibleCols.invoice_type && {
+      key: 'invoice_type', label: 'Type', sortField: 'invoice_type', minWidth: 110,
+      render: (row) => row.invoice_type || '-',
+    },
+    visibleCols.invoice_number && {
+      key: 'invoice_number', label: 'Invoice #', sortField: 'invoice_number', minWidth: 130,
+      render: (row) => row.invoice_number || '-',
+    },
+    visibleCols.customer && {
+      key: 'customer', label: 'Customer', sortField: 'customer_id', minWidth: 150,
+      render: (row) => row.customer?.name || '-',
+    },
+    visibleCols.warehouse && {
+      key: 'warehouse', label: 'Godown', sortField: 'warehouse_id', minWidth: 140,
+      render: (row) => row.warehouse?.name || '-',
+    },
+    visibleCols.date && {
+      key: 'date', label: 'Date', sortField: 'invoice_date', minWidth: 110,
+      render: (row) => row.invoice_date || '-',
+    },
+    visibleCols.total && {
+      key: 'total', label: 'Total', sortField: 'total_amount', minWidth: 110,
+      render: (row) => `₹${row.total_amount}`,
+    },
+    visibleCols.action && {
+      key: 'action', label: 'Action', minWidth: 84, align: 'right',
+      render: (row) => (
+        <Tooltip title="Actions">
+          <IconButton
+            size="small"
+            onClick={(event) => {
+              event.stopPropagation();
+              setActionRow(row);
+              setActionAnchorEl(event.currentTarget);
+            }}
+            aria-label="Sale actions"
+            aria-haspopup="true"
+            sx={{ border: '1px solid', borderColor: 'divider' }}
+          >
+            <i className="fas fa-ellipsis-vertical" style={{ fontSize: 13 }} aria-hidden="true" />
+          </IconButton>
+        </Tooltip>
+      ),
+    },
+  ].filter(Boolean);
+
+  const visibleColumnOptions = [
+    ['id', 'ID'],
+    ['invoice_type', 'Type'],
+    ['invoice_number', 'Invoice #'],
+    ['customer', 'Customer'],
+    ['warehouse', 'Godown'],
+    ['date', 'Date'],
+    ['total', 'Total'],
+    ['action', 'Action'],
+  ];
+
+  const shownColumnCount = visibleColumnOptions.filter(([key]) => visibleCols[key]).length;
+
+  const totals = calculateTotals();
+  const { subtotal, discount, discountPercentage, addlessAmount, grandTotal, cgst, sgst, igst } = totals;
 
   return (
-    <div className="card card-outline card-primary">
-      <div className="card-header">
-        <div className="row g-2 align-items-center">
-          <div className="col-12 col-md-6"><h3 className="card-title">Sales Invoices</h3></div>
-          <div className="col-12 col-md-6">
-            <div className="d-flex gap-2 flex-wrap justify-content-md-end">
-              <input className="form-control form-control-sm" style={{ maxWidth: 220 }}
-                placeholder="Search sales..." value={searchInput} onChange={e => setSearchInput(e.target.value)} />
-              <button className="btn btn-primary btn-sm" onClick={openAdd}><i className="fas fa-plus"></i> New Sale</button>
-            </div>
-          </div>
-        </div>
-      </div>
+    <Box>
 
-      <div className="p-2 border-bottom bg-light">
-        <div className="d-flex align-items-center gap-2 flex-wrap">
-          <span className="text-muted small fw-bold">Show columns:</span>
-          <Dropdown>
-            <Dropdown.Toggle variant="outline-secondary" size="sm">
-              <i className="fas fa-columns me-1"></i>
-              {[visibleCols.id && 'ID', visibleCols.invoice_type && 'Type', visibleCols.invoice_number && 'Invoice', visibleCols.customer && 'Customer', visibleCols.warehouse && 'Godown', visibleCols.date && 'Date', visibleCols.total && 'Total'].filter(Boolean).join(', ') || 'None'}
-            </Dropdown.Toggle>
-            <Dropdown.Menu>
-              {['id','invoice_type','invoice_number','customer','warehouse','date','total'].map(col => (
-                <Dropdown.Item key={col} active={visibleCols[col]} onClick={() => setVisibleCols(v => ({ ...v, [col]: !v[col] }))}>
-                  <i className={`fas ${visibleCols[col] ? 'fa-check-square text-primary' : 'fa-square'} me-2`}></i>
-                  {col === 'invoice_number' ? 'Invoice #' : col === 'warehouse' ? 'Godown' : col === 'id' ? 'ID' : col.charAt(0).toUpperCase() + col.slice(1)}
-                </Dropdown.Item>
+      <Card sx={pageCardSx}>
+        <CardContent sx={{ p: 3 }}>
+          <Box sx={{ display: 'flex', alignItems: { md: 'center' }, justifyContent: 'space-between', flexDirection: { xs: 'column', md: 'row' }, gap: 2 }}>
+            <Box>
+              <Typography variant="h4" sx={{ color: 'text.primary', fontWeight: 700 }}>
+                Sales Invoices
+              </Typography>
+              <Typography variant="body2" sx={{ color: 'text.secondary', mt: .5 }}>
+                {total} total invoices
+              </Typography>
+            </Box>
+            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} alignItems={{ sm: 'center' }}>
+              <TextField
+                size="small"
+                placeholder="Search sales..."
+                value={searchInput}
+                onChange={e => setSearchInput(e.target.value)}
+                sx={{ minWidth: { xs: '100%', sm: 240 } }}
+                slotProps={{
+                  input: {
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <i className="fas fa-search" style={{ fontSize: 13 }} aria-hidden="true" />
+                      </InputAdornment>
+                    ),
+                  },
+                }}
+              />
+              <Button variant="contained" onClick={openAdd} startIcon={<i className="fas fa-plus" aria-hidden="true" />}>
+                New Sale
+              </Button>
+            </Stack>
+          </Box>
+        </CardContent>
+
+        <Divider />
+        <Box sx={{ px: 3, py: 1.5, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 2, flexWrap: 'wrap' }}>
+          <Stack direction="row" spacing={1.5} alignItems="center">
+            <Typography variant="body2" sx={{ color: 'text.secondary', fontWeight: 700 }}>
+              Columns:
+            </Typography>
+            <Button
+              variant="text"
+              size="small"
+              onClick={(event) => setColumnAnchorEl(event.currentTarget)}
+              startIcon={<i className="fas fa-columns" aria-hidden="true" />}
+            >
+              {shownColumnCount === 0 ? 'No columns' : shownColumnCount === visibleColumnOptions.length ? `All columns (${visibleColumnOptions.length})` : `${shownColumnCount} of ${visibleColumnOptions.length} columns`}
+            </Button>
+            <Menu anchorEl={columnAnchorEl} open={Boolean(columnAnchorEl)} onClose={() => setColumnAnchorEl(null)}>
+              {visibleColumnOptions.map(([key, label]) => (
+                <MenuItem key={key} onClick={() => setVisibleCols(v => ({ ...v, [key]: !v[key] }))}>
+                  <Checkbox checked={Boolean(visibleCols[key])} size="small" />
+                  <ListItemText primary={label} />
+                </MenuItem>
               ))}
-            </Dropdown.Menu>
-          </Dropdown>
-        </div>
-      </div>
+            </Menu>
+          </Stack>
+          <Button
+            variant="outlined"
+            size="small"
+            onClick={() => setReloadKey(k => k + 1)}
+            disabled={loading}
+            startIcon={<i className="fas fa-sync-alt" aria-hidden="true" />}
+          >
+            Refresh
+          </Button>
+        </Box>
 
-      <div className="card-body p-0">
-        <DataTable columns={columns} data={rows} progressPending={loading} persistTableHead
-          className="modern-datatable"
-          pagination paginationServer paginationTotalRows={total} paginationPerPage={table.perPage}
-          onChangePage={(p) => p !== table.page && dispatch({ type: "PAGE", page: p })}
-          onChangeRowsPerPage={(n) => n !== table.perPage && dispatch({ type: "PER_PAGE", perPage: n })}
-          sortServer onSort={(col, dir) => col.sortField && dispatch({ type: "SORT", field: col.sortField, dir })}
-          progressComponent={progressComponent}
-          noDataComponent={noDataComponent}
-          striped highlightOnHover dense keyField="id" />
-      </div>
+        {loading && <LinearProgress />}
+        <TableContainer sx={{ overflowX: 'auto' }}>
+          <Table sx={{ minWidth: 960 }} size="small">
+            <TableHead>
+              <TableRow sx={{ bgcolor: '#f8fafc' }}>
+                {columns.map((column) => (
+                  <TableCell
+                    key={column.key}
+                    align={column.align || 'left'}
+                    sx={{ ...headerCellSx, minWidth: column.minWidth, width: column.width }}
+                  >
+                    {column.sortField ? (
+                      <TableSortLabel
+                        active={table.sortField === column.sortField}
+                        direction={table.sortField === column.sortField ? table.sortDir : 'asc'}
+                        onClick={() => handleSort(column.sortField)}
+                      >
+                        {column.label}
+                      </TableSortLabel>
+                    ) : column.label}
+                  </TableCell>
+                ))}
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {rows.length === 0 && !loading ? (
+                <TableRow>
+                  <TableCell colSpan={Math.max(columns.length, 1)} align="center" sx={{ py: 7 }}>
+                    <i className="fas fa-folder-open" style={{ color: '#637381', fontSize: 42, opacity: .4 }} aria-hidden="true" />
+                    <Typography variant="subtitle2" sx={{ color: 'text.secondary', mt: 1.5 }}>
+                      No data found
+                    </Typography>
+                    <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                      Try adjusting your filters or check back later
+                    </Typography>
+                  </TableCell>
+                </TableRow>
+              ) : rows.map((row) => (
+                <TableRow
+                  key={row.id}
+                  hover
+                  sx={{
+                    '&:hover': { bgcolor: 'rgba(6,40,73,.035)' },
+                    '&:last-child td': { borderBottom: 0 },
+                  }}
+                >
+                  {columns.map((column) => (
+                    <TableCell
+                      key={`${row.id}-${column.key}`}
+                      align={column.align || 'left'}
+                      sx={bodyCellSx}
+                    >
+                      {column.render(row)}
+                    </TableCell>
+                  ))}
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </TableContainer>
 
-      {/* Add/Edit Sale Modal */}
-      <Modal show={show} onHide={() => setShow(false)} backdrop="static" size="xl">
-        <Modal.Header closeButton><Modal.Title>{editingId ? 'Edit Sale' : 'New Sale'}</Modal.Title></Modal.Header>
-        <Modal.Body>
+        <Menu
+          anchorEl={actionAnchorEl}
+          open={Boolean(actionAnchorEl)}
+          onClose={closeActionMenu}
+          anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+          transformOrigin={{ vertical: 'top', horizontal: 'right' }}
+          slotProps={{ paper: { sx: menuPaperSx } }}
+        >
+          <MenuItem onClick={runRowAction(viewSale)}>
+            <ListItemIcon><i className="fas fa-eye" aria-hidden="true" /></ListItemIcon>
+            <ListItemText primary="View" />
+          </MenuItem>
+          <MenuItem onClick={runRowAction(handleDownloadPDF)}>
+            <ListItemIcon><i className="fas fa-file-pdf" aria-hidden="true" /></ListItemIcon>
+            <ListItemText primary="Download PDF" />
+          </MenuItem>
+          {actionRow?.customer?.phone && (
+            <MenuItem onClick={runRowAction((row) => { setWaTarget(row); setWaShow(true); })}>
+              <ListItemIcon sx={{ color: 'success.main' }}><i className="fab fa-whatsapp" aria-hidden="true" /></ListItemIcon>
+              <ListItemText primary="Send WhatsApp" />
+            </MenuItem>
+          )}
+          <MenuItem onClick={runRowAction(openEdit)}>
+            <ListItemIcon><i className="fas fa-edit" aria-hidden="true" /></ListItemIcon>
+            <ListItemText primary="Edit" />
+          </MenuItem>
+          <Divider />
+          <MenuItem onClick={runRowAction(deleteSale)} sx={{ color: 'error.main' }}>
+            <ListItemIcon sx={{ color: 'error.main' }}><i className="fas fa-trash" aria-hidden="true" /></ListItemIcon>
+            <ListItemText primary="Delete" />
+          </MenuItem>
+        </Menu>
+
+        <TablePagination
+          component="div"
+          count={total}
+          page={Math.max(table.page - 1, 0)}
+          rowsPerPage={table.perPage}
+          rowsPerPageOptions={[10, 20, 50, 100, 200]}
+          onPageChange={(event, page) => {
+            const nextPage = page + 1;
+            if (nextPage !== table.page) dispatch({ type: 'PAGE', page: nextPage });
+          }}
+          onRowsPerPageChange={(event) => {
+            const nextSize = Number(event.target.value);
+            if (nextSize !== table.perPage) dispatch({ type: 'PER_PAGE', perPage: nextSize });
+          }}
+          sx={{ borderTop: '1px solid', borderColor: 'divider' }}
+        />
+      </Card>
+
+      {/* Add/Edit Sale Dialog */}
+      <Dialog
+        open={show}
+        onClose={(event, reason) => { if (reason === 'backdropClick' || reason === 'escapeKeyDown') return; setShow(false); }}
+        maxWidth="xl"
+        fullWidth
+      >
+        <DialogTitle sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 2 }}>
+          <Typography variant="h6" sx={{ fontWeight: 700 }}>{editingId ? 'Edit Sale' : 'New Sale'}</Typography>
+          <IconButton size="small" onClick={() => setShow(false)} aria-label="Close">
+            <i className="fas fa-times" style={{ fontSize: 14 }} aria-hidden="true" />
+          </IconButton>
+        </DialogTitle>
+        <DialogContent dividers>
           {/* Header Section - Two Columns */}
-          <Row className="mb-3">
+          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(2, 1fr)' }, gap: 2.5, mb: 3 }}>
             {/* Customer Info */}
-            <Col md={6}>
-              <div className="bg-light p-3 rounded border h-100">
-                <h6 className="text-primary mb-3 border-bottom pb-2">
-                  <i className="fas fa-user me-2"></i>Customer Info
-                </h6>
-                <Form.Group className="mb-3">
-                  <Form.Label className="fw-bold small">Customer Name <span className="text-danger">*</span></Form.Label>
-                  <Form.Select size="sm" value={form.customer_id} onChange={e => setForm(f => ({ ...f, customer_id: e.target.value }))}>
-                    <option value="">Select Customer</option>
-                    {customers.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                  </Form.Select>
-                </Form.Group>
-                <Row>
-                  <Col md={6}>
-                    <Form.Group className="mb-2">
-                      <Form.Label className="fw-bold small">Discount (₹)</Form.Label>
-                      <Form.Control type="number" size="sm" step="0.01" value={form.discount} onChange={e => handleDiscountChange('discount', e.target.value)} />
-                    </Form.Group>
-                  </Col>
-                  <Col md={6}>
-                    <Form.Group className="mb-2">
-                      <Form.Label className="fw-bold small">Discount (%)</Form.Label>
-                      <Form.Control type="number" size="sm" step="0.01" value={form.discount_percentage} onChange={e => handleDiscountChange('discount_percentage', e.target.value)} />
-                    </Form.Group>
-                  </Col>
-                </Row>
-              </div>
-            </Col>
+            <Box sx={sectionBoxSx}>
+              <Typography sx={sectionTitleSx}>
+                <i className="fas fa-user" aria-hidden="true" />Customer Info
+              </Typography>
+              <FormControl size="small" fullWidth required sx={{ mb: 2 }}>
+                <InputLabel>Customer Name</InputLabel>
+                <Select
+                  label="Customer Name"
+                  value={selVal(form.customer_id)}
+                  onChange={e => setForm(f => ({ ...f, customer_id: e.target.value }))}
+                >
+                  <MenuItem value=""><em>Select Customer</em></MenuItem>
+                  {customers.map(c => <MenuItem key={c.id} value={String(c.id)}>{c.name}</MenuItem>)}
+                </Select>
+              </FormControl>
+              <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 2 }}>
+                <TextField
+                  size="small"
+                  type="number"
+                  label="Discount (₹)"
+                  inputProps={{ step: '0.01' }}
+                  value={form.discount}
+                  onChange={e => handleDiscountChange('discount', e.target.value)}
+                />
+                <TextField
+                  size="small"
+                  type="number"
+                  label="Discount (%)"
+                  inputProps={{ step: '0.01' }}
+                  value={form.discount_percentage}
+                  onChange={e => handleDiscountChange('discount_percentage', e.target.value)}
+                />
+              </Box>
+            </Box>
 
             {/* Invoice Info */}
-            <Col md={6}>
-              <div className="bg-light p-3 rounded border h-100">
-                <h6 className="text-primary mb-3 border-bottom pb-2">
-                  <i className="fas fa-file-invoice me-2"></i>Invoice Info
-                </h6>
-                <Row>
-                  <Col md={6}>
-                    <Form.Group className="mb-2">
-                      <Form.Label className="fw-bold small">Invoice # <span className="text-danger">*</span></Form.Label>
-                      <Form.Control size="sm" value={form.invoice_number} onChange={e => setForm(f => ({ ...f, invoice_number: e.target.value }))} placeholder="e.g., INV-001" />
-                    </Form.Group>
-                  </Col>
-                  <Col md={6}>
-                    <Form.Group className="mb-2">
-                      <Form.Label className="fw-bold small">Invoice Date <span className="text-danger">*</span></Form.Label>
-                      <Form.Control type="date" size="sm" value={form.invoice_date} onChange={e => setForm(f => ({ ...f, invoice_date: e.target.value }))} />
-                    </Form.Group>
-                  </Col>
-                </Row>
-                <Row>
-                  <Col md={6}>
-                    <Form.Group className="mb-2">
-                      <Form.Label className="fw-bold small">Warehouse <span className="text-danger">*</span></Form.Label>
-                      <Form.Select size="sm" value={form.warehouse_id} onChange={e => setForm(f => ({ ...f, warehouse_id: String(e.target.value) }))}>
-                        <option value="">Select Warehouse</option>
-                        {warehouses.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
-                      </Form.Select>
-                    </Form.Group>
-                  </Col>
-                  <Col md={6}>
-                    <Form.Group className="mb-2">
-                      <Form.Label className="fw-bold small">Invoice Type <span className="text-danger">*</span></Form.Label>
-                      <Form.Select size="sm" value={form.invoice_type} onChange={e => setForm(f => ({ ...f, invoice_type: e.target.value }))}>
-                        <option value="Retail">Retail</option>
-                        <option value="Tax Invoice">Tax Invoice</option>
-                      </Form.Select>
-                    </Form.Group>
-                  </Col>
-                </Row>
-                <Row>
-                  <Col md={6}>
-                    <Form.Group className="mb-2">
-                      <Form.Label className="fw-bold small">Invoice Type <span className="text-danger">*</span></Form.Label>
-                      <Form.Select size="sm" value={form.invoice_type} onChange={e => setForm(f => ({ ...f, invoice_type: e.target.value }))}>
-                        <option value="Retail">Retail</option>
-                        <option value="Tax Invoice">Tax Invoice</option>
-                      </Form.Select>
-                    </Form.Group>
-                  </Col>
-                  <Col md={6}>
-                    <Form.Group className="mb-2">
-                      <Form.Label className="fw-bold small">Tax Rate Type</Form.Label>
-                      <Form.Select size="sm" value={form.tax_type || 'Tax Exclusive'} onChange={e => setForm(f => ({ ...f, tax_type: e.target.value }))} disabled={form.invoice_type === 'Retail'}>
-                        <option value="Tax Exclusive">Tax Exclusive</option>
-                        <option value="Tax Inclusive">Tax Inclusive</option>
-                      </Form.Select>
-                    </Form.Group>
-                  </Col>
-                </Row>
-                <Form.Group className="mb-0">
-                  <Form.Label className="fw-bold small">Tax (GST) Type</Form.Label>
-                  <div className="d-flex gap-3">
-                    <Form.Check
-                      type="radio"
-                      label="CGST/SGST"
-                      name="gst_type"
-                      value="CGST/SGST"
-                      checked={form.gst_type === 'CGST/SGST'}
-                      onChange={e => setForm(f => ({ ...f, gst_type: e.target.value }))}
-                      disabled={form.invoice_type === 'Retail'}
-                    />
-                    <Form.Check
-                      type="radio"
-                      label="IGST"
-                      name="gst_type"
-                      value="IGST"
-                      checked={form.gst_type === 'IGST'}
-                      onChange={e => setForm(f => ({ ...f, gst_type: e.target.value }))}
-                      disabled={form.invoice_type === 'Retail'}
-                    />
-                  </div>
-                </Form.Group>
-              </div>
-            </Col>
-          </Row>
+            <Box sx={sectionBoxSx}>
+              <Typography sx={sectionTitleSx}>
+                <i className="fas fa-file-invoice" aria-hidden="true" />Invoice Info
+              </Typography>
+              <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)' }, gap: 2, mb: 2 }}>
+                <TextField
+                  size="small"
+                  label="Invoice #"
+                  required
+                  value={form.invoice_number}
+                  onChange={e => setForm(f => ({ ...f, invoice_number: e.target.value }))}
+                  placeholder="e.g., INV-001"
+                />
+                <TextField
+                  size="small"
+                  type="date"
+                  label="Invoice Date"
+                  required
+                  value={form.invoice_date}
+                  onChange={e => setForm(f => ({ ...f, invoice_date: e.target.value }))}
+                  slotProps={{ inputLabel: { shrink: true } }}
+                />
+                <FormControl size="small" fullWidth required>
+                  <InputLabel>Warehouse</InputLabel>
+                  <Select
+                    label="Warehouse"
+                    value={selVal(form.warehouse_id)}
+                    onChange={e => setForm(f => ({ ...f, warehouse_id: String(e.target.value) }))}
+                  >
+                    <MenuItem value=""><em>Select Warehouse</em></MenuItem>
+                    {warehouses.map(w => <MenuItem key={w.id} value={String(w.id)}>{w.name}</MenuItem>)}
+                  </Select>
+                </FormControl>
+                <FormControl size="small" fullWidth required>
+                  <InputLabel>Invoice Type</InputLabel>
+                  <Select
+                    label="Invoice Type"
+                    value={form.invoice_type}
+                    onChange={e => setForm(f => ({ ...f, invoice_type: e.target.value }))}
+                  >
+                    <MenuItem value="Retail">Retail</MenuItem>
+                    <MenuItem value="Tax Invoice">Tax Invoice</MenuItem>
+                  </Select>
+                </FormControl>
+                <FormControl size="small" fullWidth>
+                  <InputLabel>Tax Rate Type</InputLabel>
+                  <Select
+                    label="Tax Rate Type"
+                    value={form.tax_type || 'Tax Exclusive'}
+                    onChange={e => setForm(f => ({ ...f, tax_type: e.target.value }))}
+                    disabled={form.invoice_type === 'Retail'}
+                  >
+                    <MenuItem value="Tax Exclusive">Tax Exclusive</MenuItem>
+                    <MenuItem value="Tax Inclusive">Tax Inclusive</MenuItem>
+                  </Select>
+                </FormControl>
+              </Box>
+              <Box>
+                <Typography variant="body2" sx={{ fontWeight: 700, color: 'text.secondary', mb: .5 }}>
+                  Tax (GST) Type
+                </Typography>
+                <RadioGroup
+                  row
+                  name="gst_type"
+                  value={form.gst_type || ''}
+                  onChange={e => setForm(f => ({ ...f, gst_type: e.target.value }))}
+                >
+                  <FormControlLabel
+                    value="CGST/SGST"
+                    control={<Radio size="small" />}
+                    label="CGST/SGST"
+                    disabled={form.invoice_type === 'Retail'}
+                  />
+                  <FormControlLabel
+                    value="IGST"
+                    control={<Radio size="small" />}
+                    label="IGST"
+                    disabled={form.invoice_type === 'Retail'}
+                  />
+                </RadioGroup>
+              </Box>
+            </Box>
+          </Box>
 
           {/* Item Info Section */}
-          <div className="bg-light p-2 rounded border mb-3">
-            <h6 className="text-primary mb-2 px-2">
-              <i className="fas fa-box me-2"></i>Item Info
-            </h6>
-            <div className="table-responsive bg-white rounded">
-              <Table bordered size="sm" className="mb-0">
-                <thead className="bg-light">
-                  <tr className="text-center">
-                    <th style={{width: '40px'}}>#</th>
-                    <th style={{width: '25%'}}>Item</th>
-                    <th style={{width: '80px'}}>Qty</th>
-                    <th style={{width: '100px'}}>Price (₹)</th>
-                    <th style={{width: '80px'}}>Discount</th>
-                    <th style={{width: '100px'}}>Amount</th>
-                    <th style={{width: '120px'}}>Tax (%)</th>
-                    <th style={{width: '80px'}}>Tax Amt</th>
-                    <th style={{width: '40px'}}></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {form.items.map((it, idx) => {
-                    const itemDiscount = parseFloat(it.discount) || 0;
-                    const itemAmount = ((parseFloat(it.quantity)||0) * (parseFloat(it.price)||0)) - itemDiscount;
-                    const taxInfo = getItemTaxInfo(it.item_id, it.tax_id, it.quantity, it.price, it.discount);
-                    return (
-                    <tr key={idx}>
-                      <td className="text-center">{idx + 1}</td>
-                      <td>
-                        <Form.Select size="sm" value={it.item_id} onChange={e => updateItem(idx, 'item_id', e.target.value)}>
-                          <option value="">Select Item</option>
-                          {items.map(i => <option key={i.id} value={i.id}>{i.name} (Stock: {i.current_stock})</option>)}
-                        </Form.Select>
-                      </td>
-                      <td><Form.Control type="number" size="sm" value={it.quantity} onChange={e => updateItem(idx, 'quantity', e.target.value)} /></td>
-                      <td><Form.Control type="number" size="sm" step="0.01" value={it.price} onChange={e => updateItem(idx, 'price', e.target.value)} /></td>
-                      <td><Form.Control type="number" size="sm" step="0.01" value={it.discount || ''} onChange={e => updateItem(idx, 'discount', e.target.value)} placeholder="0" /></td>
-                      <td className="text-end fw-bold">₹{itemAmount.toFixed(2)}</td>
-                      <td>
-                        <Form.Select size="sm" value={it.tax_id || ''} onChange={e => updateItem(idx, 'tax_id', e.target.value)} disabled={!it.item_id || form.invoice_type === 'Retail'}>
-                          <option value="">No Tax</option>
-                          {taxes.map(t => <option key={t.id} value={t.id}>{t.name} ({t.percentage}%)</option>)}
-                        </Form.Select>
-                      </td>
-                      <td className="text-end text-muted">{taxInfo.taxAmount > 0 ? `₹${taxInfo.taxAmount.toFixed(2)}` : '-'}</td>
-                      <td className="text-center">
-                        <Button variant="outline-danger" size="sm" onClick={() => removeItemRow(idx)}><i className="fas fa-trash"></i></Button>
-                      </td>
-                    </tr>
-                    );
-                  })}
-                </tbody>
-              </Table>
-            </div>
-            <div className="mt-2 px-2">
-              <Button variant="outline-primary" size="sm" onClick={addItemRow}><i className="fas fa-plus me-1"></i>Add Item</Button>
-            </div>
-          </div>
+          <Box sx={{ ...sectionBoxSx, p: 2, mb: 3 }}>
+            <Typography sx={{ ...sectionTitleSx, borderBottom: 0, pb: 0, mb: 1.5 }}>
+              <i className="fas fa-box" aria-hidden="true" />Item Info
+            </Typography>
+            <Box sx={borderedTableSx}>
+              <TableContainer sx={{ overflowX: 'auto' }}>
+                <Table size="small" sx={{ minWidth: 860 }}>
+                  <TableHead>
+                    <TableRow sx={{ bgcolor: '#f8fafc' }}>
+                      <TableCell align="center" sx={{ ...headerCellSx, ...borderedCellSx, width: 40 }}>#</TableCell>
+                      <TableCell sx={{ ...headerCellSx, ...borderedCellSx, minWidth: 220 }}>Item</TableCell>
+                      <TableCell sx={{ ...headerCellSx, ...borderedCellSx, width: 80 }}>Qty</TableCell>
+                      <TableCell sx={{ ...headerCellSx, ...borderedCellSx, width: 110 }}>Price (₹)</TableCell>
+                      <TableCell sx={{ ...headerCellSx, ...borderedCellSx, width: 90 }}>Discount</TableCell>
+                      <TableCell align="right" sx={{ ...headerCellSx, ...borderedCellSx, width: 110 }}>Amount</TableCell>
+                      <TableCell sx={{ ...headerCellSx, ...borderedCellSx, minWidth: 130 }}>Tax (%)</TableCell>
+                      <TableCell align="right" sx={{ ...headerCellSx, ...borderedCellSx, width: 90 }}>Tax Amt</TableCell>
+                      <TableCell sx={{ ...headerCellSx, ...borderedCellSx, width: 48 }} />
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {form.items.map((it, idx) => {
+                      const itemDiscount = parseFloat(it.discount) || 0;
+                      const itemAmount = ((parseFloat(it.quantity) || 0) * (parseFloat(it.price) || 0)) - itemDiscount;
+                      const taxInfo = getItemTaxInfo(it.item_id, it.tax_id, it.quantity, it.price, it.discount);
+                      return (
+                        <TableRow key={idx}>
+                          <TableCell align="center" sx={borderedCellSx}>{idx + 1}</TableCell>
+                          <TableCell sx={borderedCellSx}>
+                            <FormControl size="small" fullWidth>
+                              <Select
+                                value={selVal(it.item_id)}
+                                onChange={e => updateItem(idx, 'item_id', e.target.value)}
+                              >
+                                <MenuItem value=""><em>Select Item</em></MenuItem>
+                                {items.map(i => <MenuItem key={i.id} value={String(i.id)}>{i.name} (Stock: {i.current_stock})</MenuItem>)}
+                              </Select>
+                            </FormControl>
+                          </TableCell>
+                          <TableCell sx={borderedCellSx}>
+                            <TextField size="small" type="number" value={it.quantity} onChange={e => updateItem(idx, 'quantity', e.target.value)} />
+                          </TableCell>
+                          <TableCell sx={borderedCellSx}>
+                            <TextField size="small" type="number" inputProps={{ step: '0.01' }} value={it.price} onChange={e => updateItem(idx, 'price', e.target.value)} />
+                          </TableCell>
+                          <TableCell sx={borderedCellSx}>
+                            <TextField size="small" type="number" inputProps={{ step: '0.01' }} value={it.discount || ''} onChange={e => updateItem(idx, 'discount', e.target.value)} placeholder="0" />
+                          </TableCell>
+                          <TableCell align="right" sx={{ ...borderedCellSx, fontWeight: 700 }}>₹{itemAmount.toFixed(2)}</TableCell>
+                          <TableCell sx={borderedCellSx}>
+                            <FormControl size="small" fullWidth>
+                              <Select
+                                value={selVal(it.tax_id)}
+                                onChange={e => updateItem(idx, 'tax_id', e.target.value)}
+                                disabled={!it.item_id || form.invoice_type === 'Retail'}
+                              >
+                                <MenuItem value=""><em>No Tax</em></MenuItem>
+                                {taxes.map(t => <MenuItem key={t.id} value={String(t.id)}>{t.name} ({t.percentage}%)</MenuItem>)}
+                              </Select>
+                            </FormControl>
+                          </TableCell>
+                          <TableCell align="right" sx={{ ...borderedCellSx, color: 'text.secondary' }}>{taxInfo.taxAmount > 0 ? `₹${taxInfo.taxAmount.toFixed(2)}` : '-'}</TableCell>
+                          <TableCell align="center" sx={borderedCellSx}>
+                            <IconButton size="small" color="error" onClick={() => removeItemRow(idx)} aria-label="Remove item">
+                              <i className="fas fa-trash" style={{ fontSize: 13 }} aria-hidden="true" />
+                            </IconButton>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+            </Box>
+            <Box sx={{ mt: 1.5 }}>
+              <Button variant="outlined" size="small" onClick={addItemRow} startIcon={<i className="fas fa-plus" aria-hidden="true" />}>
+                Add Item
+              </Button>
+            </Box>
+          </Box>
 
           {/* Bottom Section - Addless, Notes, Summary */}
-          <Row className="mt-3">
-            <Col md={7}>
-              <div className="bg-light p-3 rounded border h-100">
-                <h6 className="text-primary mb-3 border-bottom pb-2">
-                  <i className="fas fa-edit me-2"></i>Additional Details
-                </h6>
-                <Row>
-                  <Col md={4}>
-                    <Form.Group className="mb-2">
-                      <Form.Label className="fw-bold small">Addless Title</Form.Label>
-                      <Form.Control size="sm" value={form.addless_title} onChange={e => setForm(f => ({ ...f, addless_title: e.target.value }))} />
-                    </Form.Group>
-                  </Col>
-                  <Col md={4}>
-                    <Form.Group className="mb-2">
-                      <Form.Label className="fw-bold small">Addless Amount (₹)</Form.Label>
-                      <Form.Control type="number" size="sm" step="0.01" value={form.addless_amount} onChange={e => setForm(f => ({ ...f, addless_amount: e.target.value }))} />
-                    </Form.Group>
-                  </Col>
-                </Row>
-                <Form.Group className="mb-0">
-                  <Form.Label className="fw-bold small">Notes</Form.Label>
-                  <Form.Control as="textarea" rows={2} size="sm" value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} placeholder="Enter any additional notes..." />
-                </Form.Group>
-              </div>
-            </Col>
+          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '7fr 5fr' }, gap: 2.5 }}>
+            <Box sx={sectionBoxSx}>
+              <Typography sx={sectionTitleSx}>
+                <i className="fas fa-edit" aria-hidden="true" />Additional Details
+              </Typography>
+              <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)' }, gap: 2, mb: 2 }}>
+                <TextField
+                  size="small"
+                  label="Addless Title"
+                  value={form.addless_title}
+                  onChange={e => setForm(f => ({ ...f, addless_title: e.target.value }))}
+                />
+                <TextField
+                  size="small"
+                  type="number"
+                  label="Addless Amount (₹)"
+                  inputProps={{ step: '0.01' }}
+                  value={form.addless_amount}
+                  onChange={e => setForm(f => ({ ...f, addless_amount: e.target.value }))}
+                />
+              </Box>
+              <TextField
+                size="small"
+                label="Notes"
+                multiline
+                rows={2}
+                fullWidth
+                value={form.notes}
+                onChange={e => setForm(f => ({ ...f, notes: e.target.value }))}
+                placeholder="Enter any additional notes..."
+              />
+            </Box>
 
-            <Col md={5}>
-              <div className="bg-light p-3 rounded border h-100">
-                <h6 className="text-primary mb-3 border-bottom pb-2">
-                  <i className="fas fa-calculator me-2"></i>Summary
-                </h6>
-                <Table bordered size="sm" className="mb-0 bg-white">
-                  <tbody>
-                    <tr><td className="text-end fw-bold" style={{width: '50%'}}>Subtotal:</td><td className="text-end">₹{subtotal.toFixed(2)}</td></tr>
-                    <tr><td className="text-end">Discount:</td><td className="text-end text-danger">-₹{discount.toFixed(2)} ({discountPercentage.toFixed(1)}%)</td></tr>
+            <Box sx={sectionBoxSx}>
+              <Typography sx={sectionTitleSx}>
+                <i className="fas fa-calculator" aria-hidden="true" />Summary
+              </Typography>
+              <Box sx={borderedTableSx}>
+                <Table size="small">
+                  <TableBody>
+                    <TableRow>
+                      <TableCell align="right" sx={{ ...borderedCellSx, width: '50%', fontWeight: 700 }}>Subtotal:</TableCell>
+                      <TableCell align="right" sx={borderedCellSx}>₹{subtotal.toFixed(2)}</TableCell>
+                    </TableRow>
+                    <TableRow>
+                      <TableCell align="right" sx={borderedCellSx}>Discount:</TableCell>
+                      <TableCell align="right" sx={{ ...borderedCellSx, color: 'error.main' }}>-₹{discount.toFixed(2)} ({discountPercentage.toFixed(1)}%)</TableCell>
+                    </TableRow>
                     {form.invoice_type === 'Tax Invoice' && form.gst_type === 'CGST/SGST' ? (
                       <>
-                        <tr><td className="text-end">CGST:</td><td className="text-end">₹{cgst.toFixed(2)}</td></tr>
-                        <tr><td className="text-end">SGST:</td><td className="text-end">₹{sgst.toFixed(2)}</td></tr>
+                        <TableRow>
+                          <TableCell align="right" sx={borderedCellSx}>CGST:</TableCell>
+                          <TableCell align="right" sx={borderedCellSx}>₹{cgst.toFixed(2)}</TableCell>
+                        </TableRow>
+                        <TableRow>
+                          <TableCell align="right" sx={borderedCellSx}>SGST:</TableCell>
+                          <TableCell align="right" sx={borderedCellSx}>₹{sgst.toFixed(2)}</TableCell>
+                        </TableRow>
                       </>
                     ) : form.invoice_type === 'Tax Invoice' && (
-                      <tr><td className="text-end">IGST:</td><td className="text-end">₹{igst.toFixed(2)}</td></tr>
+                      <TableRow>
+                        <TableCell align="right" sx={borderedCellSx}>IGST:</TableCell>
+                        <TableCell align="right" sx={borderedCellSx}>₹{igst.toFixed(2)}</TableCell>
+                      </TableRow>
                     )}
-                    <tr><td className="text-end">{form.addless_title}:</td><td className="text-end">₹{addlessAmount.toFixed(2)}</td></tr>
-                    <tr className="bg-primary text-white"><td className="text-end fw-bold">Grand Total:</td><td className="text-end fw-bold">₹{grandTotal.toFixed(2)}</td></tr>
-                  </tbody>
+                    <TableRow>
+                      <TableCell align="right" sx={borderedCellSx}>{form.addless_title}:</TableCell>
+                      <TableCell align="right" sx={borderedCellSx}>₹{addlessAmount.toFixed(2)}</TableCell>
+                    </TableRow>
+                    <TableRow sx={{ bgcolor: 'primary.main' }}>
+                      <TableCell align="right" sx={{ borderBottom: 0, color: '#fff', fontWeight: 700 }}>Grand Total:</TableCell>
+                      <TableCell align="right" sx={{ borderBottom: 0, color: '#fff', fontWeight: 700 }}>₹{grandTotal.toFixed(2)}</TableCell>
+                    </TableRow>
+                  </TableBody>
                 </Table>
-              </div>
-            </Col>
-          </Row>
-        </Modal.Body>
-        <Modal.Footer>
-          <Button variant="secondary" onClick={() => setShow(false)}>Cancel</Button>
-          <Button variant="primary" onClick={save} disabled={saving}>
-            {saving && <span className="spinner-border spinner-border-sm me-2"></span>} {editingId ? 'Update Sale' : 'Save Sale'}
+              </Box>
+            </Box>
+          </Box>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, py: 2 }}>
+          <Button variant="outlined" onClick={() => setShow(false)}>Cancel</Button>
+          <Button variant="contained" onClick={save} disabled={saving} startIcon={saving ? <CircularProgress size={14} color="inherit" /> : null}>
+            {editingId ? 'Update Sale' : 'Save Sale'}
           </Button>
-        </Modal.Footer>
-      </Modal>
+        </DialogActions>
+      </Dialog>
 
-      {/* View Sale Modal */}
-      <Modal show={viewShow} onHide={() => setViewShow(false)} size="lg">
-        <Modal.Header closeButton><Modal.Title>Sale Details</Modal.Title></Modal.Header>
-        <Modal.Body>
+      {/* View Sale Dialog */}
+      <Dialog open={viewShow} onClose={() => setViewShow(false)} maxWidth="lg" fullWidth>
+        <DialogTitle sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 2 }}>
+          <Typography variant="h6" sx={{ fontWeight: 700 }}>Sale Details</Typography>
+          <IconButton size="small" onClick={() => setViewShow(false)} aria-label="Close">
+            <i className="fas fa-times" style={{ fontSize: 14 }} aria-hidden="true" />
+          </IconButton>
+        </DialogTitle>
+        <DialogContent dividers>
           {viewData && (
             <>
               {/* Header Info */}
-              <div className="bg-light p-3 rounded border mb-3">
-                <Row className="mb-2">
-                  <Col md={3}><strong className="text-muted small">Customer:</strong><br/>{viewData.customer?.name}</Col>
-                  <Col md={3}><strong className="text-muted small">Invoice #:</strong><br/>{viewData.invoice_number}</Col>
-                  <Col md={3}><strong className="text-muted small">Type:</strong><br/>{viewData.invoice_type}</Col>
-                  <Col md={3}><strong className="text-muted small">Date:</strong><br/>{viewData.invoice_date ? new Date(viewData.invoice_date).toLocaleDateString('en-IN') : '-'}</Col>
-                </Row>
-                <Row className="mb-2">
-                  <Col md={3}><strong className="text-muted small">Godown:</strong><br/>{viewData.warehouse?.name || '-'}</Col>
-                  <Col md={3}><strong className="text-muted small">Invoice Type:</strong><br/>{viewData.invoice_type}</Col>
-                </Row>
-                {viewData.invoice_type === 'Tax Invoice' && (
-                  <Row>
-                    <Col md={3}><strong className="text-muted small">Tax Rate Type:</strong><br/>{viewData.tax_type || 'Tax Exclusive'}</Col>
-                    <Col md={3}><strong className="text-muted small">GST Type:</strong><br/>{viewData.gst_type || 'CGST/SGST'}</Col>
-                  </Row>
-                )}
-              </div>
+              <Box sx={{ ...sectionBoxSx, height: 'auto', mb: 3 }}>
+                <Box sx={{ display: 'grid', gridTemplateColumns: { xs: 'repeat(2, 1fr)', md: 'repeat(4, 1fr)' }, gap: 2 }}>
+                  <Box>
+                    <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 700 }}>Customer:</Typography>
+                    <Typography variant="body2">{viewData.customer?.name}</Typography>
+                  </Box>
+                  <Box>
+                    <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 700 }}>Invoice #:</Typography>
+                    <Typography variant="body2">{viewData.invoice_number}</Typography>
+                  </Box>
+                  <Box>
+                    <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 700 }}>Type:</Typography>
+                    <Typography variant="body2">{viewData.invoice_type}</Typography>
+                  </Box>
+                  <Box>
+                    <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 700 }}>Date:</Typography>
+                    <Typography variant="body2">{viewData.invoice_date ? new Date(viewData.invoice_date).toLocaleDateString('en-IN') : '-'}</Typography>
+                  </Box>
+                  <Box>
+                    <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 700 }}>Godown:</Typography>
+                    <Typography variant="body2">{viewData.warehouse?.name || '-'}</Typography>
+                  </Box>
+                  <Box>
+                    <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 700 }}>Invoice Type:</Typography>
+                    <Typography variant="body2">{viewData.invoice_type}</Typography>
+                  </Box>
+                  {viewData.invoice_type === 'Tax Invoice' && (
+                    <>
+                      <Box>
+                        <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 700 }}>Tax Rate Type:</Typography>
+                        <Typography variant="body2">{viewData.tax_type || 'Tax Exclusive'}</Typography>
+                      </Box>
+                      <Box>
+                        <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 700 }}>GST Type:</Typography>
+                        <Typography variant="body2">{viewData.gst_type || 'CGST/SGST'}</Typography>
+                      </Box>
+                    </>
+                  )}
+                </Box>
+              </Box>
 
               {/* Items Table */}
-              <div className="table-responsive">
-                <Table bordered size="sm">
-                  <thead className="bg-light">
-                    <tr className="text-center">
-                      <th>#</th>
-                      <th>Item</th>
-                      <th>Qty</th>
-                      <th>Price (₹)</th>
-                      <th>Discount (₹)</th>
-                      <th>Amount (₹)</th>
-                      <th>Tax</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {viewData.items?.map((it, idx) => (
-                      <tr key={idx}>
-                        <td className="text-center">{idx + 1}</td>
-                        <td>{it.item?.name}</td>
-                        <td className="text-center">{it.quantity}</td>
-                        <td className="text-end">₹{parseFloat(it.price).toFixed(2)}</td>
-                        <td className="text-end">{it.discount ? `₹${parseFloat(it.discount).toFixed(2)}` : '-'}</td>
-                        <td className="text-end fw-bold">₹{parseFloat(it.amount || (it.quantity * it.price - (it.discount || 0))).toFixed(2)}</td>
-                        <td className="text-end text-muted small">{it.tax_amount ? `₹${parseFloat(it.tax_amount).toFixed(2)}` : '-'}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </Table>
-              </div>
+              <Box sx={{ ...borderedTableSx, mb: 3 }}>
+                <TableContainer sx={{ overflowX: 'auto' }}>
+                  <Table size="small">
+                    <TableHead>
+                      <TableRow sx={{ bgcolor: '#f8fafc' }}>
+                        <TableCell align="center" sx={{ ...headerCellSx, ...borderedCellSx }}>#</TableCell>
+                        <TableCell sx={{ ...headerCellSx, ...borderedCellSx }}>Item</TableCell>
+                        <TableCell align="center" sx={{ ...headerCellSx, ...borderedCellSx }}>Qty</TableCell>
+                        <TableCell align="right" sx={{ ...headerCellSx, ...borderedCellSx }}>Price (₹)</TableCell>
+                        <TableCell align="right" sx={{ ...headerCellSx, ...borderedCellSx }}>Discount (₹)</TableCell>
+                        <TableCell align="right" sx={{ ...headerCellSx, ...borderedCellSx }}>Amount (₹)</TableCell>
+                        <TableCell align="right" sx={{ ...headerCellSx, ...borderedCellSx }}>Tax</TableCell>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {viewData.items?.map((it, idx) => (
+                        <TableRow key={idx}>
+                          <TableCell align="center" sx={borderedCellSx}>{idx + 1}</TableCell>
+                          <TableCell sx={borderedCellSx}>{it.item?.name}</TableCell>
+                          <TableCell align="center" sx={borderedCellSx}>{it.quantity}</TableCell>
+                          <TableCell align="right" sx={borderedCellSx}>₹{parseFloat(it.price).toFixed(2)}</TableCell>
+                          <TableCell align="right" sx={borderedCellSx}>{it.discount ? `₹${parseFloat(it.discount).toFixed(2)}` : '-'}</TableCell>
+                          <TableCell align="right" sx={{ ...borderedCellSx, fontWeight: 700 }}>₹{parseFloat(it.amount || (it.quantity * it.price - (it.discount || 0))).toFixed(2)}</TableCell>
+                          <TableCell align="right" sx={{ ...borderedCellSx, color: 'text.secondary' }}>{it.tax_amount ? `₹${parseFloat(it.tax_amount).toFixed(2)}` : '-'}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </TableContainer>
+              </Box>
 
               {/* Summary */}
-              <div className="mt-3">
-                <Table bordered size="sm" className="mb-0" style={{maxWidth: '400px', marginLeft: 'auto'}}>
-                  <tbody>
-                    <tr><td className="text-end fw-bold" style={{width: '60%'}}>Subtotal:</td><td className="text-end">₹{parseFloat(viewData.total_amount || 0).toFixed(2)}</td></tr>
-                    <tr><td className="text-end">Discount:</td><td className="text-end text-danger">-₹{parseFloat(viewData.discount || 0).toFixed(2)}</td></tr>
-                    {viewData.invoice_type === 'Tax Invoice' && viewData.gst_type === 'CGST/SGST' ? (
-                      <>
-                        <tr><td className="text-end">CGST:</td><td className="text-end">₹{(parseFloat(viewData.tax || 0) / 2).toFixed(2)}</td></tr>
-                        <tr><td className="text-end">SGST:</td><td className="text-end">₹{(parseFloat(viewData.tax || 0) / 2).toFixed(2)}</td></tr>
-                      </>
-                    ) : viewData.invoice_type === 'Tax Invoice' && viewData.gst_type === 'IGST' ? (
-                      <tr><td className="text-end">IGST:</td><td className="text-end">₹{parseFloat(viewData.tax || 0).toFixed(2)}</td></tr>
-                    ) : viewData.invoice_type === 'Tax Invoice' && (
-                      <tr><td className="text-end">Tax:</td><td className="text-end">₹{parseFloat(viewData.tax || 0).toFixed(2)}</td></tr>
-                    )}
-                    <tr><td className="text-end">{viewData.addless_title || 'Addless'}:</td><td className="text-end">₹{parseFloat(viewData.addless_amount || 0).toFixed(2)}</td></tr>
-                    <tr className="bg-primary text-white"><td className="text-end fw-bold">Grand Total:</td><td className="text-end fw-bold">₹{parseFloat(viewData.grand_total || 0).toFixed(2)}</td></tr>
-                  </tbody>
-                </Table>
-              </div>
+              <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 2 }}>
+                <Box sx={{ ...borderedTableSx, maxWidth: 400, width: '100%' }}>
+                  <Table size="small">
+                    <TableBody>
+                      <TableRow>
+                        <TableCell align="right" sx={{ ...borderedCellSx, width: '60%', fontWeight: 700 }}>Subtotal:</TableCell>
+                        <TableCell align="right" sx={borderedCellSx}>₹{parseFloat(viewData.total_amount || 0).toFixed(2)}</TableCell>
+                      </TableRow>
+                      <TableRow>
+                        <TableCell align="right" sx={borderedCellSx}>Discount:</TableCell>
+                        <TableCell align="right" sx={{ ...borderedCellSx, color: 'error.main' }}>-₹{parseFloat(viewData.discount || 0).toFixed(2)}</TableCell>
+                      </TableRow>
+                      {viewData.invoice_type === 'Tax Invoice' && viewData.gst_type === 'CGST/SGST' ? (
+                        <>
+                          <TableRow>
+                            <TableCell align="right" sx={borderedCellSx}>CGST:</TableCell>
+                            <TableCell align="right" sx={borderedCellSx}>₹{(parseFloat(viewData.tax || 0) / 2).toFixed(2)}</TableCell>
+                          </TableRow>
+                          <TableRow>
+                            <TableCell align="right" sx={borderedCellSx}>SGST:</TableCell>
+                            <TableCell align="right" sx={borderedCellSx}>₹{(parseFloat(viewData.tax || 0) / 2).toFixed(2)}</TableCell>
+                          </TableRow>
+                        </>
+                      ) : viewData.invoice_type === 'Tax Invoice' && viewData.gst_type === 'IGST' ? (
+                        <TableRow>
+                          <TableCell align="right" sx={borderedCellSx}>IGST:</TableCell>
+                          <TableCell align="right" sx={borderedCellSx}>₹{parseFloat(viewData.tax || 0).toFixed(2)}</TableCell>
+                        </TableRow>
+                      ) : viewData.invoice_type === 'Tax Invoice' && (
+                        <TableRow>
+                          <TableCell align="right" sx={borderedCellSx}>Tax:</TableCell>
+                          <TableCell align="right" sx={borderedCellSx}>₹{parseFloat(viewData.tax || 0).toFixed(2)}</TableCell>
+                        </TableRow>
+                      )}
+                      <TableRow>
+                        <TableCell align="right" sx={borderedCellSx}>{viewData.addless_title || 'Addless'}:</TableCell>
+                        <TableCell align="right" sx={borderedCellSx}>₹{parseFloat(viewData.addless_amount || 0).toFixed(2)}</TableCell>
+                      </TableRow>
+                      <TableRow sx={{ bgcolor: 'primary.main' }}>
+                        <TableCell align="right" sx={{ borderBottom: 0, color: '#fff', fontWeight: 700 }}>Grand Total:</TableCell>
+                        <TableCell align="right" sx={{ borderBottom: 0, color: '#fff', fontWeight: 700 }}>₹{parseFloat(viewData.grand_total || 0).toFixed(2)}</TableCell>
+                      </TableRow>
+                    </TableBody>
+                  </Table>
+                </Box>
+              </Box>
 
               {viewData.notes && (
-                <div className="mt-3 p-2 bg-light rounded">
-                  <strong className="text-muted small">Notes:</strong>
-                  <p className="mb-0">{viewData.notes}</p>
-                </div>
+                <Box sx={{ mt: 2, p: 2, bgcolor: '#f8fafc', borderRadius: 2 }}>
+                  <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 700 }}>Notes:</Typography>
+                  <Typography variant="body2" sx={{ mb: 0 }}>{viewData.notes}</Typography>
+                </Box>
               )}
             </>
           )}
-        </Modal.Body>
-        <Modal.Footer>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, py: 2 }}>
           <Button
-            variant="outline-primary"
+            variant="outlined"
             onClick={() => {
               if (!viewData?.id) return;
               setViewShow(false);
@@ -944,9 +1344,9 @@ export default function Sales() {
           >
             Create Credit Note
           </Button>
-          <Button variant="secondary" onClick={() => setViewShow(false)}>Close</Button>
-        </Modal.Footer>
-      </Modal>
+          <Button variant="outlined" onClick={() => setViewShow(false)}>Close</Button>
+        </DialogActions>
+      </Dialog>
 
       <WhatsAppSendModal
         show={waShow}
@@ -956,6 +1356,6 @@ export default function Sales() {
         contextType="sale"
         contextId={waTarget?.id}
       />
-    </div>
+    </Box>
   );
 }

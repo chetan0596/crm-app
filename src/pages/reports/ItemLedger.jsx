@@ -1,5 +1,28 @@
-import { useEffect, useState } from "react";
-import { Card, Row, Col, Form, Table, Badge, Button } from "react-bootstrap";
+import { useCallback, useEffect, useState } from "react";
+import {
+  Alert,
+  AlertTitle,
+  Box,
+  Button,
+  Card,
+  CardContent,
+  Chip,
+  Divider,
+  FormControl,
+  InputLabel,
+  LinearProgress,
+  MenuItem,
+  Select,
+  Stack,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  TextField,
+  Typography,
+} from "@mui/material";
 import api from "../../api";
 import { canView } from "../../utils/permissions";
 
@@ -8,14 +31,70 @@ const formatMoney = (v) => {
   return n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 };
 
+const toArray = (value) => {
+  if (Array.isArray(value)) return value;
+  if (Array.isArray(value?.data)) return value.data;
+  if (Array.isArray(value?.data?.data)) return value.data.data;
+  if (Array.isArray(value?.items)) return value.items;
+  if (Array.isArray(value?.results)) return value.results;
+  return [];
+};
+
+const cardSx = {
+  border: '1px solid',
+  borderColor: 'divider',
+  borderRadius: 3,
+  boxShadow: '0 8px 24px rgba(28,37,46,.05)',
+};
+
+const headCellSx = {
+  color: 'text.secondary',
+  fontSize: 12,
+  fontWeight: 700,
+  textTransform: 'uppercase',
+  letterSpacing: '.04em',
+  px: 2,
+  py: 1.5,
+};
+
+const EMPTY_SUMMARY = { total_in: 0, total_out: 0, closing_balance: 0 };
+
+const typeChipColor = (type) => {
+  switch (type) {
+    case 'Purchase': return 'success';
+    case 'Sale': return 'error';
+    case 'Sale Return': return 'info';
+    case 'Purchase Return': return 'warning';
+    default: return 'default';
+  }
+};
+
+function StatCard({ label, value, icon, color, background }) {
+  return (
+    <Card sx={{ ...cardSx, height: '100%' }}>
+      <CardContent sx={{ p: 2.5 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+          <Box sx={{ width: 44, height: 44, borderRadius: 2, display: 'grid', placeItems: 'center', bgcolor: background, color, flexShrink: 0 }}>
+            <i className={icon} style={{ fontSize: 18 }} aria-hidden="true" />
+          </Box>
+          <Box sx={{ minWidth: 0 }}>
+            <Typography variant="body2" sx={{ color: 'text.secondary', mb: .25 }}>
+              {label}
+            </Typography>
+            <Typography variant="h6" sx={{ color, fontWeight: 700 }}>
+              {value}
+            </Typography>
+          </Box>
+        </Box>
+      </CardContent>
+    </Card>
+  );
+}
+
 export default function ItemLedger() {
   const [items, setItems] = useState([]);
   const [transactions, setTransactions] = useState([]);
-  const [summary, setSummary] = useState({
-    total_in: 0,
-    total_out: 0,
-    closing_balance: 0,
-  });
+  const [summary, setSummary] = useState(EMPTY_SUMMARY);
   const [loading, setLoading] = useState(false);
   const [selectedItem, setSelectedItem] = useState("");
   const [fromDate, setFromDate] = useState("");
@@ -23,45 +102,45 @@ export default function ItemLedger() {
 
   const canViewLedger = canView("item-ledger");
 
-  const loadData = async () => {
+  const loadData = useCallback(async (item, from, to) => {
     if (!canViewLedger) return;
 
     setLoading(true);
     try {
       const params = {};
-      if (selectedItem) params.item_id = selectedItem;
-      if (fromDate) params.from = fromDate;
-      if (toDate) params.to = toDate;
+      if (item) params.item_id = item;
+      if (from) params.from = from;
+      if (to) params.to = to;
 
       const res = await api.get("/item-ledger", { params });
-      setItems(res.data.items || []);
-      setTransactions(res.data.transactions || []);
-      setSummary(res.data.summary || { total_in: 0, total_out: 0, closing_balance: 0 });
+      setItems(toArray(res.data?.items));
+      setTransactions(toArray(res.data?.transactions));
+      setSummary(res.data?.summary || EMPTY_SUMMARY);
     } catch (err) {
       console.error("Failed to load item ledger:", err);
       setTransactions([]);
-      setSummary({ total_in: 0, total_out: 0, closing_balance: 0 });
+      setSummary(EMPTY_SUMMARY);
     } finally {
       setLoading(false);
     }
-  };
+  }, [canViewLedger]);
 
   useEffect(() => {
     if (canViewLedger) {
-      loadData();
+      loadData("", "", "");
     }
-  }, []);
+  }, [canViewLedger, loadData]);
 
   const handleFilter = (e) => {
     e.preventDefault();
-    loadData();
+    loadData(selectedItem, fromDate, toDate);
   };
 
   const handleClear = () => {
     setSelectedItem("");
     setFromDate("");
     setToDate("");
-    loadData();
+    loadData("", "", "");
   };
 
   const handleDownloadPDF = () => {
@@ -95,107 +174,84 @@ export default function ItemLedger() {
 
   if (!canViewLedger) {
     return (
-      <div className="p-4">
-        <Card className="border" style={{ borderColor: "#e2e8f0" }}>
-          <Card.Body className="text-center py-5">
-            <div className="text-secondary">Access denied</div>
-          </Card.Body>
-        </Card>
-      </div>
+      <Alert severity="error" sx={{ borderRadius: 3 }}>
+        <AlertTitle>Access denied</AlertTitle>
+        You don’t have permission to view this report.
+      </Alert>
     );
   }
 
   const selectedItemData = items.find((i) => String(i.id) === String(selectedItem));
+  const netMovement = Number(summary.total_in || 0) - Number(summary.total_out || 0);
 
   const renderTransactionRows = () => {
-    let runningBalance = 0;
     const rows = [];
     const firstSummary = transactions.find(t => t.type === 'summary');
-    const openingBalance = Number(firstSummary?.opening_stock || 0);
-    runningBalance = openingBalance;
+    const runningBalance = { value: Number(firstSummary?.opening_stock || 0) };
 
     rows.push(
-      <tr key="opening" style={{ backgroundColor: "#f8fafc" }}>
-        <td style={{ color: "#1e293b", fontWeight: "bold" }}>{firstSummary?.date || '-'}</td>
-        <td>
-          <Badge bg="secondary" style={{ fontSize: "0.75rem", fontWeight: 500 }}>
-            Opening Balance
-          </Badge>
-        </td>
-        <td colSpan={selectedItem ? 3 : 4} style={{ color: "#64748b" }}>-</td>
-        <td className="text-end" style={{ color: "#475569" }}>-</td>
-        <td className="text-end" style={{ color: "#475569" }}>-</td>
-        <td className="text-end" style={{ color: "#475569" }}>-</td>
-        <td className="text-end" style={{ color: "#475569" }}>-</td>
-        <td className="text-end fw-semibold" style={{ color: "#2563eb" }}>{Number(runningBalance || 0).toFixed(3)}</td>
-      </tr>
+      <TableRow key="opening" sx={{ bgcolor: '#f8fafc' }}>
+        <TableCell sx={{ px: 2, fontWeight: 700 }}>{firstSummary?.date || '-'}</TableCell>
+        <TableCell sx={{ px: 2 }}>
+          <Chip label="Opening Balance" size="small" sx={{ bgcolor: '#f1f5f9', color: '#475569', fontWeight: 700 }} />
+        </TableCell>
+        <TableCell colSpan={selectedItem ? 3 : 4} sx={{ px: 2, color: 'text.secondary' }}>-</TableCell>
+        <TableCell align="right" sx={{ px: 2, color: 'text.secondary' }}>-</TableCell>
+        <TableCell align="right" sx={{ px: 2, color: 'text.secondary' }}>-</TableCell>
+        <TableCell align="right" sx={{ px: 2, color: 'text.secondary' }}>-</TableCell>
+        <TableCell align="right" sx={{ px: 2, color: 'text.secondary' }}>-</TableCell>
+        <TableCell align="right" sx={{ px: 2, color: 'info.main', fontWeight: 700 }}>{runningBalance.value.toFixed(3)}</TableCell>
+      </TableRow>
     );
 
     transactions.forEach((t, index) => {
       if (t.type === 'summary') {
         rows.push(
-          <tr key={`summary-${index}`} style={{ backgroundColor: "#f1f5f9", fontWeight: "bold" }}>
-            <td style={{ color: "#1e293b", fontWeight: "bold" }}>{t.date}</td>
-            <td>
-              <Badge bg="primary" style={{ fontSize: "0.75rem", fontWeight: 500 }}>
-                Daily Summary
-              </Badge>
-            </td>
-            <td colSpan={selectedItem ? 3 : 4} style={{ color: "#1e293b", fontWeight: "bold" }}>
+          <TableRow key={`summary-${index}`} sx={{ bgcolor: '#f1f5f9' }}>
+            <TableCell sx={{ px: 2, fontWeight: 700 }}>{t.date}</TableCell>
+            <TableCell sx={{ px: 2 }}>
+              <Chip label="Daily Summary" size="small" color="primary" sx={{ fontWeight: 700 }} />
+            </TableCell>
+            <TableCell colSpan={selectedItem ? 3 : 4} sx={{ px: 2, fontWeight: 700 }}>
               Opening: {Number(t.opening_stock || 0).toFixed(3)} | Closing: {Number(t.closing_stock || 0).toFixed(3)}
-            </td>
-            <td className="text-end" style={{ color: "#475569" }}>-</td>
-            <td className="text-end" style={{ color: "#475569" }}>-</td>
-            <td className="text-end" style={{ color: "#475569" }}>-</td>
-            <td className="text-end" style={{ color: "#475569" }}>-</td>
-            <td className="text-end fw-semibold" style={{ color: "#2563eb" }}>{Number(t.closing_stock || 0).toFixed(3)}</td>
-          </tr>
+            </TableCell>
+            <TableCell align="right" sx={{ px: 2, color: 'text.secondary' }}>-</TableCell>
+            <TableCell align="right" sx={{ px: 2, color: 'text.secondary' }}>-</TableCell>
+            <TableCell align="right" sx={{ px: 2, color: 'text.secondary' }}>-</TableCell>
+            <TableCell align="right" sx={{ px: 2, color: 'text.secondary' }}>-</TableCell>
+            <TableCell align="right" sx={{ px: 2, color: 'info.main', fontWeight: 700 }}>{Number(t.closing_stock || 0).toFixed(3)}</TableCell>
+          </TableRow>
         );
       } else {
         const qtyIn = Number(t.quantity_in || 0);
         const qtyOut = Number(t.quantity_out || 0);
-        if (qtyIn > 0) runningBalance += qtyIn;
-        if (qtyOut > 0) runningBalance -= qtyOut;
-
-        const getBadgeBg = (type) => {
-          switch (type) {
-            case 'Purchase': return 'success';
-            case 'Sale': return 'danger';
-            case 'Sale Return': return 'info';
-            case 'Purchase Return': return 'warning';
-            default: return 'secondary';
-          }
-        };
+        if (qtyIn > 0) runningBalance.value += qtyIn;
+        if (qtyOut > 0) runningBalance.value -= qtyOut;
 
         rows.push(
-          <tr key={`trans-${index}`} style={{ borderColor: "#f1f5f9" }}>
-            <td style={{ color: "#475569" }}>{t.date}</td>
-            <td>
-              <Badge
-                bg={getBadgeBg(t.type)}
-                style={{ fontSize: "0.75rem", fontWeight: 500 }}
-              >
-                {t.type}
-              </Badge>
-            </td>
-            <td style={{ color: "#1e293b" }}>{t.reference}</td>
-            <td style={{ color: "#475569" }}>{t.party}</td>
+          <TableRow key={`trans-${index}`} hover>
+            <TableCell sx={{ px: 2 }}>{t.date}</TableCell>
+            <TableCell sx={{ px: 2 }}>
+              <Chip label={t.type} size="small" color={typeChipColor(t.type)} sx={{ fontWeight: 700 }} />
+            </TableCell>
+            <TableCell sx={{ px: 2 }}>{t.reference}</TableCell>
+            <TableCell sx={{ px: 2 }}>{t.party}</TableCell>
             {!selectedItem && (
-              <td style={{ color: "#1e293b" }}>
-                <div className="small">{t.item_name}</div>
-                <div className="small text-secondary">{t.item_sku}</div>
-              </td>
+              <TableCell sx={{ px: 2 }}>
+                <Typography variant="body2">{t.item_name}</Typography>
+                <Typography variant="caption" color="text.secondary">{t.item_sku}</Typography>
+              </TableCell>
             )}
-            <td className="text-end fw-medium" style={{ color: "#059669" }}>
+            <TableCell align="right" sx={{ px: 2, color: 'success.main', fontWeight: 600 }}>
               {qtyIn > 0 ? qtyIn.toFixed(3) : "-"}
-            </td>
-            <td className="text-end fw-medium" style={{ color: "#dc2626" }}>
+            </TableCell>
+            <TableCell align="right" sx={{ px: 2, color: 'error.main', fontWeight: 600 }}>
               {qtyOut > 0 ? qtyOut.toFixed(3) : "-"}
-            </td>
-            <td className="text-end" style={{ color: "#475569" }}>₹{formatMoney(t.rate)}</td>
-            <td className="text-end fw-medium" style={{ color: "#1e293b" }}>₹{formatMoney(t.value)}</td>
-            <td className="text-end fw-semibold" style={{ color: "#2563eb" }}>{Number(runningBalance || 0).toFixed(3)}</td>
-          </tr>
+            </TableCell>
+            <TableCell align="right" sx={{ px: 2 }}>₹{formatMoney(t.rate)}</TableCell>
+            <TableCell align="right" sx={{ px: 2, fontWeight: 600 }}>₹{formatMoney(t.value)}</TableCell>
+            <TableCell align="right" sx={{ px: 2, color: 'info.main', fontWeight: 700 }}>{runningBalance.value.toFixed(3)}</TableCell>
+          </TableRow>
         );
       }
     });
@@ -204,166 +260,145 @@ export default function ItemLedger() {
   };
 
   return (
-    <div className="p-4">
-      <div className="mb-4">
-        <h4 className="fw-semibold mb-1" style={{ color: "#1e293b" }}>Item Ledger</h4>
-        <div className="text-secondary small">View item transaction history with running balance</div>
-      </div>
+    <Box>
+      <Box sx={{ mb: 2.5 }}>
+        <Typography variant="h4" sx={{ color: 'text.primary', fontWeight: 700, mb: .5 }}>
+          Item Ledger
+        </Typography>
+        <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+          View item transaction history with running balance
+        </Typography>
+      </Box>
 
-      <Card className="mb-4 border" style={{ borderColor: "#e2e8f0" }}>
-        <Card.Body className="p-4">
-          <Form onSubmit={handleFilter}>
-            <Row className="g-3 align-items-end">
-              <Col md={3}>
-                <Form.Label className="small text-secondary mb-1">Item</Form.Label>
-                <Form.Select
+      <Card sx={{ ...cardSx, mb: 2.5 }}>
+        <CardContent sx={{ p: 3 }}>
+          <Box component="form" onSubmit={handleFilter}>
+            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', lg: 'repeat(3, 1fr)' }, gap: 2 }}>
+              <FormControl size="small" fullWidth>
+                <InputLabel>Item</InputLabel>
+                <Select
+                  label="Item"
                   value={selectedItem}
                   onChange={(e) => setSelectedItem(e.target.value)}
-                  style={{ borderColor: "#e2e8f0" }}
                 >
-                  <option value="">All Items</option>
+                  <MenuItem value=""><em>All Items</em></MenuItem>
                   {items.map((item) => (
-                    <option key={item.id} value={item.id}>
+                    <MenuItem key={item.id} value={item.id}>
                       {item.name} ({item.sku})
-                    </option>
+                    </MenuItem>
                   ))}
-                </Form.Select>
-              </Col>
-              <Col md={2}>
-                <Form.Label className="small text-secondary mb-1">From Date</Form.Label>
-                <Form.Control
-                  type="date"
-                  value={fromDate}
-                  onChange={(e) => setFromDate(e.target.value)}
-                  style={{ borderColor: "#e2e8f0" }}
-                />
-              </Col>
-              <Col md={2}>
-                <Form.Label className="small text-secondary mb-1">To Date</Form.Label>
-                <Form.Control
-                  type="date"
-                  value={toDate}
-                  onChange={(e) => setToDate(e.target.value)}
-                  style={{ borderColor: "#e2e8f0" }}
-                />
-              </Col>
-              <Col md="auto">
-                <div className="d-flex gap-2">
-                  <Button type="submit" variant="primary" disabled={loading}>
-                    {loading ? "Loading..." : "Apply Filters"}
-                  </Button>
-                  <Button type="button" variant="outline-secondary" onClick={handleClear} disabled={loading}>
-                    Clear
-                  </Button>
-                  <Button 
-                    type="button" 
-                    variant="success" 
-                    onClick={handleDownloadPDF} 
-                    disabled={!selectedItem || loading}
-                  >
-                    Download PDF
-                  </Button>
-                </div>
-              </Col>
-            </Row>
-          </Form>
+                </Select>
+              </FormControl>
+              <TextField
+                type="date"
+                size="small"
+                label="From Date"
+                value={fromDate}
+                onChange={(e) => setFromDate(e.target.value)}
+                slotProps={{ inputLabel: { shrink: true } }}
+                fullWidth
+              />
+              <TextField
+                type="date"
+                size="small"
+                label="To Date"
+                value={toDate}
+                onChange={(e) => setToDate(e.target.value)}
+                slotProps={{ inputLabel: { shrink: true } }}
+                fullWidth
+              />
+            </Box>
+            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} sx={{ mt: 2 }}>
+              <Button type="submit" variant="contained" disabled={loading}>
+                {loading ? "Loading..." : "Apply Filters"}
+              </Button>
+              <Button type="button" variant="outlined" onClick={handleClear} disabled={loading}>
+                Clear
+              </Button>
+              <Button
+                type="button"
+                variant="outlined"
+                color="error"
+                onClick={handleDownloadPDF}
+                disabled={!selectedItem || loading}
+                startIcon={<i className="fas fa-file-pdf" aria-hidden="true" />}
+              >
+                Download PDF
+              </Button>
+            </Stack>
+          </Box>
 
           {selectedItemData && (
-            <div className="mt-3 pt-3 border-top" style={{ borderColor: "#e2e8f0" }}>
-              <Row className="g-3">
-                <Col md={3}>
-                  <div className="small text-secondary">Selected Item</div>
-                  <div className="fw-semibold" style={{ color: "#1e293b" }}>{selectedItemData.name}</div>
-                </Col>
-                <Col md={3}>
-                  <div className="small text-secondary">SKU</div>
-                  <div className="fw-semibold" style={{ color: "#1e293b" }}>{selectedItemData.sku}</div>
-                </Col>
-                <Col md={3}>
-                  <div className="small text-secondary">Current Stock</div>
-                  <div className="fw-semibold" style={{ color: "#059669" }}>{selectedItemData.current_stock}</div>
-                </Col>
-              </Row>
-            </div>
+            <>
+              <Divider sx={{ my: 2.5 }} />
+              <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(3, 1fr)' }, gap: 2 }}>
+                <Box>
+                  <Typography variant="caption" sx={{ color: 'text.secondary' }}>Selected Item</Typography>
+                  <Typography variant="body2" sx={{ fontWeight: 700 }}>{selectedItemData.name}</Typography>
+                </Box>
+                <Box>
+                  <Typography variant="caption" sx={{ color: 'text.secondary' }}>SKU</Typography>
+                  <Typography variant="body2" sx={{ fontWeight: 700 }}>{selectedItemData.sku}</Typography>
+                </Box>
+                <Box>
+                  <Typography variant="caption" sx={{ color: 'text.secondary' }}>Current Stock</Typography>
+                  <Typography variant="body2" sx={{ fontWeight: 700, color: 'success.main' }}>{selectedItemData.current_stock}</Typography>
+                </Box>
+              </Box>
+            </>
           )}
-        </Card.Body>
+        </CardContent>
       </Card>
 
-      <Row className="g-4 mb-4">
-        <Col md={3}>
-          <Card className="border h-100" style={{ borderColor: "#e2e8f0" }}>
-            <Card.Body className="p-4">
-              <div className="small text-secondary mb-1">Total In (Purchases)</div>
-              <div className="h5 mb-0 fw-semibold" style={{ color: "#059669" }}>{Number(summary.total_in || 0).toFixed(3)}</div>
-            </Card.Body>
-          </Card>
-        </Col>
-        <Col md={3}>
-          <Card className="border h-100" style={{ borderColor: "#e2e8f0" }}>
-            <Card.Body className="p-4">
-              <div className="small text-secondary mb-1">Total Out (Sales)</div>
-              <div className="h5 mb-0 fw-semibold" style={{ color: "#dc2626" }}>{Number(summary.total_out || 0).toFixed(3)}</div>
-            </Card.Body>
-          </Card>
-        </Col>
-        <Col md={3}>
-          <Card className="border h-100" style={{ borderColor: "#e2e8f0" }}>
-            <Card.Body className="p-4">
-              <div className="small text-secondary mb-1">Net Movement</div>
-              <div className="h5 mb-0 fw-semibold" style={{ color: Number(summary.total_in || 0) - Number(summary.total_out || 0) >= 0 ? "#059669" : "#dc2626" }}>
-                {(Number(summary.total_in || 0) - Number(summary.total_out || 0)).toFixed(3)}
-              </div>
-            </Card.Body>
-          </Card>
-        </Col>
-        <Col md={3}>
-          <Card className="border h-100" style={{ borderColor: "#e2e8f0" }}>
-            <Card.Body className="p-4">
-              <div className="small text-secondary mb-1">Closing Balance</div>
-              <div className="h5 mb-0 fw-semibold" style={{ color: "#2563eb" }}>{Number(summary.closing_balance || 0).toFixed(3)}</div>
-            </Card.Body>
-          </Card>
-        </Col>
-      </Row>
+      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', lg: 'repeat(4, 1fr)' }, gap: 2.5, mb: 2.5 }}>
+        <StatCard label="Total In (Purchases)" value={Number(summary.total_in || 0).toFixed(3)} icon="fas fa-arrow-down" color="#118d57" background="#dbf5e9" />
+        <StatCard label="Total Out (Sales)" value={Number(summary.total_out || 0).toFixed(3)} icon="fas fa-arrow-up" color="#b71d18" background="#ffe4de" />
+        <StatCard label="Net Movement" value={netMovement.toFixed(3)} icon="fas fa-arrow-right-arrow-left" color={netMovement >= 0 ? "#118d57" : "#b71d18"} background={netMovement >= 0 ? "#dbf5e9" : "#ffe4de"} />
+        <StatCard label="Closing Balance" value={Number(summary.closing_balance || 0).toFixed(3)} icon="fas fa-box" color="#006c9c" background="#caf4ff" />
+      </Box>
 
-      <Card className="border" style={{ borderColor: "#e2e8f0" }}>
-        <Card.Header className="bg-white border-bottom py-3" style={{ borderColor: "#e2e8f0" }}>
-          <div className="fw-semibold" style={{ color: "#1e293b" }}>Transaction History</div>
-        </Card.Header>
-        <Card.Body className="p-0">
-          <Table responsive hover className="mb-0">
-            <thead style={{ backgroundColor: "#f8fafc" }}>
-              <tr>
-                <th style={{ color: "#64748b", fontWeight: 500, fontSize: "0.75rem", textTransform: "uppercase", letterSpacing: "0.5px" }}>Date</th>
-                <th style={{ color: "#64748b", fontWeight: 500, fontSize: "0.75rem", textTransform: "uppercase", letterSpacing: "0.5px" }}>Type</th>
-                <th style={{ color: "#64748b", fontWeight: 500, fontSize: "0.75rem", textTransform: "uppercase", letterSpacing: "0.5px" }}>Reference</th>
-                <th style={{ color: "#64748b", fontWeight: 500, fontSize: "0.75rem", textTransform: "uppercase", letterSpacing: "0.5px" }}>Party</th>
+      <Card sx={cardSx}>
+        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 2, px: 3, py: 2.5, flexWrap: 'wrap' }}>
+          <Typography variant="subtitle1" sx={{ color: 'text.primary', fontWeight: 700 }}>
+            Transaction History
+          </Typography>
+        </Box>
+        <Divider />
+        {loading && <LinearProgress />}
+        <TableContainer sx={{ overflowX: 'auto' }}>
+          <Table size="small" sx={{ minWidth: 1000 }}>
+            <TableHead>
+              <TableRow sx={{ bgcolor: '#f8fafc' }}>
+                <TableCell sx={headCellSx}>Date</TableCell>
+                <TableCell sx={headCellSx}>Type</TableCell>
+                <TableCell sx={headCellSx}>Reference</TableCell>
+                <TableCell sx={headCellSx}>Party</TableCell>
                 {!selectedItem && (
-                  <th style={{ color: "#64748b", fontWeight: 500, fontSize: "0.75rem", textTransform: "uppercase", letterSpacing: "0.5px" }}>Item</th>
+                  <TableCell sx={headCellSx}>Item</TableCell>
                 )}
-                <th className="text-end" style={{ color: "#64748b", fontWeight: 500, fontSize: "0.75rem", textTransform: "uppercase", letterSpacing: "0.5px" }}>Qty In</th>
-                <th className="text-end" style={{ color: "#64748b", fontWeight: 500, fontSize: "0.75rem", textTransform: "uppercase", letterSpacing: "0.5px" }}>Qty Out</th>
-                <th className="text-end" style={{ color: "#64748b", fontWeight: 500, fontSize: "0.75rem", textTransform: "uppercase", letterSpacing: "0.5px" }}>Rate</th>
-                <th className="text-end" style={{ color: "#64748b", fontWeight: 500, fontSize: "0.75rem", textTransform: "uppercase", letterSpacing: "0.5px" }}>Value</th>
-                <th className="text-end" style={{ color: "#64748b", fontWeight: 500, fontSize: "0.75rem", textTransform: "uppercase", letterSpacing: "0.5px" }}>Balance</th>
-              </tr>
-            </thead>
-            <tbody>
+                <TableCell align="right" sx={headCellSx}>Qty In</TableCell>
+                <TableCell align="right" sx={headCellSx}>Qty Out</TableCell>
+                <TableCell align="right" sx={headCellSx}>Rate</TableCell>
+                <TableCell align="right" sx={headCellSx}>Value</TableCell>
+                <TableCell align="right" sx={headCellSx}>Balance</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
               {loading ? (
-                <tr>
-                  <td colSpan={selectedItem ? 9 : 10} className="text-center text-secondary py-4">Loading...</td>
-                </tr>
+                <TableRow>
+                  <TableCell colSpan={selectedItem ? 9 : 10} align="center" sx={{ color: 'text.secondary', py: 4 }}>Loading...</TableCell>
+                </TableRow>
               ) : transactions.length === 0 ? (
-                <tr>
-                  <td colSpan={selectedItem ? 9 : 10} className="text-center text-secondary py-4">No transactions found</td>
-                </tr>
+                <TableRow>
+                  <TableCell colSpan={selectedItem ? 9 : 10} align="center" sx={{ color: 'text.secondary', py: 4 }}>No transactions found</TableCell>
+                </TableRow>
               ) : (
                 renderTransactionRows()
               )}
-            </tbody>
+            </TableBody>
           </Table>
-        </Card.Body>
+        </TableContainer>
       </Card>
-    </div>
+    </Box>
   );
 }

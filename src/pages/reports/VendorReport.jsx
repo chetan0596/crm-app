@@ -1,5 +1,29 @@
-import { useEffect, useState } from "react";
-import { Card, Row, Col, Form, Table, Badge, Button } from "react-bootstrap";
+import { useCallback, useEffect, useState } from "react";
+import {
+  Alert,
+  AlertTitle,
+  Avatar,
+  Box,
+  Button,
+  Card,
+  CardContent,
+  Chip,
+  Divider,
+  FormControl,
+  InputLabel,
+  LinearProgress,
+  MenuItem,
+  Select,
+  Stack,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  TextField,
+  Typography,
+} from "@mui/material";
 import api from "../../api";
 import { canView } from "../../utils/permissions";
 
@@ -8,74 +32,126 @@ const formatMoney = (v) => {
   return n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 };
 
+const toArray = (value) => {
+  if (Array.isArray(value)) return value;
+  if (Array.isArray(value?.data)) return value.data;
+  if (Array.isArray(value?.data?.data)) return value.data.data;
+  if (Array.isArray(value?.items)) return value.items;
+  if (Array.isArray(value?.results)) return value.results;
+  return [];
+};
+
+const cardSx = {
+  border: '1px solid',
+  borderColor: 'divider',
+  borderRadius: 3,
+  boxShadow: '0 8px 24px rgba(28,37,46,.05)',
+};
+
+const headCellSx = {
+  color: 'text.secondary',
+  fontSize: 12,
+  fontWeight: 700,
+  textTransform: 'uppercase',
+  letterSpacing: '.04em',
+  px: 2,
+  py: 1.5,
+};
+
+const initialDates = () => {
+  const today = new Date();
+  const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
+  return {
+    from: firstDay.toISOString().split("T")[0],
+    to: today.toISOString().split("T")[0],
+  };
+};
+
+const EMPTY_FILTERS = { from: "", to: "", vendor_id: "", min_purchases: "" };
+
+const EMPTY_SUMMARY = {
+  total_vendors: 0,
+  total_purchases: 0,
+  total_transactions: 0,
+  avg_transaction_value: 0,
+};
+
+function StatCard({ label, value, icon, color, background }) {
+  return (
+    <Card sx={{ ...cardSx, height: '100%' }}>
+      <CardContent sx={{ p: 2.5 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+          <Box sx={{ width: 44, height: 44, borderRadius: 2, display: 'grid', placeItems: 'center', bgcolor: background, color, flexShrink: 0 }}>
+            <i className={icon} style={{ fontSize: 18 }} aria-hidden="true" />
+          </Box>
+          <Box sx={{ minWidth: 0 }}>
+            <Typography variant="body2" sx={{ color: 'text.secondary', mb: .25 }}>
+              {label}
+            </Typography>
+            <Typography variant="h6" sx={{ color, fontWeight: 700 }}>
+              {value}
+            </Typography>
+          </Box>
+        </Box>
+      </CardContent>
+    </Card>
+  );
+}
+
 export default function VendorReport() {
   const [data, setData] = useState([]);
-  const [summary, setSummary] = useState({
-    total_vendors: 0,
-    total_purchases: 0,
-    total_transactions: 0,
-    avg_transaction_value: 0,
-  });
+  const [summary, setSummary] = useState(EMPTY_SUMMARY);
   const [vendors, setVendors] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [filters, setFilters] = useState({
-    from: "",
-    to: "",
+  const [filters, setFilters] = useState(() => ({
+    ...initialDates(),
     vendor_id: "",
     min_purchases: "",
-  });
+  }));
 
   const canViewReport = canView("vendor-report");
 
-  const loadData = async () => {
+  const loadData = useCallback(async (f) => {
     if (!canViewReport) return;
 
     setLoading(true);
     try {
       const params = {};
-      if (filters.from) params.from = filters.from;
-      if (filters.to) params.to = filters.to;
-      if (filters.vendor_id) params.vendor_id = filters.vendor_id;
-      if (filters.min_purchases) params.min_purchases = filters.min_purchases;
+      if (f.from) params.from = f.from;
+      if (f.to) params.to = f.to;
+      if (f.vendor_id) params.vendor_id = f.vendor_id;
+      if (f.min_purchases) params.min_purchases = f.min_purchases;
 
       const res = await api.get("/reports/vendors", { params });
-      setData(res.data.data || []);
-      setSummary(res.data.summary || {
-        total_vendors: 0,
-        total_purchases: 0,
-        total_transactions: 0,
-        avg_transaction_value: 0,
-      });
-
-      // Load vendors dropdown on first load
-      if (vendors.length === 0) {
-        const vendRes = await api.get("/vendors", { params: { perPage: 1000 } });
-        setVendors(vendRes.data?.data || vendRes.data || []);
-      }
+      setData(toArray(res.data?.data ?? res.data));
+      setSummary(res.data?.summary || EMPTY_SUMMARY);
     } catch (err) {
       console.error("Failed to load vendor report:", err);
       setData([]);
     } finally {
       setLoading(false);
     }
-  };
+  }, [canViewReport]);
 
-  useEffect(() => {
-    if (canViewReport) {
-      const today = new Date();
-      const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
-      setFilters(prev => ({
-        ...prev,
-        from: firstDay.toISOString().split("T")[0],
-        to: today.toISOString().split("T")[0],
-      }));
-      loadData();
+  const loadVendors = useCallback(async () => {
+    try {
+      const vendRes = await api.get("/vendors", { params: { perPage: 1000 } });
+      setVendors(toArray(vendRes.data));
+    } catch {
+      setVendors([]);
     }
   }, []);
 
+  useEffect(() => {
+    if (canViewReport) {
+      loadData(EMPTY_FILTERS);
+      loadVendors();
+    }
+  }, [canViewReport, loadData, loadVendors]);
+
   const handleFilter = (e) => {
     e.preventDefault();
-    loadData();
+    loadData(filters);
   };
 
   const handleDownloadPDF = () => {
@@ -105,203 +181,188 @@ export default function VendorReport() {
   };
 
   const handleClear = () => {
-    const today = new Date();
-    const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
-    setFilters({
-      from: firstDay.toISOString().split("T")[0],
-      to: today.toISOString().split("T")[0],
+    const reset = {
+      ...initialDates(),
       vendor_id: "",
       min_purchases: "",
-    });
-    loadData();
+    };
+    setFilters(reset);
+    loadData(reset);
   };
 
   if (!canViewReport) {
     return (
-      <div className="p-4">
-        <Card className="border" style={{ borderColor: "#e2e8f0" }}>
-          <Card.Body className="text-center py-5">
-            <div className="text-secondary">Access denied</div>
-          </Card.Body>
-        </Card>
-      </div>
+      <Alert severity="error" sx={{ borderRadius: 3 }}>
+        <AlertTitle>Access denied</AlertTitle>
+        You don’t have permission to view this report.
+      </Alert>
     );
   }
 
   return (
-    <div className="p-4">
-      <div className="mb-4">
-        <h4 className="fw-semibold mb-1" style={{ color: "#1e293b" }}>Vendor Report</h4>
-        <div className="text-secondary small">Vendor purchase analysis and top vendors</div>
-      </div>
+    <Box>
+      <Box sx={{ mb: 2.5 }}>
+        <Typography variant="h4" sx={{ color: 'text.primary', fontWeight: 700, mb: .5 }}>
+          Vendor Report
+        </Typography>
+        <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+          Vendor purchase analysis and top vendors
+        </Typography>
+      </Box>
 
-      <Card className="mb-4 border" style={{ borderColor: "#e2e8f0" }}>
-        <Card.Body className="p-4">
-          <Form onSubmit={handleFilter}>
-            <Row className="g-3 align-items-end">
-              <Col md={2}>
-                <Form.Label className="small text-secondary mb-1">From Date</Form.Label>
-                <Form.Control
-                  type="date"
-                  value={filters.from}
-                  onChange={(e) => setFilters({ ...filters, from: e.target.value })}
-                  style={{ borderColor: "#e2e8f0" }}
-                />
-              </Col>
-              <Col md={2}>
-                <Form.Label className="small text-secondary mb-1">To Date</Form.Label>
-                <Form.Control
-                  type="date"
-                  value={filters.to}
-                  onChange={(e) => setFilters({ ...filters, to: e.target.value })}
-                  style={{ borderColor: "#e2e8f0" }}
-                />
-              </Col>
-              <Col md={3}>
-                <Form.Label className="small text-secondary mb-1">Vendor</Form.Label>
-                <Form.Select
+      <Card sx={{ ...cardSx, mb: 2.5 }}>
+        <CardContent sx={{ p: 3 }}>
+          <Box component="form" onSubmit={handleFilter}>
+            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', lg: 'repeat(4, 1fr)' }, gap: 2 }}>
+              <TextField
+                type="date"
+                size="small"
+                label="From Date"
+                value={filters.from}
+                onChange={(e) => setFilters({ ...filters, from: e.target.value })}
+                slotProps={{ inputLabel: { shrink: true } }}
+                fullWidth
+              />
+              <TextField
+                type="date"
+                size="small"
+                label="To Date"
+                value={filters.to}
+                onChange={(e) => setFilters({ ...filters, to: e.target.value })}
+                slotProps={{ inputLabel: { shrink: true } }}
+                fullWidth
+              />
+              <FormControl size="small" fullWidth>
+                <InputLabel>Vendor</InputLabel>
+                <Select
+                  label="Vendor"
                   value={filters.vendor_id}
                   onChange={(e) => setFilters({ ...filters, vendor_id: e.target.value })}
-                  style={{ borderColor: "#e2e8f0" }}
                 >
-                  <option value="">All Vendors</option>
+                  <MenuItem value=""><em>All Vendors</em></MenuItem>
                   {vendors.map((v) => (
-                    <option key={v.id} value={v.id}>{v.name}</option>
+                    <MenuItem key={v.id} value={v.id}>{v.name}</MenuItem>
                   ))}
-                </Form.Select>
-              </Col>
-              <Col md={2}>
-                <Form.Label className="small text-secondary mb-1">Min Purchases (₹)</Form.Label>
-                <Form.Control
-                  type="number"
-                  placeholder="0"
-                  value={filters.min_purchases}
-                  onChange={(e) => setFilters({ ...filters, min_purchases: e.target.value })}
-                  style={{ borderColor: "#e2e8f0" }}
-                />
-              </Col>
-              <Col md="auto">
-                <div className="d-flex gap-2">
-                  <Button type="submit" variant="primary" disabled={loading}>
-                    {loading ? "Loading..." : "Apply Filters"}
-                  </Button>
-                  <Button type="button" variant="outline-secondary" onClick={handleClear} disabled={loading}>
-                    Clear
-                  </Button>
-                  <Button type="button" variant="success" onClick={handleDownloadPDF} disabled={loading}>
-                    <i className="fas fa-file-pdf me-1"></i> PDF
-                  </Button>
-                </div>
-              </Col>
-            </Row>
-          </Form>
-        </Card.Body>
+                </Select>
+              </FormControl>
+              <TextField
+                type="number"
+                size="small"
+                label="Min Purchases (₹)"
+                placeholder="0"
+                value={filters.min_purchases}
+                onChange={(e) => setFilters({ ...filters, min_purchases: e.target.value })}
+                fullWidth
+              />
+            </Box>
+            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} sx={{ mt: 2 }}>
+              <Button type="submit" variant="contained" disabled={loading}>
+                {loading ? "Loading..." : "Apply Filters"}
+              </Button>
+              <Button type="button" variant="outlined" onClick={handleClear} disabled={loading}>
+                Clear
+              </Button>
+              <Button
+                type="button"
+                variant="outlined"
+                color="error"
+                onClick={handleDownloadPDF}
+                disabled={loading}
+                startIcon={<i className="fas fa-file-pdf" aria-hidden="true" />}
+              >
+                PDF
+              </Button>
+            </Stack>
+          </Box>
+        </CardContent>
       </Card>
 
-      <Row className="g-4 mb-4">
-        <Col md={3}>
-          <Card className="border h-100" style={{ borderColor: "#e2e8f0" }}>
-            <Card.Body className="p-3">
-              <div className="small text-secondary mb-1">Total Vendors</div>
-              <div className="h5 mb-0 fw-semibold" style={{ color: "#1e293b" }}>{summary.total_vendors}</div>
-            </Card.Body>
-          </Card>
-        </Col>
-        <Col md={3}>
-          <Card className="border h-100" style={{ borderColor: "#e2e8f0" }}>
-            <Card.Body className="p-3">
-              <div className="small text-secondary mb-1">Total Purchases</div>
-              <div className="h5 mb-0 fw-semibold" style={{ color: "#059669" }}>₹{formatMoney(summary.total_purchases)}</div>
-            </Card.Body>
-          </Card>
-        </Col>
-        <Col md={3}>
-          <Card className="border h-100" style={{ borderColor: "#e2e8f0" }}>
-            <Card.Body className="p-3">
-              <div className="small text-secondary mb-1">Total Transactions</div>
-              <div className="h5 mb-0 fw-semibold" style={{ color: "#2563eb" }}>{summary.total_transactions}</div>
-            </Card.Body>
-          </Card>
-        </Col>
-        <Col md={3}>
-          <Card className="border h-100" style={{ borderColor: "#e2e8f0", backgroundColor: "#f8fafc" }}>
-            <Card.Body className="p-3">
-              <div className="small text-secondary mb-1">Avg Transaction</div>
-              <div className="h5 mb-0 fw-bold" style={{ color: "#1e293b" }}>₹{formatMoney(summary.avg_transaction_value)}</div>
-            </Card.Body>
-          </Card>
-        </Col>
-      </Row>
+      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', lg: 'repeat(4, 1fr)' }, gap: 2.5, mb: 2.5 }}>
+        <StatCard label="Total Vendors" value={summary.total_vendors} icon="fas fa-truck" color="#062849" background="#eaf0f6" />
+        <StatCard label="Total Purchases" value={`₹${formatMoney(summary.total_purchases)}`} icon="fas fa-cart-shopping" color="#118d57" background="#dbf5e9" />
+        <StatCard label="Total Transactions" value={summary.total_transactions} icon="fas fa-receipt" color="#006c9c" background="#caf4ff" />
+        <StatCard label="Avg Transaction" value={`₹${formatMoney(summary.avg_transaction_value)}`} icon="fas fa-chart-line" color="#6528e8" background="#f1ebfd" />
+      </Box>
 
-      <Card className="border" style={{ borderColor: "#e2e8f0" }}>
-        <Card.Header className="bg-white border-bottom py-3" style={{ borderColor: "#e2e8f0" }}>
-          <div className="fw-semibold" style={{ color: "#1e293b" }}>Vendor Purchase Details</div>
-        </Card.Header>
-        <Card.Body className="p-0">
-          <Table responsive hover className="mb-0">
-            <thead style={{ backgroundColor: "#f8fafc" }}>
-              <tr>
-                <th style={{ color: "#64748b", fontWeight: 500, fontSize: "0.75rem", textTransform: "uppercase", letterSpacing: "0.5px" }}>Vendor</th>
-                <th style={{ color: "#64748b", fontWeight: 500, fontSize: "0.75rem", textTransform: "uppercase", letterSpacing: "0.5px" }}>Contact</th>
-                <th className="text-center" style={{ color: "#64748b", fontWeight: 500, fontSize: "0.75rem", textTransform: "uppercase", letterSpacing: "0.5px" }}>Transactions</th>
-                <th className="text-end" style={{ color: "#64748b", fontWeight: 500, fontSize: "0.75rem", textTransform: "uppercase", letterSpacing: "0.5px" }}>Total Purchases</th>
-                <th className="text-end" style={{ color: "#64748b", fontWeight: 500, fontSize: "0.75rem", textTransform: "uppercase", letterSpacing: "0.5px" }}>Avg Order</th>
-                <th style={{ color: "#64748b", fontWeight: 500, fontSize: "0.75rem", textTransform: "uppercase", letterSpacing: "0.5px" }}>Last Purchase</th>
-                <th style={{ color: "#64748b", fontWeight: 500, fontSize: "0.75rem", textTransform: "uppercase", letterSpacing: "0.5px" }}>Top Item</th>
-              </tr>
-            </thead>
-            <tbody>
+      <Card sx={cardSx}>
+        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 2, px: 3, py: 2.5, flexWrap: 'wrap' }}>
+          <Typography variant="subtitle1" sx={{ color: 'text.primary', fontWeight: 700 }}>
+            Vendor Purchase Details
+          </Typography>
+        </Box>
+        <Divider />
+        {loading && <LinearProgress />}
+        <TableContainer sx={{ overflowX: 'auto' }}>
+          <Table size="small" sx={{ minWidth: 900 }}>
+            <TableHead>
+              <TableRow sx={{ bgcolor: '#f8fafc' }}>
+                <TableCell sx={headCellSx}>Vendor</TableCell>
+                <TableCell sx={headCellSx}>Contact</TableCell>
+                <TableCell align="center" sx={headCellSx}>Transactions</TableCell>
+                <TableCell align="right" sx={headCellSx}>Total Purchases</TableCell>
+                <TableCell align="right" sx={headCellSx}>Avg Order</TableCell>
+                <TableCell sx={headCellSx}>Last Purchase</TableCell>
+                <TableCell sx={headCellSx}>Top Item</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
               {loading ? (
-                <tr><td colSpan={7} className="text-center text-secondary py-4">Loading...</td></tr>
+                <TableRow>
+                  <TableCell colSpan={7} align="center" sx={{ color: 'text.secondary', py: 4 }}>Loading...</TableCell>
+                </TableRow>
               ) : data.length === 0 ? (
-                <tr><td colSpan={7} className="text-center text-secondary py-4">No vendors found</td></tr>
+                <TableRow>
+                  <TableCell colSpan={7} align="center" sx={{ color: 'text.secondary', py: 4 }}>No vendors found</TableCell>
+                </TableRow>
               ) : (
                 data.map((vendor) => (
-                  <tr key={vendor.vendor_id} style={{ borderColor: "#f1f5f9" }}>
-                    <td>
-                      <div className="d-flex align-items-center gap-2">
-                        <div className="bg-success text-white rounded-circle d-flex align-items-center justify-content-center" style={{ width: 32, height: 32, fontSize: 12 }}>
-                          {vendor.vendor_name.charAt(0).toUpperCase()}
-                        </div>
-                        <div>
-                          <div className="fw-medium" style={{ color: "#1e293b" }}>{vendor.vendor_name}</div>
-                          <div className="small text-secondary">#{vendor.vendor_id}</div>
-                        </div>
-                      </div>
-                    </td>
-                    <td style={{ color: "#475569" }}>
-                      <div className="small">{vendor.vendor_phone || '-'}</div>
-                      <div className="small text-secondary">{vendor.vendor_email || '-'}</div>
-                    </td>
-                    <td className="text-center">
-                      <Badge bg="info">{vendor.transaction_count}</Badge>
-                    </td>
-                    <td className="text-end fw-semibold" style={{ color: "#059669" }}>₹{formatMoney(vendor.total_purchases)}</td>
-                    <td className="text-end" style={{ color: "#475569" }}>₹{formatMoney(vendor.avg_order_value)}</td>
-                    <td style={{ color: "#64748b" }}>
+                  <TableRow key={vendor.vendor_id} hover>
+                    <TableCell sx={{ px: 2 }}>
+                      <Stack direction="row" spacing={1.5} alignItems="center">
+                        <Avatar sx={{ width: 32, height: 32, bgcolor: '#dbf5e9', color: '#118d57', fontSize: 12, fontWeight: 700 }}>
+                          {(vendor.vendor_name || '?').charAt(0).toUpperCase()}
+                        </Avatar>
+                        <Box sx={{ minWidth: 0 }}>
+                          <Typography variant="body2" sx={{ fontWeight: 700 }}>{vendor.vendor_name}</Typography>
+                          <Typography variant="caption" color="text.secondary">#{vendor.vendor_id}</Typography>
+                        </Box>
+                      </Stack>
+                    </TableCell>
+                    <TableCell sx={{ px: 2 }}>
+                      <Typography variant="body2">{vendor.vendor_phone || '-'}</Typography>
+                      <Typography variant="caption" color="text.secondary">{vendor.vendor_email || '-'}</Typography>
+                    </TableCell>
+                    <TableCell align="center" sx={{ px: 2 }}>
+                      <Chip label={vendor.transaction_count} size="small" color="info" sx={{ fontWeight: 700 }} />
+                    </TableCell>
+                    <TableCell align="right" sx={{ px: 2, color: 'success.main', fontWeight: 700 }}>₹{formatMoney(vendor.total_purchases)}</TableCell>
+                    <TableCell align="right" sx={{ px: 2 }}>₹{formatMoney(vendor.avg_order_value)}</TableCell>
+                    <TableCell sx={{ px: 2 }}>
                       {vendor.last_purchase_date ? (
-                        <Badge bg="light" text="dark" className="border">{vendor.last_purchase_date}</Badge>
+                        <Chip label={vendor.last_purchase_date} size="small" variant="outlined" />
                       ) : (
-                        <span className="text-secondary">-</span>
+                        <Typography variant="body2" color="text.secondary">-</Typography>
                       )}
-                    </td>
-                    <td style={{ color: "#475569" }}>
+                    </TableCell>
+                    <TableCell sx={{ px: 2 }}>
                       {vendor.top_item ? (
-                        <div>
-                          <div className="small fw-medium">{vendor.top_item.name}</div>
-                          <div className="small text-secondary">{vendor.top_item.quantity.toFixed(0)} qty | ₹{formatMoney(vendor.top_item.amount)}</div>
-                        </div>
+                        <Box>
+                          <Typography variant="body2" sx={{ fontWeight: 600 }}>{vendor.top_item.name}</Typography>
+                          <Typography variant="caption" color="text.secondary">
+                            {vendor.top_item.quantity.toFixed(0)} qty | ₹{formatMoney(vendor.top_item.amount)}
+                          </Typography>
+                        </Box>
                       ) : (
-                        <span className="text-secondary">-</span>
+                        <Typography variant="body2" color="text.secondary">-</Typography>
                       )}
-                    </td>
-                  </tr>
+                    </TableCell>
+                  </TableRow>
                 ))
               )}
-            </tbody>
+            </TableBody>
           </Table>
-        </Card.Body>
+        </TableContainer>
       </Card>
-    </div>
+    </Box>
   );
 }

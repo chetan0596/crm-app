@@ -1,8 +1,31 @@
 import { useEffect, useMemo, useState } from "react";
-import { Card, Tab, Tabs, Form, Button, Badge, Alert, Spinner } from "react-bootstrap";
+import {
+  Alert,
+  Avatar,
+  Box,
+  Button,
+  Card,
+  CardContent,
+  Checkbox,
+  Chip,
+  CircularProgress,
+  FormControl,
+  InputAdornment,
+  InputLabel,
+  LinearProgress,
+  MenuItem,
+  Paper,
+  Select,
+  Skeleton,
+  Tab,
+  Tabs,
+  TextField,
+  Tooltip,
+  Typography,
+} from "@mui/material";
 import { toast } from "react-toastify";
 import api from "../api";
-import { canEdit, hasPermission, refreshPermissions } from "../utils/permissions";
+import { canEdit, refreshPermissions } from "../utils/permissions";
 
 // =====================================================================
 // Permission Manager — single page for both ROLE-wise and USER-wise
@@ -15,6 +38,15 @@ const ACTION_META = {
   edit:   { label: "Edit",   color: "warning",   icon: "fa-edit" },
   delete: { label: "Delete", color: "danger",    icon: "fa-trash" },
 };
+
+const ACTION_CHIP_COLORS = {
+  info:    { bg: '#e0f2fe', fg: '#0284c7' },
+  success: { bg: '#dcfce7', fg: '#16a34a' },
+  warning: { bg: '#fef3c7', fg: '#d97706' },
+  danger:  { bg: '#fee2e2', fg: '#dc2626' },
+};
+
+const getActionChipColors = (color) => ACTION_CHIP_COLORS[color] || { bg: '#f1f5f9', fg: '#64748b' };
 
 const getActionMeta = (permName) => {
   const action = permName.split("-").pop();
@@ -63,12 +95,29 @@ const groupPermissions = (permissions) => {
   return Object.fromEntries(Object.entries(groups).sort(([a], [b]) => a.localeCompare(b)));
 };
 
+const toArray = (value) => {
+  if (Array.isArray(value)) return value;
+  if (Array.isArray(value?.data)) return value.data;
+  if (Array.isArray(value?.data?.data)) return value.data.data;
+  if (Array.isArray(value?.items)) return value.items;
+  if (Array.isArray(value?.results)) return value.results;
+  return [];
+};
+
+const cardSx = {
+  border: '1px solid',
+  borderColor: 'divider',
+  borderRadius: 3,
+  boxShadow: '0 8px 24px rgba(28,37,46,.05)',
+};
+
 export default function PermissionManager() {
   const [permissions, setPermissions] = useState([]);
   const [roles, setRoles] = useState([]);
   const [users, setUsers] = useState([]);
   const [loadingMeta, setLoadingMeta] = useState(true);
   const [search, setSearch] = useState("");
+  const [tab, setTab] = useState("role");
   const canEditRoles = canEdit("roles");
   const canEditUsers = canEdit("users");
 
@@ -82,10 +131,10 @@ export default function PermissionManager() {
           api.get("/roles", { params: { page: 1, perPage: 5000 } }),
           api.get("/users", { params: { perPage: 5000 } }),
         ]);
-        setPermissions(pRes.data.data || []);
-        setRoles(rRes.data.data || []);
-        setUsers(uRes.data.data || []);
-      } catch (e) {
+        setPermissions(toArray(pRes.data));
+        setRoles(toArray(rRes.data));
+        setUsers(toArray(uRes.data));
+      } catch {
         toast.error("Failed to load permission data");
       } finally {
         setLoadingMeta(false);
@@ -103,57 +152,93 @@ export default function PermissionManager() {
 
   if (loadingMeta) {
     return (
-      <div className="text-center py-5">
-        <Spinner animation="border" /> <span className="ms-2 text-muted">Loading…</span>
-      </div>
+      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', py: 8, gap: 2 }}>
+        <CircularProgress size={24} />
+        <Typography variant="body2" sx={{ color: 'text.secondary' }}>Loading…</Typography>
+      </Box>
     );
   }
 
   return (
-    <div className="p-4">
-      <div className="d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-3 mb-4">
-        <div>
-          <h4 className="page-title mb-1">Permission Manager</h4>
-          <p className="page-subtitle">
+    <Box>
+      <Box
+        sx={{
+          display: 'flex',
+          flexDirection: { xs: 'column', md: 'row' },
+          alignItems: { md: 'center' },
+          justifyContent: 'space-between',
+          gap: 2,
+          mb: 3,
+        }}
+      >
+        <Box>
+          <Typography variant="h4" sx={{ color: 'text.primary', fontWeight: 700 }}>
+            Permission Manager
+          </Typography>
+          <Typography variant="body2" sx={{ color: 'text.secondary', mt: .5 }}>
             Manage what each role and user can access. Role permissions apply to everyone with that role; direct user permissions act as per-user overrides.
-          </p>
-        </div>
-        <div className="position-relative" style={{ maxWidth: 280, width: "100%" }}>
-          <i className="fas fa-search position-absolute text-muted" style={{ left: 12, top: "50%", transform: "translateY(-50%)", fontSize: ".85rem" }} />
-          <Form.Control
-            type="search"
-            placeholder="Search permissions…"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            style={{ paddingLeft: 36 }}
-          />
-        </div>
-      </div>
+          </Typography>
+        </Box>
+        <TextField
+          size="small"
+          type="search"
+          placeholder="Search permissions…"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          sx={{ minWidth: { xs: '100%', md: 280 } }}
+          slotProps={{
+            input: {
+              startAdornment: (
+                <InputAdornment position="start">
+                  <i className="fas fa-search" style={{ fontSize: 13 }} aria-hidden="true" />
+                </InputAdornment>
+              ),
+            },
+          }}
+        />
+      </Box>
 
-      <Card className="border-0 shadow-sm">
-        <Card.Body className="p-3 p-lg-4">
-          <Tabs defaultActiveKey="role" className="mb-4 tab-btn-custom" mountOnEnter unmountOnExit>
-            <Tab eventKey="role" title={<><i className="fas fa-user-shield me-2" />Role-wise</>}>
-              <RoleTab
-                roles={roles}
-                groupedPermissions={groupedPermissions}
-                canEdit={canEditRoles}
-                onSaved={(updated) => {
-                  setRoles((rs) => rs.map((r) => (r.id === updated.id ? updated : r)));
-                }}
-              />
-            </Tab>
-            <Tab eventKey="user" title={<><i className="fas fa-user-cog me-2" />User-wise</>}>
-              <UserTab
-                users={users}
-                groupedPermissions={groupedPermissions}
-                canEdit={canEditUsers}
-              />
-            </Tab>
+      <Card sx={cardSx}>
+        <CardContent sx={{ p: { xs: 2, lg: 3 } }}>
+          <Tabs
+            value={tab}
+            onChange={(e, value) => setTab(value)}
+            sx={{ mb: 3, borderBottom: '1px solid', borderColor: 'divider' }}
+          >
+            <Tab
+              value="role"
+              label="Role-wise"
+              icon={<i className="fas fa-user-shield" aria-hidden="true" />}
+              iconPosition="start"
+            />
+            <Tab
+              value="user"
+              label="User-wise"
+              icon={<i className="fas fa-user-cog" aria-hidden="true" />}
+              iconPosition="start"
+            />
           </Tabs>
-        </Card.Body>
+
+          {tab === "role" && (
+            <RoleTab
+              roles={roles}
+              groupedPermissions={groupedPermissions}
+              canEdit={canEditRoles}
+              onSaved={(updated) => {
+                setRoles((rs) => rs.map((r) => (r.id === updated.id ? updated : r)));
+              }}
+            />
+          )}
+          {tab === "user" && (
+            <UserTab
+              users={users}
+              groupedPermissions={groupedPermissions}
+              canEdit={canEditUsers}
+            />
+          )}
+        </CardContent>
       </Card>
-    </div>
+    </Box>
   );
 }
 
@@ -220,38 +305,58 @@ function RoleTab({ roles, groupedPermissions, canEdit, onSaved }) {
   const isSuperAdmin = role?.name === "Super Admin";
 
   return (
-    <>
-      <div className="d-flex flex-column flex-md-row align-items-md-center gap-3 mb-3">
-        <Form.Group style={{ minWidth: 260, maxWidth: 320 }} className="flex-grow-1 flex-md-grow-0">
-          <Form.Label className="small fw-semibold text-muted mb-1">Select Role</Form.Label>
-          <Form.Select value={roleId} onChange={(e) => setRoleId(Number(e.target.value))}>
+    <Box>
+      <Box
+        sx={{
+          display: 'flex',
+          flexDirection: { xs: 'column', md: 'row' },
+          alignItems: { md: 'center' },
+          gap: 2,
+          mb: 2,
+        }}
+      >
+        <FormControl size="small" sx={{ minWidth: { md: 260 }, maxWidth: { md: 320 }, width: { xs: '100%', md: 'auto' }, flexGrow: { xs: 1, md: 0 } }}>
+          <InputLabel>Select Role</InputLabel>
+          <Select
+            label="Select Role"
+            value={roleId}
+            onChange={(e) => setRoleId(Number(e.target.value))}
+          >
             {roles.map((r) => (
-              <option key={r.id} value={r.id}>{r.name}</option>
+              <MenuItem key={r.id} value={r.id}>{r.name}</MenuItem>
             ))}
-          </Form.Select>
-        </Form.Group>
+          </Select>
+        </FormControl>
 
-        <div className="perm-stat-bar flex-grow-1 ms-md-auto">
-          <span className="small text-muted d-flex align-items-center gap-2">
-            <i className="fas fa-check-square text-primary" />
-            <Badge bg="primary">{selected.size}</Badge>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap', flexGrow: 1 }}>
+          <Typography variant="body2" sx={{ color: 'text.secondary', display: 'flex', alignItems: 'center', gap: 1 }}>
+            <i className="fas fa-check-square" style={{ color: '#062849' }} aria-hidden="true" />
+            <Chip size="small" label={selected.size} sx={{ bgcolor: '#eaf0f6', color: '#062849' }} />
             permissions selected
-          </span>
+          </Typography>
           {canEdit && (
-            <Button variant="primary" size="sm" onClick={save} disabled={saving || isSuperAdmin || loading} className="ms-md-auto">
-              {saving ? <><Spinner animation="border" size="sm" className="me-1" />Saving…</> : <><i className="fas fa-save me-1" />Save Changes</>}
+            <Button
+              variant="contained"
+              size="small"
+              onClick={save}
+              disabled={saving || isSuperAdmin || loading}
+              sx={{ ml: { md: 'auto' } }}
+              startIcon={saving ? <CircularProgress color="inherit" size={14} /> : <i className="fas fa-save" aria-hidden="true" />}
+            >
+              {saving ? "Saving…" : "Save Changes"}
             </Button>
           )}
-        </div>
-      </div>
+        </Box>
+      </Box>
 
       {isSuperAdmin && (
-        <Alert variant="warning" className="d-flex align-items-start gap-2 border-0 shadow-sm" style={{ background: "linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%)", border: "1px solid #fde68a !important" }}>
-          <i className="fas fa-crown text-amber mt-1" />
-          <div className="small">
-            <div className="fw-semibold">Super Admin</div>
-            This role always has all permissions. Editing is disabled for safety.
-          </div>
+        <Alert
+          severity="warning"
+          sx={{ mb: 2, background: 'linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%)' }}
+          icon={<i className="fas fa-crown" aria-hidden="true" />}
+        >
+          <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>Super Admin</Typography>
+          <Typography variant="body2">This role always has all permissions. Editing is disabled for safety.</Typography>
         </Alert>
       )}
 
@@ -266,7 +371,7 @@ function RoleTab({ roles, groupedPermissions, canEdit, onSaved }) {
           disabled={!canEdit || isSuperAdmin}
         />
       )}
-    </>
+    </Box>
   );
 }
 
@@ -379,72 +484,119 @@ function UserTab({ users, groupedPermissions, canEdit }) {
   const userInitials = selectedUser?.name?.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2) || "U";
 
   return (
-    <>
-      <div className="row g-2 mb-3">
-        <div className="col-12 col-md-5">
-          <Form.Group>
-            <Form.Label className="small fw-semibold text-muted mb-1">Search User</Form.Label>
-            <div className="position-relative">
-              <i className="fas fa-search position-absolute text-muted" style={{ left: 10, top: "50%", transform: "translateY(-50%)", fontSize: ".8rem" }} />
-              <Form.Control type="search" placeholder="Name or email…" value={userSearch} onChange={(e) => setUserSearch(e.target.value)} style={{ paddingLeft: 30 }} />
-            </div>
-          </Form.Group>
-        </div>
-        <div className="col-12 col-md-5">
-          <Form.Group>
-            <Form.Label className="small fw-semibold text-muted mb-1">Select User</Form.Label>
-            <Form.Select value={userId} onChange={(e) => setUserId(Number(e.target.value))}>
-              {filteredUsers.map((u) => (
-                <option key={u.id} value={u.id}>{u.name} — {u.email}</option>
-              ))}
-            </Form.Select>
-          </Form.Group>
-        </div>
-      </div>
+    <Box>
+      <Box
+        sx={{
+          display: 'grid',
+          gridTemplateColumns: { xs: '1fr', md: 'repeat(2, 1fr)' },
+          gap: 2,
+          mb: 2,
+        }}
+      >
+        <TextField
+          size="small"
+          type="search"
+          label="Search User"
+          placeholder="Name or email…"
+          value={userSearch}
+          onChange={(e) => setUserSearch(e.target.value)}
+          fullWidth
+          slotProps={{
+            input: {
+              startAdornment: (
+                <InputAdornment position="start">
+                  <i className="fas fa-search" style={{ fontSize: 13 }} aria-hidden="true" />
+                </InputAdornment>
+              ),
+            },
+          }}
+        />
+        <FormControl size="small" fullWidth>
+          <InputLabel>Select User</InputLabel>
+          <Select
+            label="Select User"
+            value={userId}
+            onChange={(e) => setUserId(Number(e.target.value))}
+          >
+            {filteredUsers.map((u) => (
+              <MenuItem key={u.id} value={u.id}>{u.name} — {u.email}</MenuItem>
+            ))}
+          </Select>
+        </FormControl>
+      </Box>
 
       {loading ? (
         <PermissionSkeleton />
       ) : details ? (
-        <>
-          <div className="user-info-card mb-3">
-            <div className="user-avatar">{userInitials}</div>
-            <div className="flex-grow-1">
-              <div className="fw-semibold d-flex align-items-center flex-wrap gap-2">
-                {details.user.name}
+        <Box>
+          <Paper
+            variant="outlined"
+            sx={{
+              display: 'flex',
+              alignItems: 'flex-start',
+              gap: 2,
+              p: 2,
+              mb: 2,
+              borderRadius: 2.5,
+              bgcolor: '#f8fafc',
+            }}
+          >
+            <Avatar sx={{ bgcolor: 'secondary.main', width: 48, height: 48, fontWeight: 700 }}>
+              {userInitials}
+            </Avatar>
+            <Box sx={{ flexGrow: 1, minWidth: 0 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 1 }}>
+                <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
+                  {details.user.name}
+                </Typography>
                 {details.roles.map((r) => (
-                  <Badge key={r.id} bg="primary" className="fw-medium">{r.name}</Badge>
+                  <Chip
+                    key={r.id}
+                    size="small"
+                    label={r.name}
+                    sx={{ bgcolor: '#eaf0f6', color: '#062849', fontWeight: 600 }}
+                  />
                 ))}
-              </div>
-              <div className="small text-muted">{details.user.email}</div>
-              <div className="small text-muted mt-1">
+              </Box>
+              <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+                {details.user.email}
+              </Typography>
+              <Typography variant="body2" sx={{ color: 'text.secondary', mt: 0.5 }}>
                 Toggle permissions to grant or revoke access. Permissions from roles are shown with a <strong>role</strong> badge. Revoked permissions override role grants.
-              </div>
-            </div>
-          </div>
+              </Typography>
+            </Box>
+          </Paper>
 
-          <div className="perm-stat-bar mb-3">
-            <span className="small text-muted d-flex align-items-center gap-2">
-              <i className="fas fa-user-plus text-primary" />
-              <Badge bg="primary">{direct.size}</Badge> direct
-            </span>
-            <span className="small text-muted d-flex align-items-center gap-2">
-              <i className="fas fa-users text-secondary" />
-              <Badge bg="secondary">{rolePermIds.size}</Badge> from roles
-            </span>
-            <span className="small text-muted d-flex align-items-center gap-2">
-              <i className="fas fa-ban text-danger" />
-              <Badge bg="danger">{revoked.size}</Badge> revoked
-            </span>
-            <span className="small text-muted d-flex align-items-center gap-2">
-              <i className="fas fa-shield-alt text-success" />
-              <Badge bg="success">{effectiveIds.size}</Badge> effective
-            </span>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap', mb: 2 }}>
+            <Typography variant="body2" sx={{ color: 'text.secondary', display: 'flex', alignItems: 'center', gap: 1 }}>
+              <i className="fas fa-user-plus" style={{ color: '#062849' }} aria-hidden="true" />
+              <Chip size="small" label={direct.size} sx={{ bgcolor: '#eaf0f6', color: '#062849' }} /> direct
+            </Typography>
+            <Typography variant="body2" sx={{ color: 'text.secondary', display: 'flex', alignItems: 'center', gap: 1 }}>
+              <i className="fas fa-users" style={{ color: '#637381' }} aria-hidden="true" />
+              <Chip size="small" label={rolePermIds.size} sx={{ bgcolor: '#f1f5f9', color: '#475569' }} /> from roles
+            </Typography>
+            <Typography variant="body2" sx={{ color: 'text.secondary', display: 'flex', alignItems: 'center', gap: 1 }}>
+              <i className="fas fa-ban" style={{ color: '#ff5630' }} aria-hidden="true" />
+              <Chip size="small" label={revoked.size} sx={{ bgcolor: '#ffe4de', color: '#b71d18' }} /> revoked
+            </Typography>
+            <Typography variant="body2" sx={{ color: 'text.secondary', display: 'flex', alignItems: 'center', gap: 1 }}>
+              <i className="fas fa-shield-alt" style={{ color: '#22c55e' }} aria-hidden="true" />
+              <Chip size="small" label={effectiveIds.size} sx={{ bgcolor: '#dbf5e9', color: '#118d57' }} /> effective
+            </Typography>
             {canEdit && (
-              <Button variant="primary" size="sm" onClick={save} disabled={saving} className="ms-md-auto">
-                {saving ? <><Spinner animation="border" size="sm" className="me-1" />Saving…</> : <><i className="fas fa-save me-1" />Save Changes</>}
+              <Button
+                variant="contained"
+                size="small"
+                onClick={save}
+                disabled={saving}
+                sx={{ ml: { md: 'auto' } }}
+                startIcon={saving ? <CircularProgress color="inherit" size={14} /> : <i className="fas fa-save" aria-hidden="true" />}
+              >
+                {saving ? "Saving…" : "Save Changes"}
               </Button>
             )}
-          </div>
+          </Box>
 
           <PermissionGrid
             groupedPermissions={groupedPermissions}
@@ -455,17 +607,19 @@ function UserTab({ users, groupedPermissions, canEdit }) {
             inheritedIds={rolePermIds}
             revokedIds={revoked}
           />
-        </>
+        </Box>
       ) : (
-        <div className="text-center text-muted py-5">
-          <div className="empty-state">
-            <i className="fas fa-user-slash empty-state-icon"></i>
-            <div className="fw-semibold text-secondary">No user selected</div>
-            <div className="small text-muted">Select a user to view and edit their permissions</div>
-          </div>
-        </div>
+        <Box sx={{ textAlign: 'center', py: 6 }}>
+          <i className="fas fa-user-slash" style={{ fontSize: 42, color: '#637381', opacity: 0.4 }} aria-hidden="true" />
+          <Typography variant="subtitle2" sx={{ color: 'text.secondary', mt: 1.5 }}>
+            No user selected
+          </Typography>
+          <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+            Select a user to view and edit their permissions
+          </Typography>
+        </Box>
       )}
-    </>
+    </Box>
   );
 }
 
@@ -474,25 +628,40 @@ function UserTab({ users, groupedPermissions, canEdit }) {
    ===================================================================== */
 function PermissionSkeleton() {
   return (
-    <div className="d-flex flex-column gap-3">
+    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
       {Array.from({ length: 5 }).map((_, gi) => (
-        <div key={gi} className="perm-module-card">
-          <div className="perm-module-header">
-            <div className="module-icon"><i className="fas fa-folder" /></div>
-            <div className="module-name">Loading…</div>
-          </div>
-          <div className="p-3">
-            <div className="row g-2">
+        <Paper key={gi} variant="outlined" sx={{ borderRadius: 2.5, overflow: 'hidden' }}>
+          <Box
+            sx={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 1.5,
+              px: 2,
+              py: 1.5,
+              bgcolor: '#f8fafc',
+              borderBottom: '1px solid',
+              borderColor: 'divider',
+            }}
+          >
+            <Skeleton variant="rounded" width={28} height={28} />
+            <Skeleton variant="text" width={140} />
+          </Box>
+          <Box sx={{ p: 2 }}>
+            <Box
+              sx={{
+                display: 'grid',
+                gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', md: 'repeat(3, 1fr)', lg: 'repeat(4, 1fr)' },
+                gap: 1.5,
+              }}
+            >
               {Array.from({ length: 4 }).map((__, pi) => (
-                <div key={pi} className="col-12 col-sm-6 col-md-4 col-lg-3">
-                  <div className="skeleton-row" style={{ height: 44, borderRadius: 8 }} />
-                </div>
+                <Skeleton key={pi} variant="rounded" height={44} />
               ))}
-            </div>
-          </div>
-        </div>
+            </Box>
+          </Box>
+        </Paper>
       ))}
-    </div>
+    </Box>
   );
 }
 
@@ -513,105 +682,165 @@ function PermissionGrid({
 
   if (groups.length === 0) {
     return (
-      <div className="text-center py-5">
-        <div className="empty-state">
-          <i className="fas fa-search empty-state-icon"></i>
-          <div className="fw-semibold text-secondary">No permissions match your search</div>
-          <div className="small text-muted">Try a different search term</div>
-        </div>
-      </div>
+      <Box sx={{ textAlign: 'center', py: 6 }}>
+        <i className="fas fa-search" style={{ fontSize: 42, color: '#637381', opacity: 0.4 }} aria-hidden="true" />
+        <Typography variant="subtitle2" sx={{ color: 'text.secondary', mt: 1.5 }}>
+          No permissions match your search
+        </Typography>
+        <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+          Try a different search term
+        </Typography>
+      </Box>
     );
   }
 
   return (
-    <div className="d-flex flex-column gap-3">
+    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
       {groups.map(([group, perms]) => {
         const allChecked = perms.every((p) => selected.has(p.id));
         const someChecked = perms.some((p) => selected.has(p.id));
         const selectedCount = perms.filter((p) => selected.has(p.id)).length;
-        const inheritedCount = perms.filter((p) => inheritedIds.has(p.id)).length;
         return (
-          <div key={group} className="perm-module-card">
-            <div className="perm-module-header">
-              <div className="module-icon"><i className="fas fa-layer-group" /></div>
-              <div className="flex-grow-1">
-                <div className="d-flex align-items-center gap-2">
-                  <span className="module-name">{group.replace(/-/g, " ").replace(/^\w/, (c) => c.toUpperCase())}</span>
-                  <Badge bg="light" text="dark" className="border fw-medium">
-                    {selectedCount} / {perms.length}
-                  </Badge>
-                </div>
-                <div className="progress mt-1" style={{ height: 4, maxWidth: 200 }}>
-                  <div
-                    className="progress-bar bg-primary"
-                    style={{ width: `${perms.length ? (selectedCount / perms.length) * 100 : 0}%` }}
+          <Paper key={group} variant="outlined" sx={{ borderRadius: 2.5, overflow: 'hidden' }}>
+            <Box
+              sx={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 1.5,
+                px: 2,
+                py: 1.5,
+                bgcolor: '#f8fafc',
+                borderBottom: '1px solid',
+                borderColor: 'divider',
+              }}
+            >
+              <Box
+                sx={{
+                  width: 28,
+                  height: 28,
+                  borderRadius: 1.5,
+                  display: 'grid',
+                  placeItems: 'center',
+                  bgcolor: '#e9e4fd',
+                  color: 'secondary.main',
+                  fontSize: 12,
+                  flexShrink: 0,
+                }}
+              >
+                <i className="fas fa-layer-group" aria-hidden="true" />
+              </Box>
+              <Box sx={{ flex: 1, minWidth: 0 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <Typography variant="subtitle2" sx={{ color: 'text.primary', textTransform: 'capitalize' }}>
+                    {group.replace(/-/g, " ")}
+                  </Typography>
+                  <Chip size="small" variant="outlined" label={`${selectedCount} / ${perms.length}`} />
+                </Box>
+                <LinearProgress
+                  variant="determinate"
+                  value={perms.length ? (selectedCount / perms.length) * 100 : 0}
+                  sx={{ mt: 0.75, maxWidth: 200 }}
+                />
+              </Box>
+              <Tooltip title={allChecked ? "Uncheck all" : "Check all"}>
+                <span>
+                  <Checkbox
+                    size="small"
+                    checked={allChecked}
+                    indeterminate={!allChecked && someChecked}
+                    onChange={() => onToggleGroup(perms, allChecked)}
+                    disabled={disabled}
+                    inputProps={{ 'aria-label': `${allChecked ? 'Uncheck' : 'Check'} all ${group} permissions` }}
                   />
-                </div>
-              </div>
-              <Form.Check
-                type="checkbox"
-                checked={allChecked}
-                ref={(el) => { if (el) el.indeterminate = !allChecked && someChecked; }}
-                onChange={() => onToggleGroup(perms, allChecked)}
-                disabled={disabled}
-                id={`group-${group}`}
-                title={allChecked ? "Uncheck all" : "Check all"}
-              />
-            </div>
-            <div className="p-3">
-              <div className="row g-2">
+                </span>
+              </Tooltip>
+            </Box>
+            <Box sx={{ p: 2 }}>
+              <Box
+                sx={{
+                  display: 'grid',
+                  gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', md: 'repeat(3, 1fr)', lg: 'repeat(4, 1fr)' },
+                  gap: 1.5,
+                }}
+              >
                 {perms.map((p) => {
                   const checked = selected.has(p.id);
                   const inherited = inheritedIds.has(p.id);
                   const revoked = revokedIds.has(p.id);
                   const meta = getActionMeta(p.name);
-                  const chipClasses = [
-                    "perm-chip",
-                    checked ? "active" : "",
-                    revoked ? "perm-chip-revoked" : "",
-                    disabled ? "perm-chip-disabled" : "",
-                  ].filter(Boolean).join(" ");
+                  const chipColors = getActionChipColors(meta.color);
 
                   return (
-                    <div key={p.id} className="col-12 col-sm-6 col-md-4 col-lg-3">
-                      <div
-                        className={chipClasses}
-                        onClick={() => { if (!disabled) onToggle(p.id); }}
-                        role="button"
-                        tabIndex={disabled ? -1 : 0}
-                        onKeyDown={(e) => { if ((e.key === "Enter" || e.key === " ") && !disabled) { e.preventDefault(); onToggle(p.id); } }}
+                    <Box
+                      key={p.id}
+                      role="button"
+                      tabIndex={disabled ? -1 : 0}
+                      aria-disabled={disabled}
+                      onClick={() => { if (!disabled) onToggle(p.id); }}
+                      onKeyDown={(e) => { if ((e.key === "Enter" || e.key === " ") && !disabled) { e.preventDefault(); onToggle(p.id); } }}
+                      title={p.name}
+                      sx={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 1,
+                        p: 1,
+                        borderRadius: 2,
+                        border: '1px solid',
+                        borderColor: checked ? 'secondary.main' : 'divider',
+                        bgcolor: checked ? 'rgba(101,40,232,0.08)' : '#fff',
+                        cursor: disabled ? 'not-allowed' : 'pointer',
+                        opacity: disabled ? 0.6 : 1,
+                        minHeight: 44,
+                        transition: 'all .15s ease',
+                      }}
+                    >
+                      <Box sx={{ flexShrink: 0, display: 'flex', alignItems: 'center' }}>
+                        {checked ? (
+                          <i className="fas fa-check-square" style={{ color: '#6528e8', fontSize: 14 }} aria-hidden="true" />
+                        ) : (
+                          <i className="far fa-square" style={{ color: '#919eab', fontSize: 14 }} aria-hidden="true" />
+                        )}
+                      </Box>
+                      <Box
+                        sx={{
+                          width: 28,
+                          height: 28,
+                          borderRadius: '50%',
+                          display: 'grid',
+                          placeItems: 'center',
+                          bgcolor: checked ? '#fff' : chipColors.bg,
+                          color: chipColors.fg,
+                          fontSize: 11,
+                          flexShrink: 0,
+                        }}
                       >
-                        <input
-                          type="checkbox"
-                          className="m-0 flex-shrink-0 perm-checkbox"
-                          checked={checked}
-                          disabled={disabled}
-                          readOnly
-                          style={{ pointerEvents: "none" }}
-                        />
-                        <div className={`perm-icon perm-icon-${meta.color}`}>
-                          <i className={`fas ${meta.icon}`} />
-                        </div>
-                        <span className="small fw-medium text-truncate flex-grow-1" title={p.name}>
-                          <span className="text-muted">{getScopeLabel(p.name)}</span>
-                          <span className="mx-1 text-secondary">·</span>
-                          {meta.label}
-                        </span>
-                        {revoked && (
-                          <Badge bg="danger" className="fw-medium ms-auto small">revoked</Badge>
-                        )}
-                        {!revoked && inherited && (
-                          <Badge bg="light" text="dark" className="border fw-medium ms-auto small" title="Granted via role">role</Badge>
-                        )}
-                      </div>
-                    </div>
+                        <i className={`fas ${meta.icon}`} aria-hidden="true" />
+                      </Box>
+                      <Typography
+                        variant="body2"
+                        noWrap
+                        sx={{ flex: 1, fontWeight: 500, fontSize: '0.8rem', color: checked ? '#4b16b4' : 'text.primary' }}
+                      >
+                        <Box component="span" sx={{ color: 'text.secondary' }}>{getScopeLabel(p.name)}</Box>
+                        <Box component="span" sx={{ mx: 0.5, color: 'grey.400' }}>·</Box>
+                        {meta.label}
+                      </Typography>
+                      {revoked && (
+                        <Chip size="small" label="revoked" sx={{ bgcolor: '#ffe4de', color: '#b71d18', ml: 'auto', flexShrink: 0 }} />
+                      )}
+                      {!revoked && inherited && (
+                        <Tooltip title="Granted via role">
+                          <Chip size="small" variant="outlined" label="role" sx={{ ml: 'auto', flexShrink: 0 }} />
+                        </Tooltip>
+                      )}
+                    </Box>
                   );
                 })}
-              </div>
-            </div>
-          </div>
+              </Box>
+            </Box>
+          </Paper>
         );
       })}
-    </div>
+    </Box>
   );
 }

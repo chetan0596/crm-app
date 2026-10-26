@@ -1,7 +1,38 @@
 import { useState, useEffect, useCallback } from "react";
-import { Modal, Button, Form, Spinner, Badge } from "react-bootstrap";
+import {
+  Box,
+  Button,
+  Chip,
+  CircularProgress,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  FormControl,
+  FormControlLabel,
+  IconButton,
+  InputLabel,
+  MenuItem,
+  Radio,
+  RadioGroup,
+  Select,
+  TextField,
+  Typography,
+} from "@mui/material";
 import { toast } from "react-toastify";
 import { whatsappApi } from "../services/whatsapp";
+
+const toArray = (value) => {
+  if (Array.isArray(value)) return value;
+  if (Array.isArray(value?.data)) return value.data;
+  if (Array.isArray(value?.data?.data)) return value.data.data;
+  return [];
+};
+
+const dialogPaperSx = {
+  borderRadius: 3,
+  boxShadow: '0 8px 24px rgba(28,37,46,.12)',
+};
 
 export default function WhatsAppSendModal({ show, onHide, toNumber, toName, contextType, contextId }) {
   const [templates, setTemplates] = useState([]);
@@ -16,7 +47,7 @@ export default function WhatsAppSendModal({ show, onHide, toNumber, toName, cont
     try {
       setLoading(true);
       const res = await whatsappApi.getTemplates();
-      setTemplates(res.data?.data || []);
+      setTemplates(toArray(res.data?.data ?? res.data));
     } catch {
       toast.error("Failed to load WhatsApp templates");
     } finally {
@@ -25,13 +56,15 @@ export default function WhatsAppSendModal({ show, onHide, toNumber, toName, cont
   }, []);
 
   useEffect(() => {
-    if (show) {
-      loadTemplates();
+    if (!show) return;
+    loadTemplates();
+    const reset = setTimeout(() => {
       setSelectedTemplate("");
       setFreeText("");
       setTemplateVars({});
       setMessageType("template");
-    }
+    }, 0);
+    return () => clearTimeout(reset);
   }, [show, loadTemplates]);
 
   const handleTemplateChange = (templateName) => {
@@ -83,119 +116,168 @@ export default function WhatsAppSendModal({ show, onHide, toNumber, toName, cont
     }
   };
 
+  const handleDialogClose = (event, reason) => {
+    if (reason === 'backdropClick') return;
+    onHide();
+  };
+
   const selectedTmpl = templates.find(t => t.name === selectedTemplate);
-  const hasVars = Object.keys(templateVars).length > 0;
 
   return (
-    <Modal show={show} onHide={onHide} backdrop="static" centered size="lg">
-      <Modal.Header closeButton>
-        <Modal.Title>
-          <i className="fab fa-whatsapp text-success me-2"></i>
-          Send WhatsApp{toName ? ` to ${toName}` : ""}
-        </Modal.Title>
-      </Modal.Header>
-      <Modal.Body>
-        <Form.Group className="mb-3">
-          <Form.Label>To</Form.Label>
-          <Form.Control value={toNumber || "—"} disabled />
-        </Form.Group>
+    <Dialog
+      open={show}
+      onClose={handleDialogClose}
+      maxWidth="md"
+      fullWidth
+      scroll="paper"
+      slotProps={{ paper: { sx: dialogPaperSx } }}
+    >
+      <DialogTitle sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 2, py: 2 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25 }}>
+          <i className="fab fa-whatsapp" style={{ color: '#22c55e', fontSize: 18 }} aria-hidden="true" />
+          <Typography variant="h6" sx={{ fontWeight: 700 }}>
+            Send WhatsApp{toName ? ` to ${toName}` : ""}
+          </Typography>
+        </Box>
+        <IconButton size="small" onClick={onHide} aria-label="Close">
+          <i className="fas fa-times" style={{ fontSize: 14 }} aria-hidden="true" />
+        </IconButton>
+      </DialogTitle>
 
-        <Form.Group className="mb-3">
-          <Form.Label>Message Type</Form.Label>
-          <div className="d-flex gap-2">
-            <Form.Check
-              inline
-              type="radio"
-              label="Template"
-              checked={messageType === "template"}
-              onChange={() => setMessageType("template")}
-            />
-            <Form.Check
-              inline
-              type="radio"
-              label="Free Text"
-              checked={messageType === "freeform"}
-              onChange={() => setMessageType("freeform")}
-            />
-          </div>
-        </Form.Group>
+      <DialogContent dividers sx={{ p: 3 }}>
+        <Box sx={{ display: 'grid', gap: 2.5 }}>
+          <TextField
+            size="small"
+            label="To"
+            value={toNumber || "—"}
+            disabled
+            fullWidth
+          />
 
-        {messageType === "template" && (
-          <>
-            <Form.Group className="mb-3">
-              <Form.Label>Template <span className="text-danger">*</span></Form.Label>
+          <Box>
+            <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 700, display: 'block', mb: .5 }}>
+              Message Type
+            </Typography>
+            <RadioGroup row value={messageType} onChange={(e) => setMessageType(e.target.value)}>
+              <FormControlLabel value="template" control={<Radio size="small" />} label="Template" />
+              <FormControlLabel value="freeform" control={<Radio size="small" />} label="Free Text" />
+            </RadioGroup>
+          </Box>
+
+          {messageType === "template" && (
+            <>
               {loading ? (
-                <div className="text-muted small"><Spinner size="sm" className="me-2" />Loading templates...</div>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, py: 1, color: 'text.secondary' }}>
+                  <CircularProgress size={16} />
+                  <Typography variant="body2">Loading templates...</Typography>
+                </Box>
               ) : (
-                <Form.Select value={selectedTemplate} onChange={e => handleTemplateChange(e.target.value)}>
-                  <option value="">Select a template...</option>
-                  {templates.map(t => (
-                    <option key={t.name} value={t.name}>
-                      {t.name} {t.status && <Badge bg="info">{t.status}</Badge>}
-                    </option>
-                  ))}
-                </Form.Select>
+                <FormControl size="small" fullWidth>
+                  <InputLabel>Template *</InputLabel>
+                  <Select
+                    label="Template *"
+                    value={selectedTemplate}
+                    onChange={(e) => handleTemplateChange(e.target.value)}
+                  >
+                    <MenuItem value=""><em>Select a template...</em></MenuItem>
+                    {templates.map(t => (
+                      <MenuItem key={t.name} value={t.name}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                          <span>{t.name}</span>
+                          {t.status && <Chip label={t.status} size="small" color="info" variant="outlined" />}
+                        </Box>
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
               )}
-              <Form.Text className="text-muted">
+              <Typography variant="caption" sx={{ color: 'text.secondary', mt: -1.5 }}>
                 Only approved templates can be used for the first message.
-              </Form.Text>
-            </Form.Group>
+              </Typography>
 
-            {selectedTmpl && (
-              <div className="mb-3 p-3 bg-light rounded border">
-                <div className="fw-semibold small mb-2">{selectedTmpl.name}</div>
-                {selectedTmpl.components?.map((comp, ci) => (
-                  <div key={ci} className="mb-2">
-                    {comp.type === "HEADER" && <div className="fw-semibold small text-primary">{comp.text}</div>}
-                    {comp.type === "BODY" && (
-                      <div className="small text-secondary">
-                        {comp.text?.split(/\{\{\d+\}\}/).map((part, i) => (
-                          <span key={i}>
-                            {part}
-                            {i < (comp.text.match(/\{\{\d+\}\}/g) || []).length && (
-                              <Form.Control
-                                size="sm"
-                                className="d-inline-block mx-1"
-                                style={{ width: 120, display: "inline-block" }}
-                                placeholder={`var ${i + 1}`}
-                                value={templateVars[`${ci}_${i}`] || ""}
-                                onChange={e => setTemplateVars(prev => ({ ...prev, [`${ci}_${i}`]: e.target.value }))}
-                              />
-                            )}
-                          </span>
-                        ))}
-                      </div>
-                    )}
-                    {comp.type === "FOOTER" && <div className="small text-muted">{comp.text}</div>}
-                  </div>
-                ))}
-              </div>
-            )}
-          </>
-        )}
+              {selectedTmpl && (
+                <Box
+                  sx={{
+                    p: 2,
+                    bgcolor: '#f8fafc',
+                    borderRadius: 2,
+                    border: '1px solid',
+                    borderColor: 'divider',
+                  }}
+                >
+                  <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1 }}>
+                    {selectedTmpl.name}
+                  </Typography>
+                  {selectedTmpl.components?.map((comp, ci) => (
+                    <Box key={ci} sx={{ mb: 1 }}>
+                      {comp.type === "HEADER" && (
+                        <Typography variant="body2" sx={{ fontWeight: 700, color: 'primary.main' }}>
+                          {comp.text}
+                        </Typography>
+                      )}
+                      {comp.type === "BODY" && (
+                        <Typography variant="body2" sx={{ color: 'text.secondary' }} component="div">
+                          {comp.text?.split(/\{\{\d+\}\}/).map((part, i) => (
+                            <Box component="span" key={i}>
+                              {part}
+                              {i < (comp.text.match(/\{\{\d+\}\}/g) || []).length && (
+                                <TextField
+                                  size="small"
+                                  placeholder={`var ${i + 1}`}
+                                  value={templateVars[`${ci}_${i}`] || ""}
+                                  onChange={e => setTemplateVars(prev => ({ ...prev, [`${ci}_${i}`]: e.target.value }))}
+                                  sx={{ width: 120, mx: 0.5, display: 'inline-flex', verticalAlign: 'middle' }}
+                                  slotProps={{ htmlInput: { style: { padding: '4px 8px', fontSize: 13 } } }}
+                                />
+                              )}
+                            </Box>
+                          ))}
+                        </Typography>
+                      )}
+                      {comp.type === "FOOTER" && (
+                        <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+                          {comp.text}
+                        </Typography>
+                      )}
+                    </Box>
+                  ))}
+                </Box>
+              )}
+            </>
+          )}
 
-        {messageType === "freeform" && (
-          <Form.Group className="mb-3">
-            <Form.Label>Message <span className="text-danger">*</span></Form.Label>
-            <Form.Control
-              as="textarea"
+          {messageType === "freeform" && (
+            <TextField
+              size="small"
+              label="Message"
+              required
+              multiline
               rows={4}
               value={freeText}
               onChange={e => setFreeText(e.target.value)}
               placeholder="Type your message..."
-              maxLength={4096}
+              slotProps={{ htmlInput: { maxLength: 4096 } }}
+              helperText={`${freeText.length}/4096`}
+              fullWidth
             />
-            <Form.Text className="text-muted">{freeText.length}/4096</Form.Text>
-          </Form.Group>
-        )}
-      </Modal.Body>
-      <Modal.Footer>
-        <Button variant="outline-secondary" onClick={onHide} disabled={sending}>Cancel</Button>
-        <Button variant="success" onClick={handleSend} disabled={sending || (messageType === "template" && !selectedTemplate) || (messageType === "freeform" && !freeText.trim())}>
-          {sending && <Spinner size="sm" className="me-2" />}
-          <i className="fab fa-whatsapp me-1"></i> Send
+          )}
+        </Box>
+      </DialogContent>
+
+      <DialogActions sx={{ px: 3, py: 2 }}>
+        <Button variant="outlined" color="inherit" onClick={onHide} disabled={sending}>
+          Cancel
         </Button>
-      </Modal.Footer>
-    </Modal>
+        <Button
+          variant="contained"
+          color="success"
+          onClick={handleSend}
+          disabled={sending || (messageType === "template" && !selectedTemplate) || (messageType === "freeform" && !freeText.trim())}
+          startIcon={sending ? <CircularProgress size={16} color="inherit" /> : <i className="fab fa-whatsapp" aria-hidden="true" />}
+        >
+          Send
+        </Button>
+      </DialogActions>
+    </Dialog>
   );
 }

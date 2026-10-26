@@ -1,6 +1,36 @@
-import { useEffect, useMemo, useReducer, useState } from "react";
-import { Card, Form, Modal } from "react-bootstrap";
-import DataTable from "react-data-table-component";
+import { useCallback, useEffect, useMemo, useReducer, useState } from "react";
+import {
+  Alert,
+  Box,
+  Button,
+  Card,
+  CardContent,
+  Chip,
+  CircularProgress,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  FormControl,
+  IconButton,
+  InputAdornment,
+  InputLabel,
+  LinearProgress,
+  MenuItem,
+  Select,
+  Stack,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TablePagination,
+  TableRow,
+  TableSortLabel,
+  TextField,
+  Tooltip,
+  Typography,
+} from "@mui/material";
 import Swal from "sweetalert2";
 import { toast } from "react-toastify";
 import api from "../api";
@@ -10,6 +40,15 @@ function getNum(v, d) {
   const n = Number(v);
   return Number.isFinite(n) && n >= 0 ? n : d;
 }
+
+const toArray = (value) => {
+  if (Array.isArray(value)) return value;
+  if (Array.isArray(value?.data)) return value.data;
+  if (Array.isArray(value?.data?.data)) return value.data.data;
+  if (Array.isArray(value?.items)) return value.items;
+  if (Array.isArray(value?.results)) return value.results;
+  return [];
+};
 
 function tableReducer(state, action) {
   switch (action.type) {
@@ -23,6 +62,37 @@ function tableReducer(state, action) {
       return state;
   }
 }
+
+const cardSx = {
+  border: '1px solid',
+  borderColor: 'divider',
+  borderRadius: 3,
+  boxShadow: '0 8px 24px rgba(28,37,46,.05)',
+};
+
+const headCellSx = {
+  color: 'text.secondary',
+  fontSize: 12,
+  fontWeight: 700,
+  textTransform: 'uppercase',
+  letterSpacing: '.04em',
+  px: 2,
+  py: 1.5,
+  borderBottom: '1px solid',
+  borderColor: 'divider',
+};
+
+const bodyCellSx = {
+  verticalAlign: 'middle',
+  px: 2,
+  py: 1.5,
+  borderBottom: '1px solid #f1f5f9',
+};
+
+const dialogPaperSx = {
+  borderRadius: 3,
+  boxShadow: '0 8px 24px rgba(28,37,46,.12)',
+};
 
 export default function LeadSources() {
   const canViewPage = canView("leads");
@@ -38,6 +108,7 @@ export default function LeadSources() {
   const [loading, setLoading] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
   const [searchInput, setSearchInput] = useState("");
+  const [nameSort, setNameSort] = useState(null);
 
   const [show, setShow] = useState(false);
   const [edit, setEdit] = useState(null);
@@ -58,7 +129,7 @@ export default function LeadSources() {
     return () => clearTimeout(t);
   }, [searchInput, table.search]);
 
-  const load = async (signal) => {
+  const load = useCallback(async (signal) => {
     if (!canViewPage) return;
     try {
       setLoading(true);
@@ -71,7 +142,7 @@ export default function LeadSources() {
         signal,
       });
 
-      const data = Array.isArray(r.data?.data) ? r.data.data : [];
+      const data = toArray(r.data);
       const sorted = [...data].sort((a, b) => {
         const ap = getNum(a?.priority, 0);
         const bp = getNum(b?.priority, 0);
@@ -86,9 +157,9 @@ export default function LeadSources() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [canViewPage, table]);
 
-  const moveRow = async (row, dir) => {
+  const moveRow = useCallback(async (row, dir) => {
     const idx = rows.findIndex((r) => r.id === row.id);
     const targetIdx = idx + (dir === "up" ? -1 : 1);
     if (idx < 0 || targetIdx < 0 || targetIdx >= rows.length) return;
@@ -107,13 +178,13 @@ export default function LeadSources() {
     } catch (e) {
       toast.error(e.response?.data?.message || "Reorder failed");
     }
-  };
+  }, [rows]);
 
   useEffect(() => {
     const controller = new AbortController();
     load(controller.signal);
     return () => controller.abort();
-  }, [reloadKey, table, canViewPage]);
+  }, [reloadKey, load]);
 
   const openAdd = () => {
     setEdit(null);
@@ -187,185 +258,275 @@ export default function LeadSources() {
     }
   };
 
-  const columns = useMemo(
-    () => [
-      { name: "ID", selector: (r) => r.id, width: "80px" },
-      { name: "Name", selector: (r) => r.name, sortable: true },
-      {
-        name: "Priority",
-        width: "150px",
-        cell: (r) => (
-          <div className="d-flex align-items-center gap-2">
-            <span className="small">{r.priority ?? 0}</span>
-            {canEdit("leads") && (
-              <div className="btn-group btn-group-sm">
-                <button
-                  className="btn btn-outline-secondary"
-                  onClick={() => moveRow(r, "up")}
-                  disabled={rows.findIndex((x) => x.id === r.id) <= 0}
-                >
-                  <i className="fas fa-arrow-up"></i>
-                </button>
-                <button
-                  className="btn btn-outline-secondary"
-                  onClick={() => moveRow(r, "down")}
-                  disabled={(() => {
-                    const idx = rows.findIndex((x) => x.id === r.id);
-                    return idx < 0 || idx >= rows.length - 1;
-                  })()}
-                >
-                  <i className="fas fa-arrow-down"></i>
-                </button>
-              </div>
-            )}
-          </div>
-        ),
-      },
-      {
-        name: "Status",
-        width: "110px",
-        cell: (r) => (
-          <span className={`badge ${r.status ? "bg-success" : "bg-secondary"}`}>
-            {r.status ? "Active" : "Inactive"}
-          </span>
-        ),
-      },
-      {
-        name: "Action",
-        width: "140px",
-        cell: (row) => (
-          <div className="btn-group btn-group-sm">
-            {canEdit("leads") && (
-              <button className="btn btn-outline-primary" onClick={() => openEdit(row)}>
-                <i className="fas fa-edit"></i>
-              </button>
-            )}
-            {canDelete("leads") && (
-              <button className="btn btn-outline-danger" onClick={() => remove(row)}>
-                <i className="fas fa-trash"></i>
-              </button>
-            )}
-          </div>
-        ),
-      },
-    ],
-    [moveRow, rows]
-  );
+  const handleDialogClose = (event, reason) => {
+    if (reason === 'backdropClick') return;
+    setShow(false);
+  };
+
+  const displayRows = useMemo(() => {
+    if (!nameSort) return rows;
+    const dir = nameSort === 'asc' ? 1 : -1;
+    return [...rows].sort((a, b) => String(a?.name ?? "").localeCompare(String(b?.name ?? "")) * dir);
+  }, [rows, nameSort]);
+
+  const handleNameSort = () => {
+    setNameSort((s) => (s === 'asc' ? 'desc' : 'asc'));
+  };
 
   if (!canViewPage) {
     return (
-      <div className="p-4">
-        <Card className="border" style={{ borderColor: "#e2e8f0" }}>
-          <Card.Body className="text-center py-5">
-            <div className="text-secondary">Access denied</div>
-          </Card.Body>
-        </Card>
-      </div>
+      <Alert severity="error" sx={{ borderRadius: 3 }}>
+        Access denied
+      </Alert>
     );
   }
 
   return (
-    <div className="p-4">
-      <div className="mb-4 d-flex align-items-center justify-content-between flex-wrap gap-2">
-        <div>
-          <h4 className="fw-semibold mb-1" style={{ color: "#1e293b" }}>Lead Sources</h4>
-          <div className="text-secondary small">Set priority to control dropdown order</div>
-        </div>
-        {canCreate("leads") && (
-          <button className="btn btn-primary" onClick={openAdd}>
-            <i className="fas fa-plus me-1"></i> New
-          </button>
-        )}
-      </div>
+    <Box>
+      <Card sx={cardSx}>
+        <CardContent sx={{ p: 3 }}>
+          <Box sx={{ display: 'flex', alignItems: { md: 'center' }, justifyContent: 'space-between', flexDirection: { xs: 'column', md: 'row' }, gap: 2 }}>
+            <Box>
+              <Typography variant="h4" sx={{ color: 'text.primary', fontWeight: 700 }}>
+                Lead Sources
+              </Typography>
+              <Typography variant="body2" sx={{ color: 'text.secondary', mt: .5 }}>
+                Set priority to control dropdown order
+              </Typography>
+            </Box>
+            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} alignItems={{ sm: 'center' }}>
+              <TextField
+                size="small"
+                placeholder="Search"
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
+                sx={{ minWidth: { xs: '100%', sm: 260 } }}
+                slotProps={{
+                  input: {
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <i className="fas fa-search" style={{ fontSize: 13 }} aria-hidden="true" />
+                      </InputAdornment>
+                    ),
+                  },
+                }}
+              />
+              {canCreate("leads") && (
+                <Button variant="contained" onClick={openAdd} startIcon={<i className="fas fa-plus" aria-hidden="true" />}>
+                  New
+                </Button>
+              )}
+            </Stack>
+          </Box>
+        </CardContent>
 
-      <Card className="border" style={{ borderColor: "#e2e8f0" }}>
-        <Card.Header className="bg-white border-bottom py-3" style={{ borderColor: "#e2e8f0" }}>
-          <div className="d-flex gap-2 justify-content-end flex-wrap">
-            <input
-              className="form-control form-control-sm"
-              style={{ maxWidth: 260 }}
-              placeholder="Search"
-              value={searchInput}
-              onChange={(e) => setSearchInput(e.target.value)}
-            />
-          </div>
-        </Card.Header>
-        <Card.Body className="p-0">
-          <DataTable
-          className="modern-datatable"
-            columns={columns}
-            data={rows}
-            progressPending={loading}
-          progressComponent={<div className="p-4 text-center"><div className="spinner-border spinner-border-sm me-2"></div>Loading...</div>}
-persistTableHead
-            pagination
-            paginationServer
-            paginationTotalRows={total}
-            paginationPerPage={table.perPage}
-            onChangePage={(p) => p !== table.page && dispatch({ type: "PAGE", page: p })}
-            onChangeRowsPerPage={(n) => n !== table.perPage && dispatch({ type: "PER_PAGE", perPage: n })}
-            striped
-            highlightOnHover
-            dense
-            keyField="id"
-          noDataComponent={
-            <div className="p-5 text-center">
-              <i className="fas fa-folder-open text-muted mb-3" style={{ fontSize: 48, opacity: 0.4 }}></i>
-              <div className="fw-semibold text-secondary mb-1">No data found</div>
-              <div className="small text-muted">Try adjusting your filters or check back later</div>
-            </div>
-          }
-          />
-        </Card.Body>
+        {loading && <LinearProgress />}
+        <TableContainer sx={{ overflowX: 'auto' }}>
+          <Table sx={{ minWidth: 720 }} size="small">
+            <TableHead>
+              <TableRow sx={{ bgcolor: '#f8fafc' }}>
+                <TableCell sx={{ ...headCellSx, width: 80 }}>ID</TableCell>
+                <TableCell sx={headCellSx}>
+                  <TableSortLabel
+                    active={Boolean(nameSort)}
+                    direction={nameSort || 'asc'}
+                    onClick={handleNameSort}
+                  >
+                    Name
+                  </TableSortLabel>
+                </TableCell>
+                <TableCell sx={{ ...headCellSx, width: 150 }}>Priority</TableCell>
+                <TableCell sx={{ ...headCellSx, width: 110 }}>Status</TableCell>
+                <TableCell align="right" sx={{ ...headCellSx, width: 140 }}>Action</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {displayRows.length === 0 && !loading ? (
+                <TableRow>
+                  <TableCell colSpan={5} align="center" sx={{ py: 7 }}>
+                    <i className="fas fa-folder-open" style={{ color: '#637381', fontSize: 42, opacity: .4 }} aria-hidden="true" />
+                    <Typography variant="subtitle2" sx={{ color: 'text.secondary', mt: 1.5 }}>
+                      No data found
+                    </Typography>
+                    <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                      Try adjusting your filters or check back later
+                    </Typography>
+                  </TableCell>
+                </TableRow>
+              ) : displayRows.map((r) => (
+                <TableRow
+                  key={r.id}
+                  hover
+                  sx={{ '&:last-child td': { borderBottom: 0 } }}
+                >
+                  <TableCell sx={bodyCellSx}>
+                    <Typography variant="body2" sx={{ fontWeight: 700 }}>#{r.id}</Typography>
+                  </TableCell>
+                  <TableCell sx={bodyCellSx}>{r.name}</TableCell>
+                  <TableCell sx={bodyCellSx}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <Typography variant="body2">{r.priority ?? 0}</Typography>
+                      {canEdit("leads") && (
+                        <Stack direction="row" spacing={0.5}>
+                          <IconButton
+                            size="small"
+                            aria-label="Move up"
+                            onClick={() => moveRow(r, "up")}
+                            disabled={rows.findIndex((x) => x.id === r.id) <= 0}
+                            sx={{ border: '1px solid', borderColor: 'divider' }}
+                          >
+                            <i className="fas fa-arrow-up" style={{ fontSize: 11 }} aria-hidden="true" />
+                          </IconButton>
+                          <IconButton
+                            size="small"
+                            aria-label="Move down"
+                            onClick={() => moveRow(r, "down")}
+                            disabled={(() => {
+                              const idx = rows.findIndex((x) => x.id === r.id);
+                              return idx < 0 || idx >= rows.length - 1;
+                            })()}
+                            sx={{ border: '1px solid', borderColor: 'divider' }}
+                          >
+                            <i className="fas fa-arrow-down" style={{ fontSize: 11 }} aria-hidden="true" />
+                          </IconButton>
+                        </Stack>
+                      )}
+                    </Box>
+                  </TableCell>
+                  <TableCell sx={bodyCellSx}>
+                    <Chip
+                      label={r.status ? "Active" : "Inactive"}
+                      size="small"
+                      sx={r.status
+                        ? { bgcolor: '#dbf5e9', color: '#118d57', fontWeight: 700 }
+                        : { bgcolor: '#f1f5f9', color: '#475569', fontWeight: 700 }}
+                    />
+                  </TableCell>
+                  <TableCell align="right" sx={bodyCellSx}>
+                    <Stack direction="row" spacing={0.5} justifyContent="flex-end">
+                      {canEdit("leads") && (
+                        <Tooltip title="Edit">
+                          <IconButton size="small" color="primary" onClick={() => openEdit(r)} sx={{ border: '1px solid', borderColor: 'divider' }} aria-label="Edit">
+                            <i className="fas fa-edit" style={{ fontSize: 13 }} aria-hidden="true" />
+                          </IconButton>
+                        </Tooltip>
+                      )}
+                      {canDelete("leads") && (
+                        <Tooltip title="Delete">
+                          <IconButton size="small" color="error" onClick={() => remove(r)} sx={{ border: '1px solid', borderColor: 'divider' }} aria-label="Delete">
+                            <i className="fas fa-trash" style={{ fontSize: 13 }} aria-hidden="true" />
+                          </IconButton>
+                        </Tooltip>
+                      )}
+                    </Stack>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </TableContainer>
+
+        <TablePagination
+          component="div"
+          count={total}
+          page={Math.max(table.page - 1, 0)}
+          rowsPerPage={table.perPage}
+          rowsPerPageOptions={[10, 15, 20, 25, 30]}
+          onPageChange={(event, page) => {
+            const nextPage = page + 1;
+            if (nextPage !== table.page) dispatch({ type: 'PAGE', page: nextPage });
+          }}
+          onRowsPerPageChange={(event) => {
+            const nextSize = Number(event.target.value);
+            if (nextSize !== table.perPage) dispatch({ type: 'PER_PAGE', perPage: nextSize });
+          }}
+          sx={{ borderTop: '1px solid', borderColor: 'divider' }}
+        />
       </Card>
 
-      <Modal show={show} onHide={() => setShow(false)} centered backdrop="static">
-        <Modal.Header closeButton>
-          <Modal.Title>{edit ? "Edit" : "Create"} Lead Source</Modal.Title>
-        </Modal.Header>
-        <Modal.Body>
-          <Form.Group className="mb-3">
-            <Form.Label>Name <span className="text-danger">*</span></Form.Label>
-            <Form.Control value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
-          </Form.Group>
+      <Dialog
+        open={show}
+        onClose={handleDialogClose}
+        maxWidth="sm"
+        fullWidth
+        slotProps={{ paper: { sx: dialogPaperSx } }}
+      >
+        <DialogTitle sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 2, py: 2 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25 }}>
+            <i className={`fas ${edit ? 'fa-edit' : 'fa-plus'}`} style={{ color: '#062849', fontSize: 15 }} aria-hidden="true" />
+            <Typography variant="h6" sx={{ fontWeight: 700 }}>
+              {edit ? "Edit" : "Create"} Lead Source
+            </Typography>
+          </Box>
+          <IconButton size="small" onClick={() => setShow(false)} aria-label="Close">
+            <i className="fas fa-times" style={{ fontSize: 14 }} aria-hidden="true" />
+          </IconButton>
+        </DialogTitle>
 
-          <Form.Group className="mb-3">
-            <Form.Label>Description</Form.Label>
-            <Form.Control as="textarea" rows={3} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
-          </Form.Group>
-
-          <div className="row g-2">
-            <div className="col-12 col-md-6">
-              <Form.Group className="mb-3">
-                <Form.Label>Priority</Form.Label>
-                <Form.Control
+        <DialogContent dividers sx={{ p: 3 }}>
+          <Box sx={{ display: 'grid', gridTemplateColumns: '1fr', gap: 2 }}>
+            <TextField
+              size="small"
+              label="Name"
+              required
+              value={form.name}
+              onChange={(e) => setForm({ ...form, name: e.target.value })}
+              fullWidth
+            />
+            <TextField
+              size="small"
+              label="Description"
+              value={form.description}
+              onChange={(e) => setForm({ ...form, description: e.target.value })}
+              multiline
+              rows={3}
+              fullWidth
+            />
+            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(2, 1fr)' }, gap: 2 }}>
+              <Box>
+                <TextField
+                  size="small"
                   type="number"
+                  label="Priority"
                   value={form.priority}
                   onChange={(e) => setForm({ ...form, priority: e.target.value })}
+                  fullWidth
                 />
                 {!edit && (
-                  <div className="small text-secondary mt-1">Leave blank to auto-set priority</div>
+                  <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mt: .5 }}>
+                    Leave blank to auto-set priority
+                  </Typography>
                 )}
-              </Form.Group>
-            </div>
-            <div className="col-12 col-md-6">
-              <Form.Group className="mb-3">
-                <Form.Label>Status</Form.Label>
-                <Form.Select value={form.status ? "1" : "0"} onChange={(e) => setForm({ ...form, status: e.target.value === "1" })}>
-                  <option value="1">Active</option>
-                  <option value="0">Inactive</option>
-                </Form.Select>
-              </Form.Group>
-            </div>
-          </div>
-        </Modal.Body>
-        <Modal.Footer>
-          <button className="btn btn-light" onClick={() => setShow(false)} disabled={saving}>Close</button>
-          <button className="btn btn-primary" onClick={save} disabled={saving}>
+              </Box>
+              <FormControl size="small" fullWidth>
+                <InputLabel>Status</InputLabel>
+                <Select
+                  label="Status"
+                  value={form.status ? "1" : "0"}
+                  onChange={(e) => setForm({ ...form, status: e.target.value === "1" })}
+                >
+                  <MenuItem value="1">Active</MenuItem>
+                  <MenuItem value="0">Inactive</MenuItem>
+                </Select>
+              </FormControl>
+            </Box>
+          </Box>
+        </DialogContent>
+
+        <DialogActions sx={{ px: 3, py: 2 }}>
+          <Button variant="outlined" color="inherit" onClick={() => setShow(false)} disabled={saving}>
+            Close
+          </Button>
+          <Button
+            variant="contained"
+            onClick={save}
+            disabled={saving}
+            startIcon={saving ? <CircularProgress size={16} color="inherit" /> : null}
+          >
             {saving ? "Saving..." : "Save"}
-          </button>
-        </Modal.Footer>
-      </Modal>
-    </div>
+          </Button>
+        </DialogActions>
+      </Dialog>
+    </Box>
   );
 }

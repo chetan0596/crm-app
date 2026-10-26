@@ -11,7 +11,6 @@ export default function PermissionRoute({ permission, children }) {
     return () => window.removeEventListener("permissions-changed", onChange);
   }, []);
 
-  // eslint-disable-next-line no-unused-vars
   const _ = permTick; // forces re-eval of hasPermission on change
 
   if (!hasPermission(permission)) {

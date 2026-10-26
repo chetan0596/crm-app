@@ -1,7 +1,40 @@
-import { useEffect, useMemo, useReducer, useState } from "react";
+import { useCallback, useEffect, useReducer, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import DataTable from "react-data-table-component";
-import { Modal, Button, Form, Dropdown } from "react-bootstrap";
+import {
+  Box,
+  Button,
+  Card,
+  CardContent,
+  Checkbox,
+  Chip,
+  CircularProgress,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  Divider,
+  FormControl,
+  IconButton,
+  InputAdornment,
+  InputLabel,
+  LinearProgress,
+  ListItemText,
+  Menu,
+  MenuItem,
+  Select,
+  Stack,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TablePagination,
+  TableRow,
+  TableSortLabel,
+  TextField,
+  Tooltip,
+  Typography,
+} from "@mui/material";
 import Swal from "sweetalert2";
 import { toast } from "react-toastify";
 import api from "../api";
@@ -21,6 +54,56 @@ const getNum = (v, fallback = 1) => {
   return isNaN(n) || n < 1 ? fallback : n;
 };
 
+const toArray = (value) => {
+  if (Array.isArray(value)) return value;
+  if (Array.isArray(value?.data)) return value.data;
+  if (Array.isArray(value?.data?.data)) return value.data.data;
+  if (Array.isArray(value?.items)) return value.items;
+  if (Array.isArray(value?.results)) return value.results;
+  return [];
+};
+
+const cardSx = {
+  border: '1px solid',
+  borderColor: 'divider',
+  borderRadius: 3,
+  boxShadow: '0 8px 24px rgba(28,37,46,.05)',
+};
+
+const headCellSx = {
+  color: 'text.secondary',
+  fontSize: 12,
+  fontWeight: 700,
+  textTransform: 'uppercase',
+  letterSpacing: '.04em',
+  px: 2,
+  py: 1.5,
+  borderBottom: '1px solid',
+  borderColor: 'divider',
+};
+
+const bodyCellSx = {
+  verticalAlign: 'middle',
+  px: 2,
+  py: 1.5,
+  borderBottom: '1px solid #f1f5f9',
+};
+
+const dialogPaperSx = {
+  borderRadius: 3,
+  boxShadow: '0 8px 24px rgba(28,37,46,.12)',
+};
+
+const actionBtnSx = { border: '1px solid', borderColor: 'divider' };
+
+const visibleColumnOptions = [
+  ['id', 'ID'],
+  ['name', 'Name'],
+  ['percentage', 'Rate'],
+  ['type', 'Type'],
+  ['action', 'Action'],
+];
+
 export default function TaxMaster() {
   const [params, setParams] = useSearchParams();
 
@@ -38,10 +121,13 @@ export default function TaxMaster() {
   const [loading, setLoading] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
   const [searchInput, setSearchInput] = useState(initialTable.search);
+  const [columnAnchorEl, setColumnAnchorEl] = useState(null);
 
   const [visibleCols, setVisibleCols] = useState(() => {
     const saved = localStorage.getItem('tax-visible-cols');
-    if (saved) { try { return JSON.parse(saved); } catch {} }
+    if (saved) { try { return JSON.parse(saved); } catch {
+      return { id: true, name: true, percentage: true, type: true, action: true };
+    } }
     return { id: true, name: true, percentage: true, type: true, action: true };
   });
 
@@ -72,24 +158,24 @@ export default function TaxMaster() {
     return () => clearTimeout(t);
   }, [searchInput, table.search]);
 
-  const load = async (signal) => {
+  const load = useCallback(async (signal) => {
     try {
       setLoading(true);
       const res = await api.get("/taxes", { params: table, signal });
-      setRows(res.data.data || []);
-      setTotal(res.data.total || 0);
+      setRows(toArray(res.data));
+      setTotal(Number(res.data?.total ?? res.data?.data?.total) || 0);
     } catch {
       setRows([]); setTotal(0);
     } finally {
       setLoading(false);
     }
-  };
+  }, [table]);
 
   useEffect(() => {
     const controller = new AbortController();
     load(controller.signal);
     return () => controller.abort();
-  }, [table, reloadKey]);
+  }, [load, reloadKey]);
 
   const openAdd = () => {
     setEditRow(null);
@@ -142,117 +228,276 @@ export default function TaxMaster() {
     });
   };
 
-  const columns = useMemo(() => {
-    const all = [
-      visibleCols.id && { name: "ID", selector: r => r.id, sortable: true, sortField: "id", width: "80px" },
-      visibleCols.name && { name: "Tax Name", selector: r => r.name, sortable: true, sortField: "name" },
-      visibleCols.percentage && { name: "Rate (%)", selector: r => `${r.percentage}%`, sortable: true, sortField: "percentage", width: "100px" },
-      visibleCols.type && { name: "Type", selector: r => r.type, sortable: true, sortField: "type", width: "100px" },
-      visibleCols.action && {
-        name: "Action", width: "120px",
-        cell: row => (
-          <div className="btn-group btn-group-sm">
-            <button className="btn btn-outline-primary" onClick={() => openEdit(row)}>
-              <i className="fas fa-edit"></i>
-            </button>
-            <button className="btn btn-outline-danger" onClick={() => remove(row)}>
-              <i className="fas fa-trash"></i>
-            </button>
-          </div>
-        ),
-      },
-    ];
-    return all.filter(Boolean);
-  }, [visibleCols]);
+  const handleDialogClose = (event, reason) => {
+    if (reason === 'backdropClick') return;
+    setShow(false);
+  };
+
+  const columns = [
+    visibleCols.id && {
+      key: 'id', label: 'ID', sortField: 'id', width: 90,
+      render: (row) => <Typography variant="body2" sx={{ fontWeight: 700 }}>#{row.id}</Typography>,
+    },
+    visibleCols.name && {
+      key: 'name', label: 'Tax Name', sortField: 'name', minWidth: 160,
+      render: (row) => row.name || '-',
+    },
+    visibleCols.percentage && {
+      key: 'percentage', label: 'Rate (%)', sortField: 'percentage', width: 110,
+      render: (row) => `${row.percentage}%`,
+    },
+    visibleCols.type && {
+      key: 'type', label: 'Type', sortField: 'type', width: 120,
+      render: (row) => row.type ? <Chip label={row.type} size="small" variant="outlined" /> : '-',
+    },
+    visibleCols.action && {
+      key: 'action', label: 'Action', width: 110, align: 'right',
+      render: (row) => (
+        <Stack direction="row" spacing={0.5} justifyContent="flex-end">
+          <Tooltip title="Edit">
+            <IconButton size="small" onClick={() => openEdit(row)} sx={actionBtnSx} aria-label="Edit tax">
+              <i className="fas fa-edit" style={{ fontSize: 13 }} aria-hidden="true" />
+            </IconButton>
+          </Tooltip>
+          <Tooltip title="Delete">
+            <IconButton size="small" onClick={() => remove(row)} sx={{ ...actionBtnSx, color: 'error.main' }} aria-label="Delete tax">
+              <i className="fas fa-trash" style={{ fontSize: 13 }} aria-hidden="true" />
+            </IconButton>
+          </Tooltip>
+        </Stack>
+      ),
+    },
+  ].filter(Boolean);
+
+  const shownColumnCount = visibleColumnOptions.filter(([key]) => visibleCols[key]).length;
+
+  const handleSort = (field) => {
+    const isAsc = table.sortField === field && table.sortDir === 'asc';
+    dispatch({ type: 'SORT', field, dir: isAsc ? 'desc' : 'asc' });
+  };
 
   return (
-    <div className="card card-outline card-primary">
-      <div className="card-header">
-        <div className="row g-2 align-items-center">
-          <div className="col-12 col-md-6"><h3 className="card-title">Tax / GST Master</h3></div>
-          <div className="col-12 col-md-6">
-            <div className="d-flex gap-2 flex-wrap justify-content-md-end">
-              <input className="form-control form-control-sm" style={{ maxWidth: 220 }}
-                placeholder="Search taxes..." value={searchInput} onChange={e => setSearchInput(e.target.value)} />
-              <button className="btn btn-primary btn-sm" onClick={openAdd}><i className="fas fa-plus"></i> Add Tax</button>
-            </div>
-          </div>
-        </div>
-      </div>
+    <Box>
+      <Card sx={cardSx}>
+        <CardContent sx={{ p: 3 }}>
+          <Box sx={{ display: 'flex', alignItems: { md: 'center' }, justifyContent: 'space-between', flexDirection: { xs: 'column', md: 'row' }, gap: 2 }}>
+            <Box>
+              <Typography variant="h4" sx={{ color: 'text.primary', fontWeight: 700 }}>
+                Tax / GST Master
+              </Typography>
+              <Typography variant="body2" sx={{ color: 'text.secondary', mt: .5 }}>
+                {total} total taxes
+              </Typography>
+            </Box>
+            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} alignItems={{ sm: 'center' }}>
+              <TextField
+                size="small"
+                placeholder="Search taxes..."
+                value={searchInput}
+                onChange={e => setSearchInput(e.target.value)}
+                sx={{ minWidth: { xs: '100%', sm: 240 } }}
+                slotProps={{
+                  input: {
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <i className="fas fa-search" style={{ fontSize: 13 }} aria-hidden="true" />
+                      </InputAdornment>
+                    ),
+                  },
+                }}
+              />
+              <Button variant="contained" onClick={openAdd} startIcon={<i className="fas fa-plus" aria-hidden="true" />}>
+                Add Tax
+              </Button>
+            </Stack>
+          </Box>
+        </CardContent>
 
-      <div className="p-2 border-bottom bg-light">
-        <div className="d-flex align-items-center gap-2 flex-wrap">
-          <span className="text-muted small fw-bold">Show columns:</span>
-          <Dropdown>
-            <Dropdown.Toggle variant="outline-secondary" size="sm">
-              <i className="fas fa-columns me-1"></i>
-              {[visibleCols.id && 'ID', visibleCols.name && 'Name', visibleCols.percentage && 'Rate', visibleCols.type && 'Type'].filter(Boolean).join(', ') || 'None'}
-            </Dropdown.Toggle>
-            <Dropdown.Menu>
-              <Dropdown.Item active={visibleCols.id} onClick={() => setVisibleCols(v => ({ ...v, id: !v.id }))}>
-                <i className={`fas ${visibleCols.id ? 'fa-check-square text-primary' : 'fa-square'} me-2`}></i> ID
-              </Dropdown.Item>
-              <Dropdown.Item active={visibleCols.name} onClick={() => setVisibleCols(v => ({ ...v, name: !v.name }))}>
-                <i className={`fas ${visibleCols.name ? 'fa-check-square text-primary' : 'fa-square'} me-2`}></i> Name
-              </Dropdown.Item>
-              <Dropdown.Item active={visibleCols.percentage} onClick={() => setVisibleCols(v => ({ ...v, percentage: !v.percentage }))}>
-                <i className={`fas ${visibleCols.percentage ? 'fa-check-square text-primary' : 'fa-square'} me-2`}></i> Rate
-              </Dropdown.Item>
-              <Dropdown.Item active={visibleCols.type} onClick={() => setVisibleCols(v => ({ ...v, type: !v.type }))}>
-                <i className={`fas ${visibleCols.type ? 'fa-check-square text-primary' : 'fa-square'} me-2`}></i> Type
-              </Dropdown.Item>
-            </Dropdown.Menu>
-          </Dropdown>
-        </div>
-      </div>
-
-      <div className="card-body p-0">
-        <DataTable columns={columns} data={rows} progressPending={loading} persistTableHead
-          className="modern-datatable"
-          pagination paginationServer paginationTotalRows={total} paginationPerPage={table.perPage}
-          onChangePage={(p) => p !== table.page && dispatch({ type: "PAGE", page: p })}
-          onChangeRowsPerPage={(n) => n !== table.perPage && dispatch({ type: "PER_PAGE", perPage: n })}
-          sortServer onSort={(col, dir) => col.sortField && dispatch({ type: "SORT", field: col.sortField, dir })}
-          progressComponent={<div className="p-4 text-center"><div className="spinner-border spinner-border-sm me-2"></div>Loading...</div>}
-          noDataComponent={
-            <div className="p-5 text-center">
-              <i className="fas fa-folder-open text-muted mb-3" style={{ fontSize: 48, opacity: 0.4 }}></i>
-              <div className="fw-semibold text-secondary mb-1">No data found</div>
-              <div className="small text-muted">Try adjusting your filters or check back later</div>
-            </div>
-          }
-          striped highlightOnHover dense keyField="id" />
-      </div>
-
-      <Modal show={show} onHide={() => setShow(false)} backdrop="static">
-        <Modal.Header closeButton><Modal.Title>{editRow ? "Edit Tax" : "Add Tax"}</Modal.Title></Modal.Header>
-        <Modal.Body>
-          <Form.Group className="mb-3">
-            <Form.Label>Tax Name <span className="text-danger">*</span></Form.Label>
-            <Form.Control value={name} onChange={e => setName(e.target.value)} placeholder="e.g., GST 18%, IGST 12%" />
-          </Form.Group>
-          <Form.Group className="mb-3">
-            <Form.Label>Tax Type</Form.Label>
-            <Form.Select value={type} onChange={e => setType(e.target.value)}>
-              <option value="GST">GST</option>
-              <option value="IGST">IGST</option>
-              <option value="CGST+SGST">CGST + SGST</option>
-              <option value="VAT">VAT</option>
-            </Form.Select>
-          </Form.Group>
-          <Form.Group>
-            <Form.Label>Percentage (%) <span className="text-danger">*</span></Form.Label>
-            <Form.Control type="number" step="0.01" min="0" max="100"
-              value={percentage} onChange={e => setPercentage(e.target.value)} placeholder="e.g., 18" />
-          </Form.Group>
-        </Modal.Body>
-        <Modal.Footer>
-          <Button variant="secondary" onClick={() => setShow(false)}>Cancel</Button>
-          <Button variant="primary" onClick={save} disabled={saving}>
-            {saving && <span className="spinner-border spinner-border-sm me-2"></span>} Save
+        <Divider />
+        <Box sx={{ px: 3, py: 1.5, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 2, flexWrap: 'wrap' }}>
+          <Stack direction="row" spacing={1.5} alignItems="center">
+            <Typography variant="body2" sx={{ color: 'text.secondary', fontWeight: 700 }}>
+              Columns:
+            </Typography>
+            <Button
+              variant="text"
+              size="small"
+              onClick={(event) => setColumnAnchorEl(event.currentTarget)}
+              startIcon={<i className="fas fa-columns" aria-hidden="true" />}
+            >
+              {shownColumnCount === 0 ? 'No columns' : shownColumnCount === visibleColumnOptions.length ? `All columns (${visibleColumnOptions.length})` : `${shownColumnCount} of ${visibleColumnOptions.length} columns`}
+            </Button>
+            <Menu anchorEl={columnAnchorEl} open={Boolean(columnAnchorEl)} onClose={() => setColumnAnchorEl(null)}>
+              {visibleColumnOptions.map(([key, label]) => (
+                <MenuItem key={key} onClick={() => setVisibleCols(v => ({ ...v, [key]: !v[key] }))}>
+                  <Checkbox checked={Boolean(visibleCols[key])} size="small" />
+                  <ListItemText primary={label} />
+                </MenuItem>
+              ))}
+            </Menu>
+          </Stack>
+          <Button
+            variant="outlined"
+            size="small"
+            onClick={() => setReloadKey(k => k + 1)}
+            disabled={loading}
+            startIcon={<i className="fas fa-sync-alt" aria-hidden="true" />}
+          >
+            Refresh
           </Button>
-        </Modal.Footer>
-      </Modal>
-    </div>
+        </Box>
+
+        {loading && <LinearProgress />}
+        <TableContainer sx={{ overflowX: 'auto' }}>
+          <Table sx={{ minWidth: 640 }} size="small">
+            <TableHead>
+              <TableRow sx={{ bgcolor: '#f8fafc' }}>
+                {columns.map((column) => (
+                  <TableCell
+                    key={column.key}
+                    align={column.align || 'left'}
+                    sx={{ ...headCellSx, minWidth: column.minWidth, width: column.width }}
+                  >
+                    {column.sortField ? (
+                      <TableSortLabel
+                        active={table.sortField === column.sortField}
+                        direction={table.sortField === column.sortField ? table.sortDir : 'asc'}
+                        onClick={() => handleSort(column.sortField)}
+                      >
+                        {column.label}
+                      </TableSortLabel>
+                    ) : column.label}
+                  </TableCell>
+                ))}
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {rows.length === 0 && !loading ? (
+                <TableRow>
+                  <TableCell colSpan={Math.max(columns.length, 1)} align="center" sx={{ py: 7 }}>
+                    <i className="fas fa-folder-open" style={{ color: '#637381', fontSize: 42, opacity: .4 }} aria-hidden="true" />
+                    <Typography variant="subtitle2" sx={{ color: 'text.secondary', mt: 1.5 }}>
+                      No data found
+                    </Typography>
+                    <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                      Try adjusting your filters or check back later
+                    </Typography>
+                  </TableCell>
+                </TableRow>
+              ) : rows.map((row) => (
+                <TableRow
+                  key={row.id}
+                  hover
+                  sx={{
+                    '&:hover': { bgcolor: 'rgba(6,40,73,.035)' },
+                    '&:last-child td': { borderBottom: 0 },
+                  }}
+                >
+                  {columns.map((column) => (
+                    <TableCell
+                      key={`${row.id}-${column.key}`}
+                      align={column.align || 'left'}
+                      sx={bodyCellSx}
+                    >
+                      {column.render(row)}
+                    </TableCell>
+                  ))}
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </TableContainer>
+
+        <TablePagination
+          component="div"
+          count={total}
+          page={Math.max(table.page - 1, 0)}
+          rowsPerPage={table.perPage}
+          rowsPerPageOptions={[10, 25, 50, 100]}
+          onPageChange={(event, page) => {
+            const nextPage = page + 1;
+            if (nextPage !== table.page) dispatch({ type: 'PAGE', page: nextPage });
+          }}
+          onRowsPerPageChange={(event) => {
+            const nextSize = Number(event.target.value);
+            if (nextSize !== table.perPage) dispatch({ type: 'PER_PAGE', perPage: nextSize });
+          }}
+          sx={{ borderTop: '1px solid', borderColor: 'divider' }}
+        />
+      </Card>
+
+      <Dialog
+        open={show}
+        onClose={handleDialogClose}
+        maxWidth="sm"
+        fullWidth
+        slotProps={{ paper: { sx: dialogPaperSx } }}
+      >
+        <DialogTitle sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 2, py: 2 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25 }}>
+            <i className={`fas ${editRow ? 'fa-edit' : 'fa-plus'}`} style={{ color: '#062849', fontSize: 15 }} aria-hidden="true" />
+            <Typography variant="h6" sx={{ fontWeight: 700 }}>
+              {editRow ? "Edit Tax" : "Add Tax"}
+            </Typography>
+          </Box>
+          <IconButton size="small" onClick={() => setShow(false)} aria-label="Close">
+            <i className="fas fa-times" style={{ fontSize: 14 }} aria-hidden="true" />
+          </IconButton>
+        </DialogTitle>
+
+        <DialogContent dividers sx={{ p: 3 }}>
+          <Stack spacing={2.5}>
+            <TextField
+              size="small"
+              label="Tax Name"
+              required
+              placeholder="e.g., GST 18%, IGST 12%"
+              value={name}
+              onChange={e => setName(e.target.value)}
+              fullWidth
+            />
+            <FormControl size="small" fullWidth>
+              <InputLabel id="tax-type-label">Tax Type</InputLabel>
+              <Select
+                labelId="tax-type-label"
+                label="Tax Type"
+                value={type}
+                onChange={e => setType(e.target.value)}
+              >
+                <MenuItem value="GST">GST</MenuItem>
+                <MenuItem value="IGST">IGST</MenuItem>
+                <MenuItem value="CGST+SGST">CGST + SGST</MenuItem>
+                <MenuItem value="VAT">VAT</MenuItem>
+              </Select>
+            </FormControl>
+            <TextField
+              size="small"
+              type="number"
+              label="Percentage (%)"
+              required
+              placeholder="e.g., 18"
+              value={percentage}
+              onChange={e => setPercentage(e.target.value)}
+              inputProps={{ step: "0.01", min: "0", max: "100" }}
+              fullWidth
+            />
+          </Stack>
+        </DialogContent>
+
+        <DialogActions sx={{ px: 3, py: 2 }}>
+          <Button variant="outlined" color="inherit" onClick={() => setShow(false)} disabled={saving}>
+            Cancel
+          </Button>
+          <Button
+            variant="contained"
+            onClick={save}
+            disabled={saving}
+            startIcon={saving ? <CircularProgress size={16} color="inherit" /> : null}
+          >
+            {saving ? "Saving..." : "Save"}
+          </Button>
+        </DialogActions>
+      </Dialog>
+    </Box>
   );
 }

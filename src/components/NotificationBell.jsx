@@ -1,5 +1,15 @@
 import { useCallback, useState, useEffect } from 'react';
-import { Dropdown, Badge } from "react-bootstrap";
+import {
+  Badge,
+  Box,
+  Button,
+  Divider,
+  IconButton,
+  Menu,
+  MenuItem,
+  Tooltip,
+  Typography,
+} from "@mui/material";
 import { Link } from "react-router-dom";
 import api from "../api";
 
@@ -15,7 +25,7 @@ const timeAgo = (date) => {
     minute: 60,
     second: 1
   };
-  
+
   for (const [unit, secondsInUnit] of Object.entries(intervals)) {
     const interval = Math.floor(seconds / secondsInUnit);
     if (interval >= 1) {
@@ -28,6 +38,8 @@ const timeAgo = (date) => {
 export default function NotificationBell() {
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [anchorEl, setAnchorEl] = useState(null);
+  const open = Boolean(anchorEl);
 
   const fetchNotifications = useCallback(async () => {
     try {
@@ -75,110 +87,183 @@ export default function NotificationBell() {
   const getIcon = (type) => {
     switch (type) {
       case 'follow_up':
-        return 'fas fa-calendar-check text-warning';
+        return 'fas fa-calendar-check';
       case 'lead_assigned':
-        return 'fas fa-user-plus text-info';
+        return 'fas fa-user-plus';
       default:
-        return 'fas fa-bell text-primary';
+        return 'fas fa-bell';
+    }
+  };
+
+  const getIconColor = (type) => {
+    switch (type) {
+      case 'follow_up':
+        return 'warning.main';
+      case 'lead_assigned':
+        return 'info.main';
+      default:
+        return 'primary.main';
     }
   };
 
   return (
-    <Dropdown align="end" className="mx-2">
-      <Dropdown.Toggle 
-        variant="light" 
-        className="nav-link position-relative p-2 border-0 bg-transparent"
-        id="notification-dropdown"
-      >
-        <i className="fas fa-bell fa-lg"></i>
-        {unreadCount > 0 && (
-          <Badge 
-            bg="danger" 
-            pill 
-            className="position-absolute top-0 end-0"
-            style={{ fontSize: '0.65rem', transform: 'translate(25%, -25%)' }}
+    <Box sx={{ mx: 1 }}>
+      <Tooltip title="Notifications">
+        <IconButton
+          onClick={(e) => setAnchorEl(e.currentTarget)}
+          aria-label="Notifications"
+          sx={{ color: 'inherit' }}
+        >
+          <Badge
+            badgeContent={unreadCount > 99 ? '99+' : unreadCount}
+            color="error"
+            invisible={unreadCount <= 0}
+            overlap="circular"
           >
-            {unreadCount > 99 ? '99+' : unreadCount}
+            <i className="fas fa-bell" style={{ fontSize: 18 }} aria-hidden="true" />
           </Badge>
-        )}
-      </Dropdown.Toggle>
+        </IconButton>
+      </Tooltip>
 
-      <Dropdown.Menu className="dropdown-menu-right shadow border-0" style={{ width: '350px', maxHeight: '400px', overflow: 'auto' }}>
-        <div className="d-flex justify-content-between align-items-center px-3 py-2 border-bottom">
-          <h6 className="mb-0 font-weight-bold">Notifications</h6>
+      <Menu
+        anchorEl={anchorEl}
+        open={open}
+        onClose={() => setAnchorEl(null)}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+        transformOrigin={{ vertical: 'top', horizontal: 'right' }}
+        slotProps={{
+          paper: {
+            sx: {
+              mt: 1,
+              width: 350,
+              maxWidth: 'calc(100vw - 24px)',
+            },
+          },
+          list: {
+            sx: {
+              py: 0,
+              maxHeight: 400,
+              overflowY: 'auto',
+            },
+          },
+        }}
+      >
+        <Box
+          sx={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            px: 2,
+            py: 1.5,
+            borderBottom: '1px solid',
+            borderColor: 'divider',
+            position: 'sticky',
+            top: 0,
+            bgcolor: 'background.paper',
+            zIndex: 1,
+          }}
+        >
+          <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
+            Notifications
+          </Typography>
           {unreadCount > 0 && (
-            <button 
-              className="btn btn-link btn-sm text-decoration-none p-0"
+            <Button
+              variant="text"
+              size="small"
               onClick={markAllAsRead}
+              sx={{ minWidth: 0, p: 0, fontSize: 12 }}
             >
               Mark all read
-            </button>
+            </Button>
           )}
-        </div>
+        </Box>
 
         {notifications.length === 0 ? (
-          <div className="text-center py-4 text-muted">
-            <i className="fas fa-check-circle fa-2x mb-2"></i>
-            <p className="mb-0 small">No new notifications</p>
-          </div>
+          <Box sx={{ textAlign: 'center', py: 4, color: 'text.secondary' }}>
+            <i className="fas fa-check-circle" style={{ fontSize: 28, opacity: 0.4 }} aria-hidden="true" />
+            <Typography variant="body2" sx={{ mt: 1 }}>
+              No new notifications
+            </Typography>
+          </Box>
         ) : (
           <>
             {notifications.map((notification) => (
-              <Dropdown.Item 
+              <MenuItem
                 key={notification.id}
-                className="border-bottom py-2 px-3"
-                style={{ whiteSpace: 'normal' }}
+                sx={{
+                  whiteSpace: 'normal',
+                  alignItems: 'flex-start',
+                  py: 1.5,
+                  px: 2,
+                  borderBottom: '1px solid',
+                  borderColor: 'divider',
+                }}
               >
-                <div className="d-flex align-items-start gap-2">
-                  <i className={`${getIcon(notification.type)} mt-1`}></i>
-                  <div className="flex-grow-1" style={{ minWidth: 0 }}>
-                    <p className="mb-1 small font-weight-bold">
+                <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1.5, width: '100%' }}>
+                  <Box
+                    component="i"
+                    className={getIcon(notification.type)}
+                    sx={{ color: getIconColor(notification.type), fontSize: 15, mt: 0.35, flexShrink: 0 }}
+                    aria-hidden="true"
+                  />
+                  <Box sx={{ flexGrow: 1, minWidth: 0 }}>
+                    <Typography variant="body2" sx={{ fontWeight: 700, mb: 0.25 }}>
                       {notification.title}
-                    </p>
-                    <p className="mb-1 small text-muted">
+                    </Typography>
+                    <Typography variant="body2" sx={{ color: 'text.secondary', mb: 0.5 }}>
                       {notification.message}
-                    </p>
-                    <div className="d-flex justify-content-between align-items-center">
-                      <small className="text-muted">
-                        {notification.scheduled_at 
+                    </Typography>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                        {notification.scheduled_at
                           ? timeAgo(notification.scheduled_at)
                           : timeAgo(notification.created_at)
                         }
-                      </small>
+                      </Typography>
                       {notification.lead_id && (
-                        <Link 
+                        <Button
+                          component={Link}
                           to={`/leads/${notification.lead_id}`}
-                          className="btn btn-link btn-sm p-0 text-decoration-none"
+                          variant="text"
+                          size="small"
                           onClick={() => markAsRead(notification.id)}
+                          sx={{ minWidth: 0, p: 0, fontSize: 12 }}
                         >
                           View Lead
-                        </Link>
+                        </Button>
                       )}
-                    </div>
-                  </div>
-                  <button 
-                    className="btn btn-link btn-sm p-0 text-muted"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      markAsRead(notification.id);
-                    }}
-                    title="Mark as read"
-                  >
-                    <i className="fas fa-times"></i>
-                  </button>
-                </div>
-              </Dropdown.Item>
+                    </Box>
+                  </Box>
+                  <Tooltip title="Mark as read">
+                    <IconButton
+                      size="small"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        markAsRead(notification.id);
+                      }}
+                      aria-label="Mark as read"
+                      sx={{ color: 'text.secondary', p: 0.5, flexShrink: 0 }}
+                    >
+                      <i className="fas fa-times" style={{ fontSize: 12 }} aria-hidden="true" />
+                    </IconButton>
+                  </Tooltip>
+                </Box>
+              </MenuItem>
             ))}
-            <Dropdown.Item 
-              as={Link} 
-              to="/follow-ups" 
-              className="text-center py-2 font-weight-bold"
+            <Divider />
+            <MenuItem
+              component={Link}
+              to="/follow-ups"
+              onClick={() => setAnchorEl(null)}
+              sx={{ justifyContent: 'center', py: 1.25 }}
             >
-              View All Follow-ups
-            </Dropdown.Item>
+              <Typography variant="body2" sx={{ fontWeight: 700, color: 'secondary.main' }}>
+                View All Follow-ups
+              </Typography>
+            </MenuItem>
           </>
         )}
-      </Dropdown.Menu>
-    </Dropdown>
+      </Menu>
+    </Box>
   );
 }

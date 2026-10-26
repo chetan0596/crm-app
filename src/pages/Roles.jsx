@@ -1,7 +1,38 @@
-import { useEffect, useMemo, useReducer, useState } from "react";
+import { useCallback, useEffect, useMemo, useReducer, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import DataTable from "react-data-table-component";
-import { Modal, Button, Form, Badge } from "react-bootstrap";
+import {
+  Box,
+  Button,
+  Card,
+  CardContent,
+  Checkbox,
+  Chip,
+  CircularProgress,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  FormControl,
+  IconButton,
+  InputAdornment,
+  InputLabel,
+  LinearProgress,
+  MenuItem,
+  Paper,
+  Select,
+  Stack,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TablePagination,
+  TableRow,
+  TableSortLabel,
+  TextField,
+  Tooltip,
+  Typography,
+} from "@mui/material";
 import Swal from "sweetalert2";
 import { toast } from "react-toastify";
 import api from "../api";
@@ -22,12 +53,61 @@ const getNum = (v, fallback = 1) => {
   return isNaN(n) || n < 1 ? fallback : n;
 };
 
+const toArray = (value) => {
+  if (Array.isArray(value)) return value;
+  if (Array.isArray(value?.data)) return value.data;
+  if (Array.isArray(value?.data?.data)) return value.data.data;
+  if (Array.isArray(value?.items)) return value.items;
+  if (Array.isArray(value?.results)) return value.results;
+  return [];
+};
+
+const cardSx = {
+  border: '1px solid',
+  borderColor: 'divider',
+  borderRadius: 3,
+  boxShadow: '0 8px 24px rgba(28,37,46,.05)',
+};
+
+const headCellSx = {
+  color: 'text.secondary',
+  fontSize: 12,
+  fontWeight: 700,
+  textTransform: 'uppercase',
+  letterSpacing: '.04em',
+  px: 2,
+  py: 1.5,
+  borderBottom: '1px solid',
+  borderColor: 'divider',
+};
+
+const bodyCellSx = {
+  verticalAlign: 'middle',
+  px: 2,
+  py: 1.5,
+  borderBottom: '1px solid #f1f5f9',
+};
+
+const dialogPaperSx = {
+  borderRadius: 3,
+  boxShadow: '0 8px 24px rgba(28,37,46,.12)',
+};
+
 const ACTION_META = {
   view:   { label: "View",   color: "info",      icon: "fa-eye" },
   create: { label: "Create", color: "success",   icon: "fa-plus" },
   edit:   { label: "Edit",   color: "warning",   icon: "fa-edit" },
   delete: { label: "Delete", color: "danger",    icon: "fa-trash" },
 };
+
+const ACTION_CHIP_COLORS = {
+  info:    { bg: '#e0f2fe', fg: '#0284c7' },
+  success: { bg: '#dcfce7', fg: '#16a34a' },
+  warning: { bg: '#fef3c7', fg: '#d97706' },
+  danger:  { bg: '#fee2e2', fg: '#dc2626' },
+};
+
+const getActionChipColors = (color) => ACTION_CHIP_COLORS[color] || { bg: '#f1f5f9', fg: '#64748b' };
 
 const getActionMeta = (permName) => {
   const action = permName.split("-").pop();
@@ -84,7 +164,7 @@ export default function Roles() {
     return () => clearTimeout(t);
   }, [searchInput, table.search]);
 
-  const load = async (signal) => {
+  const load = useCallback(async (signal) => {
     setLoading(true);
     try {
       const rolesRes = await api.get("/roles", {
@@ -98,8 +178,11 @@ export default function Roles() {
         signal,
       });
 
-      setRows(rolesRes.data.data || []);
-      setTotal(rolesRes.data.total || 0);
+      const payload = rolesRes.data;
+      const list = toArray(payload);
+      setRows(list);
+      const t = Number(payload?.total ?? payload?.data?.total);
+      setTotal(Number.isFinite(t) ? t : list.length);
 
       if (hasPermission("permissions-view")) {
         try {
@@ -112,7 +195,7 @@ export default function Roles() {
             },
             signal,
           });
-          setPermissions(permRes.data.data || []);
+          setPermissions(toArray(permRes.data));
         } catch (e) {
           const status = e?.response?.status;
           if (status === 403) {
@@ -131,13 +214,13 @@ export default function Roles() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [table]);
 
   useEffect(() => {
     const controller = new AbortController();
     load(controller.signal);
     return () => controller.abort();
-  }, [table, reloadKey]);
+  }, [load, reloadKey]);
 
   const openAdd = () => {
     setEditingId(null);
@@ -227,191 +310,399 @@ export default function Roles() {
     });
   };
 
-  const columns = useMemo(() => [
-    { name: "ID", selector: r => r.id, sortable: true, sortField: "id", width: "70px" },
-    { name: "Name", selector: r => r.name, sortable: true, sortField: "name" },
-    { name: "Guard", selector: r => r.guard_name, width: "100px" },
-    { name: "Permissions", cell: row => (
-      <div className="d-flex flex-wrap gap-1">
-        {row.permissions?.slice(0, 3).map(p => (
-          <Badge key={p.id} bg="info" className="text-capitalize">{p.name}</Badge>
-        ))}
-        {row.permissions?.length > 3 && (
-          <Badge bg="secondary">+{row.permissions.length - 3}</Badge>
-        )}
-      </div>
-    )},
+  const handleDialogClose = (event, reason) => {
+    if (reason === 'backdropClick') return;
+    setShow(false);
+  };
+
+  const handleSort = (field) => {
+    const isAsc = table.sortField === field && table.sortDir === 'asc';
+    dispatch({ type: 'SORT', field, dir: isAsc ? 'desc' : 'asc' });
+  };
+
+  const columns = [
+    { key: 'id', label: 'ID', sortField: 'id', width: 70, render: (r) => r.id },
+    { key: 'name', label: 'Name', sortField: 'name', render: (r) => r.name },
+    { key: 'guard_name', label: 'Guard', width: 100, render: (r) => r.guard_name },
     {
-      name: "Action", width: "120px",
-      cell: row => (
-        <div className="btn-group btn-group-sm">
-          {canEdit('roles') && (
-            <button className="btn btn-outline-primary" onClick={() => openEdit(row)}><i className="fas fa-edit"></i></button>
+      key: 'permissions', label: 'Permissions',
+      render: (row) => (
+        <Stack direction="row" spacing={0.5} useFlexGap sx={{ flexWrap: 'wrap' }}>
+          {row.permissions?.slice(0, 3).map(p => (
+            <Chip
+              key={p.id}
+              size="small"
+              label={p.name}
+              sx={{ textTransform: 'capitalize', bgcolor: '#e0f2fe', color: '#075985' }}
+            />
+          ))}
+          {row.permissions?.length > 3 && (
+            <Chip
+              size="small"
+              label={`+${row.permissions.length - 3}`}
+              sx={{ bgcolor: '#f1f5f9', color: '#475569' }}
+            />
           )}
-          {canDelete('roles') && (
-            <button className="btn btn-outline-danger" onClick={() => deleteRole(row)}><i className="fas fa-trash"></i></button>
+          {!row.permissions?.length && (
+            <Typography variant="body2" sx={{ color: 'text.secondary' }}>-</Typography>
           )}
-        </div>
+        </Stack>
       ),
     },
-  ], []);
+    {
+      key: 'action', label: 'Action', width: 120,
+      render: (row) => (
+        <Stack direction="row" spacing={0.5}>
+          {canEdit('roles') && (
+            <Tooltip title="Edit">
+              <IconButton
+                size="small"
+                onClick={() => openEdit(row)}
+                aria-label="Edit role"
+                sx={{ border: '1px solid', borderColor: 'divider', color: 'primary.main' }}
+              >
+                <i className="fas fa-edit" style={{ fontSize: 13 }} aria-hidden="true" />
+              </IconButton>
+            </Tooltip>
+          )}
+          {canDelete('roles') && (
+            <Tooltip title="Delete">
+              <IconButton
+                size="small"
+                onClick={() => deleteRole(row)}
+                aria-label="Delete role"
+                sx={{ border: '1px solid', borderColor: 'divider', color: 'error.main' }}
+              >
+                <i className="fas fa-trash" style={{ fontSize: 13 }} aria-hidden="true" />
+              </IconButton>
+            </Tooltip>
+          )}
+        </Stack>
+      ),
+    },
+  ];
 
   return (
-    <div className="card card-outline card-primary">
-      <div className="card-header">
-        <div className="row g-2 align-items-center">
-          <div className="col-12 col-md-6"><h3 className="card-title">Roles Management</h3></div>
-          <div className="col-12 col-md-6">
-            <div className="d-flex gap-2 flex-wrap justify-content-md-end">
-              <input className="form-control form-control-sm" style={{ maxWidth: 220 }}
-                placeholder="Search roles..." value={searchInput} onChange={e => setSearchInput(e.target.value)} />
+    <Box>
+      <Card sx={cardSx}>
+        <CardContent sx={{ p: 3 }}>
+          <Box sx={{ display: 'flex', alignItems: { md: 'center' }, justifyContent: 'space-between', flexDirection: { xs: 'column', md: 'row' }, gap: 2 }}>
+            <Box>
+              <Typography variant="h4" sx={{ color: 'text.primary', fontWeight: 700 }}>
+                Roles
+              </Typography>
+              <Typography variant="body2" sx={{ color: 'text.secondary', mt: .5 }}>
+                {total} total roles
+              </Typography>
+            </Box>
+            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} alignItems={{ sm: 'center' }}>
+              <TextField
+                size="small"
+                placeholder="Search roles..."
+                value={searchInput}
+                onChange={e => setSearchInput(e.target.value)}
+                sx={{ minWidth: { xs: '100%', sm: 240 } }}
+                slotProps={{
+                  input: {
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <i className="fas fa-search" style={{ fontSize: 13 }} aria-hidden="true" />
+                      </InputAdornment>
+                    ),
+                  },
+                }}
+              />
               {canCreate('roles') && (
-                <button className="btn btn-primary btn-sm" onClick={openAdd}><i className="fas fa-plus"></i> New Role</button>
+                <Button
+                  variant="contained"
+                  onClick={openAdd}
+                  startIcon={<i className="fas fa-plus" aria-hidden="true" />}
+                  sx={{ whiteSpace: 'nowrap' }}
+                >
+                  New Role
+                </Button>
               )}
-            </div>
-          </div>
-        </div>
-      </div>
+            </Stack>
+          </Box>
+        </CardContent>
 
-      <div className="card-body p-0">
-        <DataTable columns={columns} data={rows} progressPending={loading} persistTableHead
-          className="modern-datatable"
-          pagination paginationServer paginationTotalRows={total} paginationPerPage={table.perPage}
-          onChangePage={(p) => p !== table.page && dispatch({ type: "PAGE", page: p })}
-          onChangeRowsPerPage={(n) => n !== table.perPage && dispatch({ type: "PER_PAGE", perPage: n })}
-          sortServer onSort={(col, dir) => col.sortField && dispatch({ type: "SORT", field: col.sortField, dir })}
-          progressComponent={<div className="p-4 text-center"><div className="spinner-border spinner-border-sm me-2"></div>Loading...</div>}
-          noDataComponent={
-            <div className="p-5 text-center">
-              <i className="fas fa-folder-open text-muted mb-3" style={{ fontSize: 48, opacity: 0.4 }}></i>
-              <div className="fw-semibold text-secondary mb-1">No data found</div>
-              <div className="small text-muted">Try adjusting your filters or check back later</div>
-            </div>
-          }
-          striped highlightOnHover dense keyField="id" />
-      </div>
-
-      {/* Add/Edit Modal */}
-      <Modal show={show} onHide={() => setShow(false)} backdrop="static" size="lg">
-        <Modal.Header closeButton><Modal.Title>{editingId ? 'Edit Role' : 'New Role'}</Modal.Title></Modal.Header>
-        <Modal.Body>
-          <Form.Group className="mb-3">
-            <Form.Label>Role Name <span className="text-danger">*</span></Form.Label>
-            <Form.Control value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="e.g., Admin, Manager" />
-          </Form.Group>
-          <Form.Group className="mb-3">
-            <Form.Label>Guard Name</Form.Label>
-            <Form.Select value={form.guard_name} onChange={e => setForm(f => ({ ...f, guard_name: e.target.value }))}>
-              <option value="web">web</option>
-              <option value="api">api</option>
-            </Form.Select>
-          </Form.Group>
-          <Form.Group>
-            <Form.Label className="fw-bold">Permissions</Form.Label>
-            <div className="p-0" style={{ maxHeight: 420, overflow: 'auto' }}>
-              {Object.entries(groupedPermissions).map(([group, perms]) => {
-                const selectedCount = perms.filter((p) => form.permissions.includes(p.id)).length;
-                const allChecked = perms.every((p) => form.permissions.includes(p.id));
-                const someChecked = perms.some((p) => form.permissions.includes(p.id));
-                return (
-                  <div key={group} className="mb-3" style={{ border: "1px solid #e2e8f0", borderRadius: 10, overflow: "hidden" }}>
-                    {/* Module Header */}
-                    <div className="d-flex align-items-center gap-2 px-3 py-2" style={{ background: "#f8fafc", borderBottom: "1px solid #e2e8f0" }}>
-                      <div className="d-flex align-items-center justify-content-center rounded" style={{ width: 28, height: 28, background: "#e0e7ff", color: "#4f46e5", fontSize: 12 }}>
-                        <i className="fas fa-layer-group" />
-                      </div>
-                      <div className="flex-grow-1">
-                        <div className="d-flex align-items-center gap-2">
-                          <span className="fw-semibold small" style={{ color: "#1e293b", textTransform: "capitalize" }}>
-                            {group.replace(/-/g, " ")}
-                          </span>
-                          <Badge bg="light" text="dark" className="border fw-medium small">
-                            {selectedCount} / {perms.length}
-                          </Badge>
-                        </div>
-                        <div className="progress mt-1" style={{ height: 3, maxWidth: 160 }}>
-                          <div className="progress-bar bg-primary" style={{ width: `${perms.length ? (selectedCount / perms.length) * 100 : 0}%` }} />
-                        </div>
-                      </div>
-                      <div
-                        className="flex-shrink-0 d-flex align-items-center justify-content-center"
-                        onClick={() => toggleGroup(perms, allChecked)}
-                        title={allChecked ? "Uncheck all" : "Check all"}
-                        style={{ cursor: "pointer", width: 20, height: 20 }}
+        {loading && <LinearProgress />}
+        <TableContainer sx={{ overflowX: 'auto' }}>
+          <Table sx={{ minWidth: 720 }} size="small">
+            <TableHead>
+              <TableRow sx={{ bgcolor: '#f8fafc' }}>
+                {columns.map((column) => (
+                  <TableCell
+                    key={column.key}
+                    align={column.align || 'left'}
+                    sx={{ ...headCellSx, minWidth: column.minWidth, width: column.width }}
+                  >
+                    {column.sortField ? (
+                      <TableSortLabel
+                        active={table.sortField === column.sortField}
+                        direction={table.sortField === column.sortField ? table.sortDir : 'asc'}
+                        onClick={() => handleSort(column.sortField)}
                       >
-                        {allChecked ? (
-                          <i className="fas fa-check-square text-primary" style={{ fontSize: 18 }}></i>
-                        ) : someChecked ? (
-                          <i className="fas fa-minus-square text-primary" style={{ fontSize: 18 }}></i>
-                        ) : (
-                          <i className="far fa-square text-muted" style={{ fontSize: 18 }}></i>
-                        )}
-                      </div>
-                    </div>
-                    {/* Permission Chips */}
-                    <div className="p-3">
-                      <div className="row g-2">
-                        {perms.map((p) => {
-                          const checked = form.permissions.includes(p.id);
-                          const meta = getActionMeta(p.name);
-                          return (
-                            <div key={p.id} className="col-12 col-sm-6 col-md-4 col-lg-3">
-                              <div
-                                className="d-flex align-items-center gap-2 p-2 rounded border"
-                                style={{
-                                  cursor: "pointer",
-                                  backgroundColor: checked ? "#eff6ff" : "#fff",
-                                  borderColor: checked ? "#3b82f6" : "#e2e8f0",
-                                  transition: "all 0.15s ease",
-                                  minHeight: 44,
-                                }}
-                                onClick={() => togglePermission(p.id)}
-                                role="button"
-                              >
-                                <div className="flex-shrink-0" style={{ width: 16, textAlign: "center" }}>
-                                  {checked ? (
-                                    <i className="fas fa-check-square text-primary" style={{ fontSize: 14 }}></i>
-                                  ) : (
-                                    <i className="far fa-square text-muted" style={{ fontSize: 14 }}></i>
-                                  )}
-                                </div>
-                                <div
-                                  className="d-flex align-items-center justify-content-center rounded-circle flex-shrink-0"
-                                  style={{
-                                    width: 28,
-                                    height: 28,
-                                    backgroundColor: checked ? "#fff" : `#${meta.color === "info" ? "e0f2fe" : meta.color === "success" ? "dcfce7" : meta.color === "warning" ? "fef3c7" : meta.color === "danger" ? "fee2e2" : "f1f5f9"}`,
-                                    color: `#${meta.color === "info" ? "0284c7" : meta.color === "success" ? "16a34a" : meta.color === "warning" ? "d97706" : meta.color === "danger" ? "dc2626" : "64748b"}`,
-                                    fontSize: 11,
-                                  }}
-                                >
-                                  <i className={`fas ${meta.icon}`} />
-                                </div>
-                                <span className="small fw-medium text-truncate flex-grow-1" title={p.name} style={{ color: checked ? "#1e40af" : "#334155", fontSize: "0.8rem" }}>
-                                  <span style={{ color: "#94a3b8" }}>{getScopeLabel(p.name)}</span>
-                                  <span className="mx-1" style={{ color: "#cbd5e1" }}>·</span>
-                                  {meta.label}
-                                </span>
-                                {checked && <i className="fas fa-check-circle text-primary ms-auto flex-shrink-0" style={{ fontSize: 14 }}></i>}
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </Form.Group>
-        </Modal.Body>
-        <Modal.Footer>
-          <Button variant="secondary" onClick={() => setShow(false)}>Cancel</Button>
-          <Button variant="primary" onClick={save} disabled={saving}>
-            {saving && <span className="spinner-border spinner-border-sm me-2"></span>} {editingId ? 'Update Role' : 'Save Role'}
+                        {column.label}
+                      </TableSortLabel>
+                    ) : column.label}
+                  </TableCell>
+                ))}
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {rows.length === 0 && !loading ? (
+                <TableRow>
+                  <TableCell colSpan={Math.max(columns.length, 1)} align="center" sx={{ py: 7 }}>
+                    <i className="fas fa-folder-open" style={{ color: '#637381', fontSize: 42, opacity: .4 }} aria-hidden="true" />
+                    <Typography variant="subtitle2" sx={{ color: 'text.secondary', mt: 1.5 }}>
+                      No data found
+                    </Typography>
+                    <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                      Try adjusting your filters or check back later
+                    </Typography>
+                  </TableCell>
+                </TableRow>
+              ) : rows.map((row) => (
+                <TableRow
+                  key={row.id}
+                  hover
+                  sx={{
+                    '&:hover': { bgcolor: 'rgba(6,40,73,.035)' },
+                    '&:last-child td': { borderBottom: 0 },
+                  }}
+                >
+                  {columns.map((column) => (
+                    <TableCell
+                      key={`${row.id}-${column.key}`}
+                      align={column.align || 'left'}
+                      sx={bodyCellSx}
+                    >
+                      {column.render(row)}
+                    </TableCell>
+                  ))}
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </TableContainer>
+
+        <TablePagination
+          component="div"
+          count={total}
+          page={Math.max(table.page - 1, 0)}
+          rowsPerPage={table.perPage}
+          rowsPerPageOptions={[10, 20, 50, 100]}
+          onPageChange={(event, page) => {
+            const nextPage = page + 1;
+            if (nextPage !== table.page) dispatch({ type: 'PAGE', page: nextPage });
+          }}
+          onRowsPerPageChange={(event) => {
+            const nextSize = Number(event.target.value);
+            if (nextSize !== table.perPage) dispatch({ type: 'PER_PAGE', perPage: nextSize });
+          }}
+          sx={{ borderTop: '1px solid', borderColor: 'divider' }}
+        />
+      </Card>
+
+      {/* Add/Edit Dialog */}
+      <Dialog
+        open={show}
+        onClose={handleDialogClose}
+        maxWidth="md"
+        fullWidth
+        scroll="paper"
+        slotProps={{ paper: { sx: dialogPaperSx } }}
+      >
+        <DialogTitle sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 2, py: 2 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25 }}>
+            <i className={`fas ${editingId ? 'fa-edit' : 'fa-plus'}`} style={{ color: '#062849', fontSize: 15 }} aria-hidden="true" />
+            <Typography variant="h6" sx={{ fontWeight: 700 }}>
+              {editingId ? 'Edit Role' : 'New Role'}
+            </Typography>
+          </Box>
+          <IconButton size="small" onClick={() => setShow(false)} aria-label="Close">
+            <i className="fas fa-times" style={{ fontSize: 14 }} aria-hidden="true" />
+          </IconButton>
+        </DialogTitle>
+
+        <DialogContent dividers sx={{ p: 3 }}>
+          <Stack spacing={2.5} sx={{ mb: 3 }}>
+            <TextField
+              size="small"
+              label="Role Name"
+              required
+              placeholder="e.g., Admin, Manager"
+              value={form.name}
+              onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
+              fullWidth
+            />
+            <FormControl size="small" fullWidth>
+              <InputLabel>Guard Name</InputLabel>
+              <Select
+                label="Guard Name"
+                value={form.guard_name}
+                onChange={e => setForm(f => ({ ...f, guard_name: e.target.value }))}
+              >
+                <MenuItem value="web">web</MenuItem>
+                <MenuItem value="api">api</MenuItem>
+              </Select>
+            </FormControl>
+          </Stack>
+
+          <Typography variant="subtitle2" sx={{ color: 'text.primary', fontWeight: 700, mb: 1.5 }}>
+            Permissions
+          </Typography>
+          <Box sx={{ maxHeight: 420, overflow: 'auto', display: 'flex', flexDirection: 'column', gap: 2 }}>
+            {Object.entries(groupedPermissions).map(([group, perms]) => {
+              const selectedCount = perms.filter((p) => form.permissions.includes(p.id)).length;
+              const allChecked = perms.every((p) => form.permissions.includes(p.id));
+              const someChecked = perms.some((p) => form.permissions.includes(p.id));
+              return (
+                <Paper key={group} variant="outlined" sx={{ borderRadius: 2.5, overflow: 'hidden', flexShrink: 0 }}>
+                  {/* Module Header */}
+                  <Box
+                    sx={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 1.5,
+                      px: 2,
+                      py: 1.5,
+                      bgcolor: '#f8fafc',
+                      borderBottom: '1px solid',
+                      borderColor: 'divider',
+                    }}
+                  >
+                    <Box
+                      sx={{
+                        width: 28,
+                        height: 28,
+                        borderRadius: 1.5,
+                        display: 'grid',
+                        placeItems: 'center',
+                        bgcolor: '#e9e4fd',
+                        color: 'secondary.main',
+                        fontSize: 12,
+                        flexShrink: 0,
+                      }}
+                    >
+                      <i className="fas fa-layer-group" aria-hidden="true" />
+                    </Box>
+                    <Box sx={{ flex: 1, minWidth: 0 }}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <Typography variant="subtitle2" sx={{ color: 'text.primary', textTransform: 'capitalize' }}>
+                          {group.replace(/-/g, " ")}
+                        </Typography>
+                        <Chip size="small" variant="outlined" label={`${selectedCount} / ${perms.length}`} />
+                      </Box>
+                      <LinearProgress
+                        variant="determinate"
+                        value={perms.length ? (selectedCount / perms.length) * 100 : 0}
+                        sx={{ mt: 0.75, maxWidth: 160 }}
+                      />
+                    </Box>
+                    <Tooltip title={allChecked ? "Uncheck all" : "Check all"}>
+                      <Checkbox
+                        size="small"
+                        checked={allChecked}
+                        indeterminate={!allChecked && someChecked}
+                        onChange={() => toggleGroup(perms, allChecked)}
+                        inputProps={{ 'aria-label': `${allChecked ? 'Uncheck' : 'Check'} all ${group} permissions` }}
+                      />
+                    </Tooltip>
+                  </Box>
+                  {/* Permission Items */}
+                  <Box sx={{ p: 2 }}>
+                    <Box
+                      sx={{
+                        display: 'grid',
+                        gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', md: 'repeat(3, 1fr)', lg: 'repeat(4, 1fr)' },
+                        gap: 1.5,
+                      }}
+                    >
+                      {perms.map((p) => {
+                        const checked = form.permissions.includes(p.id);
+                        const meta = getActionMeta(p.name);
+                        const chipColors = getActionChipColors(meta.color);
+                        return (
+                          <Box
+                            key={p.id}
+                            role="button"
+                            tabIndex={0}
+                            onClick={() => togglePermission(p.id)}
+                            onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); togglePermission(p.id); } }}
+                            title={p.name}
+                            sx={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: 1,
+                              p: 1,
+                              borderRadius: 2,
+                              border: '1px solid',
+                              borderColor: checked ? 'secondary.main' : 'divider',
+                              bgcolor: checked ? 'rgba(101,40,232,0.08)' : '#fff',
+                              cursor: 'pointer',
+                              minHeight: 44,
+                              transition: 'all .15s ease',
+                            }}
+                          >
+                            <Box sx={{ flexShrink: 0, display: 'flex', alignItems: 'center' }}>
+                              {checked ? (
+                                <i className="fas fa-check-square" style={{ color: '#6528e8', fontSize: 14 }} aria-hidden="true" />
+                              ) : (
+                                <i className="far fa-square" style={{ color: '#919eab', fontSize: 14 }} aria-hidden="true" />
+                              )}
+                            </Box>
+                            <Box
+                              sx={{
+                                width: 28,
+                                height: 28,
+                                borderRadius: '50%',
+                                display: 'grid',
+                                placeItems: 'center',
+                                bgcolor: checked ? '#fff' : chipColors.bg,
+                                color: chipColors.fg,
+                                fontSize: 11,
+                                flexShrink: 0,
+                              }}
+                            >
+                              <i className={`fas ${meta.icon}`} aria-hidden="true" />
+                            </Box>
+                            <Typography
+                              variant="body2"
+                              noWrap
+                              sx={{ flex: 1, fontWeight: 500, fontSize: '0.8rem', color: checked ? '#4b16b4' : 'text.primary' }}
+                            >
+                              <Box component="span" sx={{ color: 'text.secondary' }}>{getScopeLabel(p.name)}</Box>
+                              <Box component="span" sx={{ mx: 0.5, color: 'grey.400' }}>·</Box>
+                              {meta.label}
+                            </Typography>
+                            {checked && (
+                              <i className="fas fa-check-circle" style={{ color: '#6528e8', fontSize: 14, marginLeft: 'auto', flexShrink: 0 }} aria-hidden="true" />
+                            )}
+                          </Box>
+                        );
+                      })}
+                    </Box>
+                  </Box>
+                </Paper>
+              );
+            })}
+          </Box>
+        </DialogContent>
+
+        <DialogActions sx={{ px: 3, py: 2 }}>
+          <Button variant="outlined" onClick={() => setShow(false)}>Cancel</Button>
+          <Button
+            variant="contained"
+            onClick={save}
+            disabled={saving}
+            startIcon={saving ? <CircularProgress color="inherit" size={16} /> : null}
+          >
+            {editingId ? 'Update Role' : 'Save Role'}
           </Button>
-        </Modal.Footer>
-      </Modal>
-    </div>
+        </DialogActions>
+      </Dialog>
+    </Box>
   );
 }

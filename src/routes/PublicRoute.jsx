@@ -1,6 +1,6 @@
 import { Navigate } from "react-router-dom";
 import { useState, useEffect } from "react";
-import { Spinner } from "react-bootstrap";
+import { Box, CircularProgress } from "@mui/material";
 import { checkAuthFromStorage } from "../utils/routeAuth";
 
 export default function PublicRoute({ children }) {
@@ -15,11 +15,9 @@ export default function PublicRoute({ children }) {
 
   if (isLoading) {
     return (
-      <div className="d-flex justify-content-center align-items-center" style={{ height: '100vh' }}>
-        <Spinner animation="border" role="status">
-          <span className="visually-hidden">Loading...</span>
-        </Spinner>
-      </div>
+      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
+        <CircularProgress aria-label="Loading" />
+      </Box>
     );
   }
 

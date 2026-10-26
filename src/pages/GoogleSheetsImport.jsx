@@ -1,6 +1,31 @@
 import { useEffect, useMemo, useState } from "react";
-import DataTable from "react-data-table-component";
-import { Button, Form, Badge, ProgressBar, Alert } from "react-bootstrap";
+import {
+  Alert,
+  Box,
+  Button,
+  Card,
+  CardContent,
+  Chip,
+  CircularProgress,
+  Divider,
+  FormControl,
+  InputLabel,
+  LinearProgress,
+  MenuItem,
+  Select,
+  Stack,
+  Step,
+  StepLabel,
+  Stepper,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  TextField,
+  Typography,
+} from "@mui/material";
 import { toast } from "react-toastify";
 import api from "../api";
 import { canCreate } from "../utils/permissions";
@@ -76,6 +101,22 @@ function normalizeHeader(h) {
     .replace(/\s+/g, " ")
     .trim();
 }
+
+const toArray = (value) => {
+  if (Array.isArray(value)) return value;
+  if (Array.isArray(value?.data)) return value.data;
+  if (Array.isArray(value?.data?.data)) return value.data.data;
+  if (Array.isArray(value?.items)) return value.items;
+  if (Array.isArray(value?.results)) return value.results;
+  return [];
+};
+
+const cardSx = {
+  border: '1px solid',
+  borderColor: 'divider',
+  borderRadius: 3,
+  boxShadow: '0 8px 24px rgba(28,37,46,.05)',
+};
 
 const AUTO_MAP = {
   name: ["name", "lead name", "full name", "contact name", "customer name"],
@@ -171,7 +212,7 @@ export default function GoogleSheetsImport() {
   useEffect(() => {
     const loadMasters = async () => {
       try {
-        const [c, s, st, ci, ls, lsg, u, t] = await Promise.all([
+        const results = await Promise.allSettled([
           api.get("/lead-categories?perPage=200"),
           api.get("/lead-subcategories?perPage=200"),
           api.get("/states?perPage=200"),
@@ -181,14 +222,15 @@ export default function GoogleSheetsImport() {
           api.get("/leads/assignable-users"),
           api.get("/lead-tags?perPage=200"),
         ]);
-        setCategories(c.data?.data || []);
-        setSubcategories(s.data?.data || []);
-        setStates(st.data?.data || []);
-        setCities(ci.data?.data || []);
-        setLeadSources(ls.data?.data || []);
-        setLeadStages(lsg.data?.data || []);
-        setUsers(u.data?.data || []);
-        setTags(t.data?.data || []);
+        const resultValue = (result) => result.status === 'fulfilled' ? toArray(result.value.data) : [];
+        setCategories(resultValue(results[0]));
+        setSubcategories(resultValue(results[1]));
+        setStates(resultValue(results[2]));
+        setCities(resultValue(results[3]));
+        setLeadSources(resultValue(results[4]));
+        setLeadStages(resultValue(results[5]));
+        setUsers(resultValue(results[6]));
+        setTags(resultValue(results[7]));
       } catch {
         toast.error("Failed to load master data for mapping");
       }
@@ -226,7 +268,7 @@ export default function GoogleSheetsImport() {
 
   const mappedPreview = useMemo(() => {
     if (!parsed.rows.length) return [];
-    return parsed.rows.slice(0, 5).map((row, idx) => {
+    return parsed.rows.slice(0, 10).map((row, idx) => {
       const obj = { _rowIndex: idx + 2 };
       Object.entries(mapping).forEach(([field, colIdx]) => {
         obj[field] = row[colIdx] || "";
@@ -434,8 +476,7 @@ export default function GoogleSheetsImport() {
       toast.warning("Please map at least the 'Name' column");
       return;
     }
-    const preview = parsed.rows.slice(0, 10).map((row, idx) => buildLeadPayload(row));
-    setPreviewRows(preview);
+    setPreviewRows(mappedPreview);
     setStep(3);
   };
 
@@ -529,284 +570,251 @@ export default function GoogleSheetsImport() {
   };
 
   if (!canImport) {
-    return (
-      <div className="container-fluid py-4">
-        <div className="alert alert-warning">You do not have permission to import leads.</div>
-      </div>
-    );
+    return <Alert severity="warning" sx={{ borderRadius: 3 }}>You do not have permission to import leads.</Alert>;
   }
 
-  return (
-    <div className="container-fluid py-3">
-      <div className="card card-outline card-primary">
-        <div className="card-header" style={{ background: "#f8fafc", borderBottom: "1px solid #e2e8f0" }}>
-          <div className="d-flex justify-content-between align-items-center flex-wrap gap-2">
-            <div className="d-flex align-items-center gap-2">
-              <i className="fab fa-google text-danger small"></i>
-              <span className="fw-semibold" style={{ color: "#1e293b" }}>Import Leads from Google Sheets</span>
-            </div>
-            <div className="d-flex gap-2">
-              {step > 1 && (
-                <Button variant="outline-secondary" size="sm" onClick={handleReset}>
-                  <i className="fas fa-undo me-1"></i> Reset
-                </Button>
-              )}
-            </div>
-          </div>
-        </div>
+  const mappedFields = Object.keys(mapping).filter((key) => mapping[key] !== undefined);
 
-        <div className="card-body">
-          {/* Progress Steps */}
-          <div className="d-flex justify-content-center mb-4">
-            <div className="d-flex align-items-center gap-3">
-              <StepBadge num={1} label="Upload CSV" active={step === 1} done={step > 1} />
-              <div className="text-muted" style={{ width: 24, borderTop: "2px solid #e2e8f0" }}></div>
-              <StepBadge num={2} label="Map Columns" active={step === 2} done={step > 2} />
-              <div className="text-muted" style={{ width: 24, borderTop: "2px solid #e2e8f0" }}></div>
-              <StepBadge num={3} label="Preview & Import" active={step === 3} done={false} />
-            </div>
-          </div>
+  return (
+    <Box>
+      <Box sx={{ mb: 3, display: 'flex', alignItems: { md: 'center' }, justifyContent: 'space-between', flexDirection: { xs: 'column', md: 'row' }, gap: 2 }}>
+        <Box>
+          <Typography variant="h4" sx={{ color: 'text.primary', fontWeight: 700 }}>
+            Import from Sheets
+          </Typography>
+          <Typography variant="body2" sx={{ color: 'text.secondary', mt: .5 }}>
+            Upload a Google Sheets CSV export, map columns, and import leads
+          </Typography>
+        </Box>
+        {step > 1 && (
+          <Button variant="outlined" onClick={handleReset} startIcon={<i className="fas fa-undo" aria-hidden="true" />}>
+            Reset
+          </Button>
+        )}
+      </Box>
+
+      <Card sx={cardSx}>
+        {importing && <LinearProgress />}
+        <CardContent sx={{ p: 3 }}>
+          <Stepper activeStep={step - 1} alternativeLabel sx={{ mb: 4 }}>
+            <Step><StepLabel>Upload CSV</StepLabel></Step>
+            <Step><StepLabel>Map Columns</StepLabel></Step>
+            <Step><StepLabel>Preview & Import</StepLabel></Step>
+          </Stepper>
 
           {/* Step 1: Upload */}
           {step === 1 && (
-            <div>
-              <Alert variant="info" className="small">
-                <i className="fas fa-info-circle me-2"></i>
-                Export your Google Sheet as a <strong>CSV file</strong> (File &gt; Download &gt; Comma Separated Values) and upload it here.
+            <Box>
+              <Alert severity="info" sx={{ mb: 3 }}>
+                Export your Google Sheet as a <strong>CSV file</strong> (File &gt; Download &gt; Comma Separated Values), then upload it or paste the content below.
               </Alert>
 
-              <Form.Group className="mb-3">
-                <Form.Label className="small fw-semibold">Upload CSV File</Form.Label>
-                <Form.Control type="file" accept=".csv,.txt" onChange={handleFileUpload} size="sm" />
-                {fileName && <div className="small text-muted mt-1">Selected: {fileName}</div>}
-              </Form.Group>
+              <Box sx={{ p: 2.5, border: '1px dashed', borderColor: 'rgba(145,158,171,.4)', borderRadius: 2.5, bgcolor: '#f8fafc' }}>
+                <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} alignItems={{ sm: 'center' }}>
+                  <Button component="label" variant="outlined" startIcon={<i className="fas fa-file-csv" aria-hidden="true" />}>
+                    Upload CSV File
+                    <input hidden type="file" accept=".csv,.txt" onChange={handleFileUpload} />
+                  </Button>
+                  <Typography variant="body2" color="text.secondary">
+                    {fileName || 'No file selected'}
+                  </Typography>
+                </Stack>
+              </Box>
 
-              <div className="text-center text-muted small mb-2">— OR —</div>
+              <Divider sx={{ my: 3 }}>
+                <Chip size="small" label="OR" />
+              </Divider>
 
-              <Form.Group className="mb-3">
-                <Form.Label className="small fw-semibold">Paste CSV Content</Form.Label>
-                <Form.Control
-                  as="textarea"
-                  rows={10}
-                  value={csvText}
-                  onChange={(e) => setCsvText(e.target.value)}
-                  placeholder={`Name,Phone,Email,Stage,Source\nJohn Doe,9876543210,john@example.com,New Lead,Website\nJane Smith,9876543211,jane@example.com,Warm Lead,Referral`}
-                  style={{ fontFamily: "monospace", fontSize: "0.85rem" }}
-                />
-              </Form.Group>
+              <TextField
+                fullWidth
+                multiline
+                minRows={10}
+                label="Paste CSV Content"
+                value={csvText}
+                onChange={(e) => setCsvText(e.target.value)}
+                placeholder={`Name,Phone,Email,Stage,Source\nJohn Doe,9876543210,john@example.com,New Lead,Website\nJane Smith,9876543211,jane@example.com,Warm Lead,Referral`}
+                slotProps={{ input: { sx: { fontFamily: 'monospace', fontSize: 13 } } }}
+              />
 
-              <div className="d-flex justify-content-between align-items-center">
-                <Button variant="outline-secondary" size="sm" onClick={downloadSampleCSV}>
-                  <i className="fas fa-download me-1"></i> Download Sample CSV
+              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} justifyContent="space-between" sx={{ mt: 3 }}>
+                <Button variant="outlined" onClick={downloadSampleCSV} startIcon={<i className="fas fa-download" aria-hidden="true" />}>
+                  Download Sample CSV
                 </Button>
-                <Button variant="primary" size="sm" onClick={handleParse}>
-                  <i className="fas fa-file-csv me-1"></i> Parse CSV
+                <Button variant="contained" onClick={handleParse} startIcon={<i className="fas fa-file-import" aria-hidden="true" />}>
+                  Parse CSV
                 </Button>
-              </div>
-            </div>
+              </Stack>
+            </Box>
           )}
 
           {/* Step 2: Mapping */}
           {step === 2 && parsed.headers.length > 0 && (
-            <div>
-              <div className="mb-3">
-                <Badge bg="secondary" className="me-2">{parsed.rows.length} rows</Badge>
-                <Badge bg="info">{parsed.headers.length} columns</Badge>
-              </div>
+            <Box>
+              <Stack direction="row" spacing={1} sx={{ mb: 2 }}>
+                <Chip size="small" label={`${parsed.rows.length} rows`} />
+                <Chip size="small" color="secondary" variant="outlined" label={`${parsed.headers.length} columns`} />
+              </Stack>
 
-              <div className="table-responsive">
-                <table className="table table-sm table-bordered align-middle">
-                  <thead className="table-light">
-                    <tr>
-                      <th style={{ width: 200 }}>Lead Field</th>
-                      <th style={{ width: 200 }}>CSV Column</th>
-                      <th>Sample Data</th>
-                    </tr>
-                  </thead>
-                  <tbody>
+              <TableContainer sx={{ maxHeight: 560, border: '1px solid', borderColor: 'divider', borderRadius: 2 }}>
+                <Table stickyHeader size="small" sx={{ minWidth: 780 }}>
+                  <TableHead>
+                    <TableRow>
+                      <TableCell sx={{ width: 220 }}>Lead Field</TableCell>
+                      <TableCell sx={{ width: 240 }}>CSV Column</TableCell>
+                      <TableCell>Sample Data</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
                     {LEAD_FIELDS.map((field) => (
-                      <tr key={field.key}>
-                        <td>
-                          <span className="small fw-medium">{field.label}</span>
-                          {field.required && <span className="text-danger ms-1">*</span>}
-                        </td>
-                        <td>
-                          <Form.Select
-                            size="sm"
-                            value={mapping[field.key] ?? ""}
-                            onChange={(e) => {
-                              const val = e.target.value;
-                              setMapping((m) => {
-                                const next = { ...m };
-                                if (val === "") {
-                                  delete next[field.key];
-                                } else {
-                                  next[field.key] = Number(val);
-                                }
-                                return next;
-                              });
-                            }}
-                          >
-                            <option value="">— Not Mapped —</option>
-                            {parsed.headers.map((h, i) => (
-                              <option key={i} value={i}>
-                                {h}
-                              </option>
-                            ))}
-                          </Form.Select>
-                        </td>
-                        <td className="small text-muted">
-                          {mapping[field.key] !== undefined
-                            ? parsed.rows
-                                .slice(0, 3)
-                                .map((r) => r[mapping[field.key]])
-                                .filter(Boolean)
-                                .join(", ") || "—"
-                            : "—"}
-                        </td>
-                      </tr>
+                      <TableRow key={field.key} hover>
+                        <TableCell>
+                          <Typography variant="body2" component="span" sx={{ fontWeight: 700 }}>
+                            {field.label}
+                          </Typography>
+                          {field.required && <Box component="span" sx={{ color: 'error.main', ml: .5 }}>*</Box>}
+                        </TableCell>
+                        <TableCell>
+                          <FormControl size="small" fullWidth>
+                            <InputLabel>CSV column</InputLabel>
+                            <Select
+                              label="CSV column"
+                              value={mapping[field.key] ?? ""}
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                setMapping((m) => {
+                                  const next = { ...m };
+                                  if (val === "") delete next[field.key];
+                                  else next[field.key] = Number(val);
+                                  return next;
+                                });
+                              }}
+                            >
+                              <MenuItem value=""><em>Not mapped</em></MenuItem>
+                              {parsed.headers.map((h, i) => <MenuItem key={`${field.key}-${i}`} value={i}>{h}</MenuItem>)}
+                            </Select>
+                          </FormControl>
+                        </TableCell>
+                        <TableCell>
+                          <Typography variant="caption" color="text.secondary">
+                            {mapping[field.key] !== undefined
+                              ? parsed.rows
+                                  .slice(0, 3)
+                                  .map((r) => r[mapping[field.key]])
+                                  .filter(Boolean)
+                                  .join(", ") || "—"
+                              : "—"}
+                          </Typography>
+                        </TableCell>
+                      </TableRow>
                     ))}
-                  </tbody>
-                </table>
-              </div>
+                  </TableBody>
+                </Table>
+              </TableContainer>
 
-              <div className="d-flex justify-content-between">
-                <Button variant="outline-secondary" size="sm" onClick={() => setStep(1)}>
-                  <i className="fas fa-arrow-left me-1"></i> Back
+              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} justifyContent="space-between" sx={{ mt: 3 }}>
+                <Button variant="outlined" onClick={() => setStep(1)} startIcon={<i className="fas fa-arrow-left" aria-hidden="true" />}>
+                  Back
                 </Button>
-                <Button variant="primary" size="sm" onClick={handlePreview}>
-                  <i className="fas fa-eye me-1"></i> Preview & Import
+                <Button variant="contained" onClick={handlePreview} startIcon={<i className="fas fa-eye" aria-hidden="true" />}>
+                  Preview & Import
                 </Button>
-              </div>
-            </div>
+              </Stack>
+            </Box>
           )}
 
           {/* Step 3: Preview & Import */}
           {step === 3 && (
-            <div>
+            <Box>
               {importResult && (
-                <Alert variant={importResult.failed > 0 ? "warning" : "success"} className="mb-3">
-                  <div className="d-flex align-items-center gap-2">
-                    <i className={`fas ${importResult.failed > 0 ? "fa-exclamation-triangle" : "fa-check-circle"} fa-lg`}></i>
-                    <div>
-                      <strong>Import Complete</strong>
-                      <div className="small">
-                        Total: {importResult.total} | Success: {importResult.success} | Failed: {importResult.failed}
-                      </div>
-                    </div>
-                  </div>
+                <Alert severity={importResult.failed > 0 ? 'warning' : 'success'} sx={{ mb: 3 }} icon={<i className={`fas ${importResult.failed > 0 ? 'fa-exclamation-triangle' : 'fa-check-circle'}`} aria-hidden="true" />}>
+                  <Typography variant="subtitle2">Import Complete</Typography>
+                  <Typography variant="body2">
+                    Total: {importResult.total} | Success: {importResult.success} | Failed: {importResult.failed}
+                  </Typography>
                 </Alert>
               )}
 
               {importing && (
-                <div className="mb-3">
-                  <div className="d-flex justify-content-between small mb-1">
-                    <span>Importing leads…</span>
-                    <span>{importProgress}%</span>
-                  </div>
-                  <ProgressBar now={importProgress} animated variant="primary" style={{ height: 8 }} />
-                </div>
+                <Box sx={{ mb: 3 }}>
+                  <Stack direction="row" justifyContent="space-between" sx={{ mb: 1 }}>
+                    <Typography variant="caption" color="text.secondary">Importing leads…</Typography>
+                    <Typography variant="caption" color="text.secondary">{importProgress}%</Typography>
+                  </Stack>
+                  <LinearProgress variant="determinate" value={importProgress} sx={{ height: 8, borderRadius: 4 }} />
+                </Box>
               )}
 
               {importErrors.length > 0 && (
-                <div className="mb-3" style={{ maxHeight: 200, overflow: "auto" }}>
-                  <table className="table table-sm table-bordered table-striped">
-                    <thead className="table-light">
-                      <tr>
-                        <th>Row</th>
-                        <th>Error</th>
-                      </tr>
-                    </thead>
-                    <tbody>
+                <TableContainer sx={{ mb: 3, maxHeight: 220, border: '1px solid', borderColor: 'divider', borderRadius: 2 }}>
+                  <Table stickyHeader size="small">
+                    <TableHead>
+                      <TableRow>
+                        <TableCell sx={{ width: 90 }}>Row</TableCell>
+                        <TableCell>Error</TableCell>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
                       {importErrors.map((err, i) => (
-                        <tr key={i}>
-                          <td className="small">{err.row}</td>
-                          <td className="small text-danger">{err.message}</td>
-                        </tr>
+                        <TableRow key={`${err.row}-${i}`} hover>
+                          <TableCell>{err.row}</TableCell>
+                          <TableCell sx={{ color: 'error.main' }}>{err.message}</TableCell>
+                        </TableRow>
                       ))}
-                    </tbody>
-                  </table>
-                </div>
+                    </TableBody>
+                  </Table>
+                </TableContainer>
               )}
 
-              <h6 className="fw-semibold mb-2 small">Preview (first {previewRows.length} rows)</h6>
-              <div className="mb-3" style={{ maxHeight: 400, overflow: "auto" }}>
-                <DataTable
-                  columns={Object.keys(mapping)
-                    .filter((k) => mapping[k] !== undefined)
-                    .map((k) => ({
-                      name: LEAD_FIELDS.find((f) => f.key === k)?.label || k,
-                      selector: (r) => r[k] || "—",
-                      sortable: false,
-                      wrap: true,
-                      cell: (row) => <span className="small">{row[k] || "—"}</span>,
-                    }))}
-                  data={previewRows}
-                  dense
-                  striped
-                  highlightOnHover
-                  customStyles={{
-                    rows: { style: { fontSize: "0.8rem", minHeight: "36px" } },
-                    headCells: {
-                      style: {
-                        fontWeight: "600",
-                        fontSize: "0.75rem",
-                        textTransform: "uppercase",
-                        color: "#64748b",
-                        backgroundColor: "#f8fafc",
-                      },
-                    },
-                  }}
-                />
-              </div>
+              <Typography variant="subtitle2" sx={{ mb: 1.5 }}>
+                Preview (first {previewRows.length} rows)
+              </Typography>
+              <TableContainer sx={{ mb: 3, maxHeight: 400, border: '1px solid', borderColor: 'divider', borderRadius: 2 }}>
+                <Table stickyHeader size="small" sx={{ minWidth: 980 }}>
+                  <TableHead>
+                    <TableRow>
+                      {mappedFields.map((field) => (
+                        <TableCell key={field}>
+                          {LEAD_FIELDS.find((f) => f.key === field)?.label || field}
+                        </TableCell>
+                      ))}
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {previewRows.map((row) => (
+                      <TableRow key={row._rowIndex} hover>
+                        {mappedFields.map((field) => (
+                          <TableCell key={`${row._rowIndex}-${field}`}>
+                            <Typography variant="body2" color="text.secondary">
+                              {row[field] || '—'}
+                            </Typography>
+                          </TableCell>
+                        ))}
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </TableContainer>
 
-              <div className="d-flex justify-content-between">
-                <Button variant="outline-secondary" size="sm" onClick={() => setStep(2)} disabled={importing}>
-                  <i className="fas fa-arrow-left me-1"></i> Back
+              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} justifyContent="space-between">
+                <Button variant="outlined" onClick={() => setStep(2)} disabled={importing} startIcon={<i className="fas fa-arrow-left" aria-hidden="true" />}>
+                  Back
                 </Button>
                 {!importResult && (
-                  <Button variant="success" size="sm" onClick={handleImport} disabled={importing}>
-                    {importing ? (
-                      <>
-                        <span className="spinner-border spinner-border-sm me-2"></span>
-                        Importing…
-                      </>
-                    ) : (
-                      <>
-                        <i className="fas fa-cloud-upload-alt me-1"></i>
-                        Import {parsed.rows.length} Lead{parsed.rows.length !== 1 ? "s" : ""}
-                      </>
-                    )}
+                  <Button
+                    variant="contained"
+                    color="success"
+                    onClick={handleImport}
+                    disabled={importing}
+                    startIcon={importing ? <CircularProgress size={16} color="inherit" /> : <i className="fas fa-cloud-upload-alt" aria-hidden="true" />}
+                  >
+                    {importing ? 'Importing…' : `Import ${parsed.rows.length} Lead${parsed.rows.length !== 1 ? 's' : ''}`}
                   </Button>
                 )}
-              </div>
-            </div>
+              </Stack>
+            </Box>
           )}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function StepBadge({ num, label, active, done }) {
-  return (
-    <div className="d-flex flex-column align-items-center gap-1">
-      <div
-        className="d-flex align-items-center justify-content-center fw-bold small"
-        style={{
-          width: 28,
-          height: 28,
-          borderRadius: "50%",
-          backgroundColor: done ? "#198754" : active ? "#0d6efd" : "#e2e8f0",
-          color: done || active ? "#fff" : "#64748b",
-          fontSize: "0.8rem",
-        }}
-      >
-        {done ? <i className="fas fa-check" style={{ fontSize: 12 }}></i> : num}
-      </div>
-      <span className="small" style={{ color: active ? "#0d6efd" : "#64748b", fontWeight: active ? 600 : 400, fontSize: "0.75rem" }}>
-        {label}
-      </span>
-    </div>
+        </CardContent>
+      </Card>
+    </Box>
   );
 }

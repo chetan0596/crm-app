@@ -1,24 +1,147 @@
-import { useEffect, useState, useMemo } from "react";
-import { Card, Form, Table, Tabs, Tab, Row, Col, Button, Modal, Badge } from "react-bootstrap";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  Box,
+  Button,
+  Card,
+  CardContent,
+  Checkbox,
+  Chip,
+  CircularProgress,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  Divider,
+  FormControl,
+  InputLabel,
+  LinearProgress,
+  MenuItem,
+  Select,
+  Stack,
+  Tab,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Tabs,
+  TextField,
+  Typography,
+} from "@mui/material";
 import { toast } from "react-toastify";
 import api from "../api";
 import {
   PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
-  LineChart, Line, ResponsiveContainer, AreaChart, Area
+  ResponsiveContainer, AreaChart, Area
 } from "recharts";
 
 const COLORS = {
-  won: "#28a745",
-  lost: "#dc3545",
-  open: "#007bff",
-  new: "#6c757d",
-  primary: ["#007bff", "#28a745", "#dc3545", "#ffc107", "#17a2b8", "#6f42c1", "#e83e8c", "#fd7e14"]
+  won: "#118d57",
+  lost: "#ff5630",
+  open: "#062849",
+  new: "#637381",
+  primary: ["#062849", "#22c55e", "#ff5630", "#ffab00", "#00b8d9", "#6528e8", "#e83e8c", "#fd7e14"]
 };
+
+const cardSx = {
+  height: '100%',
+  border: '1px solid',
+  borderColor: 'divider',
+  borderRadius: 3,
+  boxShadow: '0 8px 24px rgba(28,37,46,.05)',
+};
+
+const headCellSx = {
+  color: 'text.secondary',
+  fontSize: 12,
+  fontWeight: 700,
+  textTransform: 'uppercase',
+  letterSpacing: '.04em',
+  px: 2,
+  py: 1.5,
+};
+
+const chartTooltipSx = {
+  backgroundColor: '#fff',
+  border: '1px solid rgba(145,158,171,.24)',
+  borderRadius: '8px',
+  boxShadow: '0 8px 24px rgba(28,37,46,.12)',
+};
+
+const toArray = (value) => {
+  if (Array.isArray(value)) return value;
+  if (Array.isArray(value?.data)) return value.data;
+  if (Array.isArray(value?.data?.data)) return value.data.data;
+  if (Array.isArray(value?.items)) return value.items;
+  if (Array.isArray(value?.results)) return value.results;
+  return [];
+};
+
+function StatCard({ label, value, color }) {
+  return (
+    <Card sx={cardSx}>
+      <CardContent sx={{ p: 2.5, textAlign: 'center' }}>
+        <Typography variant="body2" sx={{ color: 'text.secondary', mb: .5 }}>
+          {label}
+        </Typography>
+        <Typography variant="h5" sx={{ color: color || 'text.primary', fontWeight: 700 }}>
+          {value}
+        </Typography>
+      </CardContent>
+    </Card>
+  );
+}
+
+function SectionCard({ title, action, children, contentSx }) {
+  return (
+    <Card sx={cardSx}>
+      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 2, px: 3, py: 2.5, flexWrap: 'wrap' }}>
+        <Typography variant="subtitle1" sx={{ color: 'text.primary', fontWeight: 700 }}>
+          {title}
+        </Typography>
+        {action}
+      </Box>
+      <Divider />
+      <CardContent sx={{ p: 3, '&:last-child': { pb: 3 }, ...contentSx }}>
+        {children}
+      </CardContent>
+    </Card>
+  );
+}
+
+function ReportTable({ columns, children }) {
+  return (
+    <TableContainer sx={{ overflowX: 'auto' }}>
+      <Table size="small">
+        <TableHead>
+          <TableRow sx={{ bgcolor: '#f8fafc' }}>
+            {columns.map((column) => (
+              <TableCell key={column.label} align={column.align || 'left'} sx={headCellSx}>
+                {column.label}
+              </TableCell>
+            ))}
+          </TableRow>
+        </TableHead>
+        <TableBody>{children}</TableBody>
+      </Table>
+    </TableContainer>
+  );
+}
+
+const initialFrom = () => {
+  const today = new Date();
+  const thirtyDaysAgo = new Date();
+  thirtyDaysAgo.setDate(today.getDate() - 30);
+  return thirtyDaysAgo.toISOString().split("T")[0];
+};
+
+const initialTo = () => new Date().toISOString().split("T")[0];
 
 export default function Reports() {
   const [activeTab, setActiveTab] = useState("pipeline");
-  const [dateFrom, setDateFrom] = useState("");
-  const [dateTo, setDateTo] = useState("");
+  const [dateFrom, setDateFrom] = useState(initialFrom);
+  const [dateTo, setDateTo] = useState(initialTo);
   const [loading, setLoading] = useState(false);
 
   // Filters
@@ -31,7 +154,7 @@ export default function Reports() {
   const [stagesList, setStagesList] = useState([]);
   const [tags, setTags] = useState([]);
 
-  // Settings modal
+  // Settings dialog
   const [showSettings, setShowSettings] = useState(false);
   const [stages, setStages] = useState([]);
   const [wonStages, setWonStages] = useState([]);
@@ -50,7 +173,7 @@ export default function Reports() {
   const [followupReportData, setFollowupReportData] = useState(null);
 
   // Build query params with filters
-  const buildParams = () => {
+  const buildParams = useCallback(() => {
     const params = new URLSearchParams();
     if (dateFrom) params.append("date_from", dateFrom);
     if (dateTo) params.append("date_to", dateTo);
@@ -59,7 +182,7 @@ export default function Reports() {
     if (filterStage) params.append("stage", filterStage);
     if (filterTag) params.append("tag", filterTag);
     return params;
-  };
+  }, [dateFrom, dateTo, filterSource, filterUser, filterStage, filterTag]);
 
   // Export to CSV (client-side)
   const exportToCSV = (data, filename) => {
@@ -84,7 +207,7 @@ export default function Reports() {
   };
 
   // Download PDF from backend
-  const downloadPDF = async (reportType) => {
+  const downloadPDF = useCallback(async (reportType) => {
     try {
       const params = new URLSearchParams(buildParams());
       const res = await api.get(`/reports/leads/${reportType}/pdf?${params}`, {
@@ -98,38 +221,38 @@ export default function Reports() {
       link.click();
       link.remove();
       window.URL.revokeObjectURL(blobUrl);
-    } catch (err) {
+    } catch {
       toast.error("Failed to download PDF");
     }
-  };
+  }, [buildParams]);
 
-  const fetchPipeline = async () => {
+  const fetchPipeline = useCallback(async () => {
     try {
       setLoading(true);
       const res = await api.get(`/reports/leads/pipeline?${buildParams()}`);
       setPipelineData(res.data.data);
-    } catch (e) {
+    } catch {
       toast.error("Failed to load pipeline report");
     } finally {
       setLoading(false);
     }
-  };
+  }, [buildParams]);
 
-  const fetchStages = async () => {
+  const fetchStages = useCallback(async () => {
     try {
       const res = await api.get("/lead-stages");
-      setStages(res.data.data || []);
-    } catch (e) {
+      setStages(toArray(res.data));
+    } catch {
       // ignore
     }
-  };
+  }, []);
 
-  const fetchSettings = async () => {
+  const fetchSettings = useCallback(async () => {
     try {
       const res = await api.get("/settings/report-stages");
 
-      setWonStages(res.data.data.won_stages || []);
-      setLostStages(res.data.data.lost_stages || []);
+      setWonStages(toArray(res.data?.data?.won_stages));
+      setLostStages(toArray(res.data?.data?.lost_stages));
     } catch (e) {
       // Silently ignore if settings endpoint doesn't exist or fails
       // This prevents page load issues when settings table doesn't exist
@@ -138,9 +261,122 @@ export default function Reports() {
       setWonStages([]);
       setLostStages([]);
     }
-  };
+  }, []);
 
-  const refreshAllReports = () => {
+  const fetchTeamPerformance = useCallback(async () => {
+    try {
+      setLoading(true);
+      const res = await api.get(`/reports/leads/team-performance?${buildParams()}`);
+      setTeamData(res.data.data);
+    } catch {
+      toast.error("Failed to load team performance report");
+    } finally {
+      setLoading(false);
+    }
+  }, [buildParams]);
+
+  const fetchSourceAnalysis = useCallback(async () => {
+    try {
+      setLoading(true);
+      const res = await api.get(`/reports/leads/source-analysis?${buildParams()}`);
+      setSourceData(res.data.data);
+    } catch {
+      toast.error("Failed to load source analysis report");
+    } finally {
+      setLoading(false);
+    }
+  }, [buildParams]);
+
+  const fetchProductAnalysis = useCallback(async () => {
+    try {
+      setLoading(true);
+      const res = await api.get(`/reports/leads/product-analysis?${buildParams()}`);
+      setProductData(res.data.data);
+    } catch {
+      toast.error("Failed to load product analysis report");
+    } finally {
+      setLoading(false);
+    }
+  }, [buildParams]);
+
+  const fetchActivitySummary = useCallback(async () => {
+    try {
+      setLoading(true);
+      const res = await api.get(`/reports/leads/activity-summary?${buildParams()}`);
+      setActivityData(res.data.data);
+    } catch {
+      toast.error("Failed to load activity summary report");
+    } finally {
+      setLoading(false);
+    }
+  }, [buildParams]);
+
+  const fetchFunnelData = useCallback(async () => {
+    try {
+      setLoading(true);
+      const res = await api.get(`/reports/leads/funnel?${buildParams()}`);
+      setFunnelData(res.data.data);
+    } catch {
+      toast.error("Failed to load conversion funnel");
+    } finally {
+      setLoading(false);
+    }
+  }, [buildParams]);
+
+  const fetchFollowupReport = useCallback(async () => {
+    try {
+      setLoading(true);
+      const res = await api.get(`/reports/leads/followups?${buildParams()}`);
+      setFollowupReportData(res.data.data);
+    } catch {
+      toast.error("Failed to load follow-up report");
+    } finally {
+      setLoading(false);
+    }
+  }, [buildParams]);
+
+  const fetchAgingData = useCallback(async () => {
+    try {
+      setLoading(true);
+      const res = await api.get(`/reports/leads/aging?${buildParams()}`);
+      setAgingData(res.data.data);
+    } catch {
+      toast.error("Failed to load aging report");
+    } finally {
+      setLoading(false);
+    }
+  }, [buildParams]);
+
+  const fetchTrendsData = useCallback(async () => {
+    try {
+      setLoading(true);
+      const res = await api.get(`/reports/leads/trends?${buildParams()}`);
+      setTrendsData(res.data.data);
+    } catch {
+      toast.error("Failed to load trends report");
+    } finally {
+      setLoading(false);
+    }
+  }, [buildParams]);
+
+  const fetchFilterOptions = useCallback(async () => {
+    try {
+      const [sourcesRes, usersRes, stagesRes, tagsRes] = await Promise.all([
+        api.get("/lead-sources"),
+        api.get("/users"),
+        api.get("/lead-stages"),
+        api.get("/lead-tags"),
+      ]);
+      setSources(toArray(sourcesRes.data));
+      setUsers(toArray(usersRes.data));
+      setStagesList(toArray(stagesRes.data));
+      setTags(toArray(tagsRes.data));
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  const refreshAllReports = useCallback(() => {
     if (activeTab === "pipeline") fetchPipeline();
     if (activeTab === "team") fetchTeamPerformance();
     if (activeTab === "source") fetchSourceAnalysis();
@@ -150,7 +386,18 @@ export default function Reports() {
     if (activeTab === "aging") fetchAgingData();
     if (activeTab === "trends") fetchTrendsData();
     if (activeTab === "followups") fetchFollowupReport();
-  };
+  }, [
+    activeTab,
+    fetchPipeline,
+    fetchTeamPerformance,
+    fetchSourceAnalysis,
+    fetchProductAnalysis,
+    fetchActivitySummary,
+    fetchFunnelData,
+    fetchAgingData,
+    fetchTrendsData,
+    fetchFollowupReport,
+  ]);
 
   const saveSettings = async () => {
     try {
@@ -162,7 +409,7 @@ export default function Reports() {
       toast.success("Report stage settings saved");
       setShowSettings(false);
       refreshAllReports();
-    } catch (e) {
+    } catch {
       toast.error("Failed to save settings");
     } finally {
       setSavingSettings(false);
@@ -181,137 +428,17 @@ export default function Reports() {
     }
   };
 
-  const fetchTeamPerformance = async () => {
-    try {
-      setLoading(true);
-      const res = await api.get(`/reports/leads/team-performance?${buildParams()}`);
-      setTeamData(res.data.data);
-    } catch (e) {
-      toast.error("Failed to load team performance report");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const fetchSourceAnalysis = async () => {
-    try {
-      setLoading(true);
-      const res = await api.get(`/reports/leads/source-analysis?${buildParams()}`);
-      setSourceData(res.data.data);
-    } catch (e) {
-      toast.error("Failed to load source analysis report");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const fetchProductAnalysis = async () => {
-    try {
-      setLoading(true);
-      const res = await api.get(`/reports/leads/product-analysis?${buildParams()}`);
-      setProductData(res.data.data);
-    } catch (e) {
-      toast.error("Failed to load product analysis report");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const fetchActivitySummary = async () => {
-    try {
-      setLoading(true);
-      const res = await api.get(`/reports/leads/activity-summary?${buildParams()}`);
-      setActivityData(res.data.data);
-    } catch (e) {
-      toast.error("Failed to load activity summary report");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const fetchFunnelData = async () => {
-    try {
-      setLoading(true);
-      const res = await api.get(`/reports/leads/funnel?${buildParams()}`);
-      setFunnelData(res.data.data);
-    } catch (e) {
-      toast.error("Failed to load conversion funnel");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const fetchFollowupReport = async () => {
-    try {
-      setLoading(true);
-      const res = await api.get(`/reports/leads/followups?${buildParams()}`);
-      setFollowupReportData(res.data.data);
-    } catch (e) {
-      toast.error("Failed to load follow-up report");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const fetchAgingData = async () => {
-    try {
-      setLoading(true);
-      const res = await api.get(`/reports/leads/aging?${buildParams()}`);
-      setAgingData(res.data.data);
-    } catch (e) {
-      toast.error("Failed to load aging report");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const fetchTrendsData = async () => {
-    try {
-      setLoading(true);
-      const res = await api.get(`/reports/leads/trends?${buildParams()}`);
-      setTrendsData(res.data.data);
-    } catch (e) {
-      toast.error("Failed to load trends report");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const fetchFilterOptions = async () => {
-    try {
-      const [sourcesRes, usersRes, stagesRes, tagsRes] = await Promise.all([
-        api.get("/lead-sources"),
-        api.get("/users"),
-        api.get("/lead-stages"),
-        api.get("/lead-tags"),
-      ]);
-      setSources(sourcesRes.data.data || []);
-      setUsers(usersRes.data.data || []);
-      setStagesList(stagesRes.data.data || []);
-      setTags(tagsRes.data.data || []);
-    } catch (e) {
-      // ignore
-    }
-  };
-
   useEffect(() => {
-    // Set default date range (last 30 days)
-    const today = new Date();
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(today.getDate() - 30);
-    setDateTo(today.toISOString().split("T")[0]);
-    setDateFrom(thirtyDaysAgo.toISOString().split("T")[0]);
-    // Load stages and settings
     fetchStages();
     fetchSettings();
     fetchFilterOptions();
-  }, []);
+  }, [fetchStages, fetchSettings, fetchFilterOptions]);
 
   useEffect(() => {
     if (dateFrom && dateTo) {
       refreshAllReports();
     }
-  }, [activeTab, dateFrom, dateTo, filterSource, filterUser, filterStage, filterTag]);
+  }, [dateFrom, dateTo, refreshAllReports]);
 
   // Chart data preparation
   const outcomeChartData = useMemo(() => {
@@ -333,891 +460,791 @@ export default function Reports() {
   }, [pipelineData]);
 
   return (
-    <div className="container-fluid py-4">
-      <div className="d-flex justify-content-between align-items-center mb-4">
-        <h4 className="m-0">Lead Reports</h4>
-        <Button variant="outline-secondary" size="sm" onClick={() => setShowSettings(true)}>
-          <i className="fas fa-cog me-1"></i> Stage Settings
+    <Box>
+      <Box sx={{ display: 'flex', alignItems: { md: 'center' }, justifyContent: 'space-between', flexDirection: { xs: 'column', md: 'row' }, gap: 2, mb: 2.5 }}>
+        <Box>
+          <Typography variant="h4" sx={{ color: 'text.primary', fontWeight: 700, mb: .5 }}>
+            Lead Reports
+          </Typography>
+          <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+            Pipeline, team, source and activity insights
+          </Typography>
+        </Box>
+        <Button
+          variant="outlined"
+          onClick={() => setShowSettings(true)}
+          startIcon={<i className="fas fa-cog" aria-hidden="true" />}
+        >
+          Stage Settings
         </Button>
-      </div>
+      </Box>
 
       {/* Filters */}
-      <Card className="mb-4">
-        <Card.Body>
-          <Row className="g-3">
-            <Col md={2}>
-              <Form.Group>
-                <Form.Label className="small text-secondary">From Date</Form.Label>
-                <Form.Control
-                  type="date"
-                  value={dateFrom}
-                  onChange={(e) => setDateFrom(e.target.value)}
-                  size="sm"
-                />
-              </Form.Group>
-            </Col>
-            <Col md={2}>
-              <Form.Group>
-                <Form.Label className="small text-secondary">To Date</Form.Label>
-                <Form.Control
-                  type="date"
-                  value={dateTo}
-                  onChange={(e) => setDateTo(e.target.value)}
-                  size="sm"
-                />
-              </Form.Group>
-            </Col>
-            <Col md={2}>
-              <Form.Group>
-                <Form.Label className="small text-secondary">Source</Form.Label>
-                <Form.Select value={filterSource} onChange={(e) => setFilterSource(e.target.value)} size="sm">
-                  <option value="">All Sources</option>
-                  {sources.map(s => <option key={s.id} value={s.name}>{s.name}</option>)}
-                </Form.Select>
-              </Form.Group>
-            </Col>
-            <Col md={2}>
-              <Form.Group>
-                <Form.Label className="small text-secondary">Assigned To</Form.Label>
-                <Form.Select value={filterUser} onChange={(e) => setFilterUser(e.target.value)} size="sm">
-                  <option value="">All Users</option>
-                  {users.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
-                </Form.Select>
-              </Form.Group>
-            </Col>
-            <Col md={2}>
-              <Form.Group>
-                <Form.Label className="small text-secondary">Stage</Form.Label>
-                <Form.Select value={filterStage} onChange={(e) => setFilterStage(e.target.value)} size="sm">
-                  <option value="">All Stages</option>
-                  {stagesList.map(s => <option key={s.id} value={s.name}>{s.name}</option>)}
-                </Form.Select>
-              </Form.Group>
-            </Col>
-            <Col md={2}>
-              <Form.Group>
-                <Form.Label className="small text-secondary">Tag</Form.Label>
-                <Form.Select value={filterTag} onChange={(e) => setFilterTag(e.target.value)} size="sm">
-                  <option value="">All Tags</option>
-                  {tags.map(t => <option key={t.id} value={t.name}>{t.name}</option>)}
-                </Form.Select>
-              </Form.Group>
-            </Col>
-          </Row>
-          <div className="mt-3 d-flex justify-content-between align-items-center">
-            <div className="small text-secondary">
+      <Card sx={{ ...cardSx, height: 'auto', mb: 2.5 }}>
+        <CardContent sx={{ p: 3 }}>
+          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', lg: 'repeat(3, 1fr)', xl: 'repeat(6, 1fr)' }, gap: 2 }}>
+            <TextField
+              type="date"
+              size="small"
+              label="From Date"
+              value={dateFrom}
+              onChange={(e) => setDateFrom(e.target.value)}
+              slotProps={{ inputLabel: { shrink: true } }}
+              fullWidth
+            />
+            <TextField
+              type="date"
+              size="small"
+              label="To Date"
+              value={dateTo}
+              onChange={(e) => setDateTo(e.target.value)}
+              slotProps={{ inputLabel: { shrink: true } }}
+              fullWidth
+            />
+            <FormControl size="small" fullWidth>
+              <InputLabel>Source</InputLabel>
+              <Select label="Source" value={filterSource} onChange={(e) => setFilterSource(e.target.value)}>
+                <MenuItem value=""><em>All Sources</em></MenuItem>
+                {sources.map(s => <MenuItem key={s.id} value={s.name}>{s.name}</MenuItem>)}
+              </Select>
+            </FormControl>
+            <FormControl size="small" fullWidth>
+              <InputLabel>Assigned To</InputLabel>
+              <Select label="Assigned To" value={filterUser} onChange={(e) => setFilterUser(e.target.value)}>
+                <MenuItem value=""><em>All Users</em></MenuItem>
+                {users.map(u => <MenuItem key={u.id} value={u.id}>{u.name}</MenuItem>)}
+              </Select>
+            </FormControl>
+            <FormControl size="small" fullWidth>
+              <InputLabel>Stage</InputLabel>
+              <Select label="Stage" value={filterStage} onChange={(e) => setFilterStage(e.target.value)}>
+                <MenuItem value=""><em>All Stages</em></MenuItem>
+                {stagesList.map(s => <MenuItem key={s.id} value={s.name}>{s.name}</MenuItem>)}
+              </Select>
+            </FormControl>
+            <FormControl size="small" fullWidth>
+              <InputLabel>Tag</InputLabel>
+              <Select label="Tag" value={filterTag} onChange={(e) => setFilterTag(e.target.value)}>
+                <MenuItem value=""><em>All Tags</em></MenuItem>
+                {tags.map(t => <MenuItem key={t.id} value={t.name}>{t.name}</MenuItem>)}
+              </Select>
+            </FormControl>
+          </Box>
+          <Box sx={{ mt: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
+            <Typography variant="caption" sx={{ color: 'text.secondary' }}>
               Showing data from {dateFrom || "-"} to {dateTo || "-"}
               {filterSource && ` • Source: ${filterSource}`}
               {filterUser && ` • User: ${users.find(u => u.id == filterUser)?.name}`}
               {filterStage && ` • Stage: ${filterStage}`}
               {filterTag && ` • Tag: ${filterTag}`}
-            </div>
-            <div>
-              <Button variant="outline-success" size="sm" className="me-2" onClick={() => {
+            </Typography>
+            <Button
+              variant="outlined"
+              color="success"
+              size="small"
+              onClick={() => {
                 setFilterSource(""); setFilterUser(""); setFilterStage(""); setFilterTag("");
-              }}>
-                <i className="fas fa-undo me-1"></i> Reset Filters
-              </Button>
-            </div>
-          </div>
-        </Card.Body>
+              }}
+              startIcon={<i className="fas fa-undo" aria-hidden="true" />}
+            >
+              Reset Filters
+            </Button>
+          </Box>
+        </CardContent>
       </Card>
 
-      <Tabs activeKey={activeTab} onSelect={(k) => setActiveTab(k)} className="mb-4">
+      <Card sx={{ ...cardSx, height: 'auto' }}>
+        <Tabs
+          value={activeTab}
+          onChange={(e, value) => setActiveTab(value)}
+          variant="scrollable"
+          scrollButtons="auto"
+          sx={{
+            px: 2,
+            borderBottom: '1px solid',
+            borderColor: 'divider',
+            '& .MuiTab-root': { fontWeight: 700, minHeight: 48 },
+          }}
+        >
+          <Tab value="pipeline" label="Pipeline" />
+          <Tab value="team" label="Team Performance" />
+          <Tab value="source" label="Source Analysis" />
+          <Tab value="product" label="Product Analysis" />
+          <Tab value="activity" label="Activity Summary" />
+          <Tab value="trends" label="Trends" />
+          <Tab value="funnel" label="Conversion Funnel" />
+          <Tab value="followups" label="Follow-ups" />
+          <Tab value="aging" label="Lead Aging" />
+        </Tabs>
+        {loading && <LinearProgress />}
+
         {/* Pipeline Report */}
-        <Tab eventKey="pipeline" title="Pipeline">
-          {loading && <div className="text-center py-4">Loading...</div>}
-          {!loading && pipelineData && (
-            <>
-              {/* Summary Cards */}
-              <Row className="g-3 mb-4">
-                <Col md={2}>
-                  <Card className="text-center h-100">
-                    <Card.Body>
-                      <div className="text-secondary small">Total Leads</div>
-                      <div className="h4 mb-0">{pipelineData.summary.total_leads}</div>
-                    </Card.Body>
-                  </Card>
-                </Col>
-                <Col md={2}>
-                  <Card className="text-center h-100">
-                    <Card.Body>
-                      <div className="text-secondary small">Won</div>
-                      <div className="h4 mb-0 text-success">{pipelineData.summary.won}</div>
-                    </Card.Body>
-                  </Card>
-                </Col>
-                <Col md={2}>
-                  <Card className="text-center h-100">
-                    <Card.Body>
-                      <div className="text-secondary small">Lost</div>
-                      <div className="h4 mb-0 text-danger">{pipelineData.summary.lost}</div>
-                    </Card.Body>
-                  </Card>
-                </Col>
-                <Col md={2}>
-                  <Card className="text-center h-100">
-                    <Card.Body>
-                      <div className="text-secondary small">Open</div>
-                      <div className="h4 mb-0 text-primary">{pipelineData.summary.open}</div>
-                    </Card.Body>
-                  </Card>
-                </Col>
-                <Col md={2}>
-                  <Card className="text-center h-100">
-                    <Card.Body>
-                      <div className="text-secondary small">New This Month</div>
-                      <div className="h4 mb-0">{pipelineData.summary.new_this_month}</div>
-                    </Card.Body>
-                  </Card>
-                </Col>
-                <Col md={2}>
-                  <Card className="text-center h-100">
-                    <Card.Body>
-                      <div className="text-secondary small">Conversion %</div>
-                      <div className="h4 mb-0">{pipelineData.summary.conversion_rate}%</div>
-                    </Card.Body>
-                  </Card>
-                </Col>
-              </Row>
+        {activeTab === "pipeline" && (
+          <Box sx={{ p: 3 }}>
+            {loading && (
+              <Box sx={{ display: 'grid', placeItems: 'center', py: 4, color: 'text.secondary' }}>
+                <CircularProgress size={28} />
+              </Box>
+            )}
+            {!loading && pipelineData && (
+              <>
+                <Box sx={{ display: 'grid', gridTemplateColumns: { xs: 'repeat(2, 1fr)', sm: 'repeat(3, 1fr)', xl: 'repeat(6, 1fr)' }, gap: 2.5, mb: 2.5 }}>
+                  <StatCard label="Total Leads" value={pipelineData.summary.total_leads} />
+                  <StatCard label="Won" value={pipelineData.summary.won} color="#118d57" />
+                  <StatCard label="Lost" value={pipelineData.summary.lost} color="#b71d18" />
+                  <StatCard label="Open" value={pipelineData.summary.open} color="#062849" />
+                  <StatCard label="New This Month" value={pipelineData.summary.new_this_month} />
+                  <StatCard label="Conversion %" value={`${pipelineData.summary.conversion_rate}%`} />
+                </Box>
 
-              {/* Charts Row */}
-              <Row className="g-4 mb-4">
-                <Col md={6}>
-                  <Card>
-                    <Card.Header className="bg-light d-flex justify-content-between">
-                      <strong>Outcome Distribution</strong>
-                    </Card.Header>
-                    <Card.Body>
-                      <ResponsiveContainer width="100%" height={250}>
-                        <PieChart>
-                          <Pie
-                            data={outcomeChartData}
-                            cx="50%"
-                            cy="50%"
-                            labelLine={false}
-                            label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
-                            outerRadius={80}
-                            fill="#8884d8"
-                            dataKey="value"
-                          >
-                            {outcomeChartData.map((entry, index) => (
-                              <Cell key={`cell-${index}`} fill={entry.color} />
-                            ))}
-                          </Pie>
-                          <Tooltip />
-                          <Legend />
-                        </PieChart>
-                      </ResponsiveContainer>
-                    </Card.Body>
-                  </Card>
-                </Col>
-                <Col md={6}>
-                  <Card>
-                    <Card.Header className="bg-light">
-                      <strong>Stage Distribution</strong>
-                    </Card.Header>
-                    <Card.Body>
-                      <ResponsiveContainer width="100%" height={250}>
-                        <BarChart data={stageChartData}>
-                          <CartesianGrid strokeDasharray="3 3" />
-                          <XAxis dataKey="name" />
-                          <YAxis />
-                          <Tooltip />
-                          <Bar dataKey="count" fill="#007bff" />
-                        </BarChart>
-                      </ResponsiveContainer>
-                    </Card.Body>
-                  </Card>
-                </Col>
-              </Row>
+                <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: 'repeat(2, 1fr)' }, gap: 2.5, mb: 2.5 }}>
+                  <SectionCard title="Outcome Distribution">
+                    <ResponsiveContainer width="100%" height={250}>
+                      <PieChart>
+                        <Pie
+                          data={outcomeChartData}
+                          cx="50%"
+                          cy="50%"
+                          labelLine={false}
+                          label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                          outerRadius={80}
+                          fill="#8884d8"
+                          dataKey="value"
+                        >
+                          {outcomeChartData.map((entry, index) => (
+                            <Cell key={`cell-${index}`} fill={entry.color} />
+                          ))}
+                        </Pie>
+                        <Tooltip contentStyle={chartTooltipSx} />
+                        <Legend />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  </SectionCard>
+                  <SectionCard title="Stage Distribution">
+                    <ResponsiveContainer width="100%" height={250}>
+                      <BarChart data={stageChartData}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="rgba(145,158,171,.22)" vertical={false} />
+                        <XAxis dataKey="name" tick={{ fontSize: 12, fill: '#637381' }} axisLine={false} tickLine={false} />
+                        <YAxis tick={{ fontSize: 12, fill: '#637381' }} axisLine={false} tickLine={false} />
+                        <Tooltip contentStyle={chartTooltipSx} />
+                        <Bar dataKey="count" fill="#062849" radius={[6, 6, 0, 0]} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </SectionCard>
+                </Box>
 
-              <Row className="g-4">
-                <Col md={12}>
-                  <Card>
-                    <Card.Header className="bg-light d-flex justify-content-between align-items-center">
-                      <strong>By Stage</strong>
-                      <div>
-                        <Button variant="outline-primary" size="sm" className="me-2" onClick={() => exportToCSV(pipelineData.by_stage, "pipeline_by_stage")}>
-                          <i className="fas fa-download me-1"></i> CSV
-                        </Button>
-                        <Button variant="outline-danger" size="sm" onClick={() => downloadPDF("pipeline")}>
-                          <i className="fas fa-file-pdf me-1"></i> PDF
-                        </Button>
-                      </div>
-                    </Card.Header>
-                    <Card.Body className="p-0">
-                      <Table responsive hover className="mb-0">
-                        <thead className="table-light">
-                          <tr>
-                            <th>Stage</th>
-                            <th className="text-end">Count</th>
-                            <th className="text-end">%</th>
-                            <th>Status</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {pipelineData.by_stage.map((item) => {
-                            const stageName = item.stage || "-";
-                            const isWon = wonStages.includes(stageName);
-                            const isLost = lostStages.includes(stageName);
-                            return (
-                              <tr key={item.stage}>
-                                <td>{stageName}</td>
-                                <td className="text-end">{item.count}</td>
-                                <td className="text-end">
-                                  {pipelineData.summary.total_leads > 0
-                                    ? Math.round((item.count / pipelineData.summary.total_leads) * 100)
-                                    : 0}%
-                                </td>
-                                <td>
-                                  {isWon && <Badge bg="success">Won</Badge>}
-                                  {isLost && <Badge bg="danger">Lost</Badge>}
-                                  {!isWon && !isLost && <Badge bg="primary">Open</Badge>}
-                                </td>
-                              </tr>
-                            );
-                          })}
-                        </tbody>
-                      </Table>
-                    </Card.Body>
-                  </Card>
-                </Col>
-              </Row>
-            </>
-          )}
-        </Tab>
+                <SectionCard
+                  title="By Stage"
+                  contentSx={{ p: 0, '&:last-child': { pb: 0 } }}
+                  action={
+                    <Stack direction="row" spacing={1}>
+                      <Button variant="outlined" size="small" onClick={() => exportToCSV(pipelineData.by_stage, "pipeline_by_stage")} startIcon={<i className="fas fa-download" aria-hidden="true" />}>
+                        CSV
+                      </Button>
+                      <Button variant="outlined" color="error" size="small" onClick={() => downloadPDF("pipeline")} startIcon={<i className="fas fa-file-pdf" aria-hidden="true" />}>
+                        PDF
+                      </Button>
+                    </Stack>
+                  }
+                >
+                  <ReportTable
+                    columns={[
+                      { label: 'Stage' },
+                      { label: 'Count', align: 'right' },
+                      { label: '%', align: 'right' },
+                      { label: 'Status' },
+                    ]}
+                  >
+                    {pipelineData.by_stage.map((item) => {
+                      const stageName = item.stage || "-";
+                      const isWon = wonStages.includes(stageName);
+                      const isLost = lostStages.includes(stageName);
+                      return (
+                        <TableRow key={item.stage} hover>
+                          <TableCell sx={{ px: 2 }}>{stageName}</TableCell>
+                          <TableCell align="right" sx={{ px: 2 }}>{item.count}</TableCell>
+                          <TableCell align="right" sx={{ px: 2 }}>
+                            {pipelineData.summary.total_leads > 0
+                              ? Math.round((item.count / pipelineData.summary.total_leads) * 100)
+                              : 0}%
+                          </TableCell>
+                          <TableCell sx={{ px: 2 }}>
+                            {isWon && <Chip label="Won" size="small" color="success" sx={{ fontWeight: 700 }} />}
+                            {isLost && <Chip label="Lost" size="small" color="error" sx={{ fontWeight: 700 }} />}
+                            {!isWon && !isLost && <Chip label="Open" size="small" color="primary" sx={{ fontWeight: 700 }} />}
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </ReportTable>
+                </SectionCard>
+              </>
+            )}
+          </Box>
+        )}
 
         {/* Team Performance */}
-        <Tab eventKey="team" title="Team Performance">
-          {loading && <div className="text-center py-4">Loading...</div>}
-          {!loading && teamData && (
-            <>
-              {/* Team Totals */}
-              <Row className="g-3 mb-4">
-                <Col md={3}>
-                  <Card className="text-center h-100">
-                    <Card.Body>
-                      <div className="text-secondary small">Team Total Leads</div>
-                      <div className="h4 mb-0">{teamData.totals.total_leads}</div>
-                    </Card.Body>
-                  </Card>
-                </Col>
-                <Col md={3}>
-                  <Card className="text-center h-100">
-                    <Card.Body>
-                      <div className="text-secondary small">Team Won</div>
-                      <div className="h4 mb-0 text-success">{teamData.totals.total_won}</div>
-                    </Card.Body>
-                  </Card>
-                </Col>
-                <Col md={3}>
-                  <Card className="text-center h-100">
-                    <Card.Body>
-                      <div className="text-secondary small">Team Open</div>
-                      <div className="h4 mb-0 text-primary">{teamData.totals.total_open}</div>
-                    </Card.Body>
-                  </Card>
-                </Col>
-                <Col md={3}>
-                  <Card className="text-center h-100">
-                    <Card.Body>
-                      <div className="text-secondary small">Avg Conversion</div>
-                      <div className="h4 mb-0">{Math.round(teamData.totals.avg_conversion_rate)}%</div>
-                    </Card.Body>
-                  </Card>
-                </Col>
-              </Row>
+        {activeTab === "team" && (
+          <Box sx={{ p: 3 }}>
+            {loading && (
+              <Box sx={{ display: 'grid', placeItems: 'center', py: 4, color: 'text.secondary' }}>
+                <CircularProgress size={28} />
+              </Box>
+            )}
+            {!loading && teamData && (
+              <>
+                <Box sx={{ display: 'grid', gridTemplateColumns: { xs: 'repeat(2, 1fr)', lg: 'repeat(4, 1fr)' }, gap: 2.5, mb: 2.5 }}>
+                  <StatCard label="Team Total Leads" value={teamData.totals.total_leads} />
+                  <StatCard label="Team Won" value={teamData.totals.total_won} color="#118d57" />
+                  <StatCard label="Team Open" value={teamData.totals.total_open} color="#062849" />
+                  <StatCard label="Avg Conversion" value={`${Math.round(teamData.totals.avg_conversion_rate)}%`} />
+                </Box>
 
-              <Card>
-                <Card.Header className="bg-light d-flex justify-content-between align-items-center">
-                  <strong>Performance by Team Member</strong>
-                  <div>
-                    <Button variant="outline-primary" size="sm" className="me-2" onClick={() => exportToCSV(teamData.users, "team_performance")}>
-                      <i className="fas fa-download me-1"></i> CSV
-                    </Button>
-                    <Button variant="outline-danger" size="sm" onClick={() => downloadPDF("team-performance")}>
-                      <i className="fas fa-file-pdf me-1"></i> PDF
-                    </Button>
-                  </div>
-                </Card.Header>
-                <Card.Body className="p-0">
-                  <Table responsive hover className="mb-0">
-                    <thead className="table-light">
-                      <tr>
-                        <th>Name</th>
-                        <th className="text-end">Total</th>
-                        <th className="text-end">Won</th>
-                        <th className="text-end">Lost</th>
-                        <th className="text-end">Open</th>
-                        <th className="text-end">Conversion %</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {teamData.users.map((user) => (
-                        <tr key={user.id}>
-                          <td>{user.name}</td>
-                          <td className="text-end">{user.total_leads}</td>
-                          <td className="text-end text-success">{user.won_leads}</td>
-                          <td className="text-end text-danger">{user.lost_leads}</td>
-                          <td className="text-end text-primary">{user.open_leads}</td>
-                          <td className="text-end">{user.conversion_rate}%</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </Table>
-                </Card.Body>
-              </Card>
-            </>
-          )}
-        </Tab>
+                <SectionCard
+                  title="Performance by Team Member"
+                  contentSx={{ p: 0, '&:last-child': { pb: 0 } }}
+                  action={
+                    <Stack direction="row" spacing={1}>
+                      <Button variant="outlined" size="small" onClick={() => exportToCSV(teamData.users, "team_performance")} startIcon={<i className="fas fa-download" aria-hidden="true" />}>
+                        CSV
+                      </Button>
+                      <Button variant="outlined" color="error" size="small" onClick={() => downloadPDF("team-performance")} startIcon={<i className="fas fa-file-pdf" aria-hidden="true" />}>
+                        PDF
+                      </Button>
+                    </Stack>
+                  }
+                >
+                  <ReportTable
+                    columns={[
+                      { label: 'Name' },
+                      { label: 'Total', align: 'right' },
+                      { label: 'Won', align: 'right' },
+                      { label: 'Lost', align: 'right' },
+                      { label: 'Open', align: 'right' },
+                      { label: 'Conversion %', align: 'right' },
+                    ]}
+                  >
+                    {teamData.users.map((user) => (
+                      <TableRow key={user.id} hover>
+                        <TableCell sx={{ px: 2 }}>{user.name}</TableCell>
+                        <TableCell align="right" sx={{ px: 2 }}>{user.total_leads}</TableCell>
+                        <TableCell align="right" sx={{ px: 2, color: 'success.main' }}>{user.won_leads}</TableCell>
+                        <TableCell align="right" sx={{ px: 2, color: 'error.main' }}>{user.lost_leads}</TableCell>
+                        <TableCell align="right" sx={{ px: 2, color: 'primary.main' }}>{user.open_leads}</TableCell>
+                        <TableCell align="right" sx={{ px: 2 }}>{user.conversion_rate}%</TableCell>
+                      </TableRow>
+                    ))}
+                  </ReportTable>
+                </SectionCard>
+              </>
+            )}
+          </Box>
+        )}
 
         {/* Source Analysis */}
-        <Tab eventKey="source" title="Source Analysis">
-          {loading && <div className="text-center py-4">Loading...</div>}
-          {!loading && sourceData && (
-            <>
-              <Row className="g-4 mb-4">
-                <Col md={6}>
-                  <Card>
-                    <Card.Header className="bg-light">
-                      <strong>Source Distribution</strong>
-                    </Card.Header>
-                    <Card.Body>
-                      <ResponsiveContainer width="100%" height={250}>
-                        <BarChart data={sourceData.sources?.map(s => ({ name: s.source, count: s.total })) || []}>
-                          <CartesianGrid strokeDasharray="3 3" />
-                          <XAxis dataKey="name" />
-                          <YAxis />
-                          <Tooltip />
-                          <Bar dataKey="count" fill="#28a745" />
-                        </BarChart>
-                      </ResponsiveContainer>
-                    </Card.Body>
+        {activeTab === "source" && (
+          <Box sx={{ p: 3 }}>
+            {loading && (
+              <Box sx={{ display: 'grid', placeItems: 'center', py: 4, color: 'text.secondary' }}>
+                <CircularProgress size={28} />
+              </Box>
+            )}
+            {!loading && sourceData && (
+              <>
+                <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: 'repeat(2, 1fr)' }, gap: 2.5, mb: 2.5 }}>
+                  <SectionCard title="Source Distribution">
+                    <ResponsiveContainer width="100%" height={250}>
+                      <BarChart data={sourceData.sources?.map(s => ({ name: s.source, count: s.total })) || []}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="rgba(145,158,171,.22)" vertical={false} />
+                        <XAxis dataKey="name" tick={{ fontSize: 12, fill: '#637381' }} axisLine={false} tickLine={false} />
+                        <YAxis tick={{ fontSize: 12, fill: '#637381' }} axisLine={false} tickLine={false} />
+                        <Tooltip contentStyle={chartTooltipSx} />
+                        <Bar dataKey="count" fill="#22c55e" radius={[6, 6, 0, 0]} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </SectionCard>
+                  <Card sx={cardSx}>
+                    <CardContent sx={{ p: 3, height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'center', textAlign: 'center' }}>
+                      <Typography variant="body2" sx={{ color: 'text.secondary' }}>Total Sources</Typography>
+                      <Typography variant="h3" sx={{ fontWeight: 800, mb: 2 }}>{sourceData.total_sources}</Typography>
+                      <Typography variant="body2" sx={{ color: 'text.secondary' }}>Top Source</Typography>
+                      <Typography variant="h5" sx={{ color: 'primary.main', fontWeight: 700, mb: 1.5 }}>{sourceData.sources?.[0]?.source || "-"}</Typography>
+                      <Typography variant="body2" sx={{ color: 'text.secondary' }}>Top Source Leads</Typography>
+                      <Typography variant="h6" sx={{ fontWeight: 700 }}>{sourceData.sources?.[0]?.total || 0}</Typography>
+                    </CardContent>
                   </Card>
-                </Col>
-                <Col md={6}>
-                  <Card className="text-center h-100">
-                    <Card.Body className="d-flex flex-column justify-content-center">
-                      <div className="text-secondary small">Total Sources</div>
-                      <div className="h1 mb-3">{sourceData.total_sources}</div>
-                      <div className="text-secondary small">Top Source</div>
-                      <div className="h4 text-primary">{sourceData.sources?.[0]?.source || "-"}</div>
-                      <div className="text-secondary small">Top Source Leads</div>
-                      <div className="h5">{sourceData.sources?.[0]?.total || 0}</div>
-                    </Card.Body>
-                  </Card>
-                </Col>
-              </Row>
+                </Box>
 
-              <Card>
-                <Card.Header className="bg-light d-flex justify-content-between align-items-center">
-                  <strong>Leads by Source</strong>
-                  <div>
-                    <Button variant="outline-primary" size="sm" className="me-2" onClick={() => exportToCSV(sourceData.sources, "source_analysis")}>
-                      <i className="fas fa-download me-1"></i> CSV
-                    </Button>
-                    <Button variant="outline-danger" size="sm" onClick={() => downloadPDF("source-analysis")}>
-                      <i className="fas fa-file-pdf me-1"></i> PDF
-                    </Button>
-                  </div>
-                </Card.Header>
-              <Card.Body className="p-0">
-                <Table responsive hover className="mb-0">
-                  <thead className="table-light">
-                    <tr>
-                      <th>Source</th>
-                      <th className="text-end">Total</th>
-                      <th className="text-end">Won</th>
-                      <th className="text-end">Lost</th>
-                      <th className="text-end">Open</th>
-                      <th className="text-end">Conversion %</th>
-                    </tr>
-                  </thead>
-                  <tbody>
+                <SectionCard
+                  title="Leads by Source"
+                  contentSx={{ p: 0, '&:last-child': { pb: 0 } }}
+                  action={
+                    <Stack direction="row" spacing={1}>
+                      <Button variant="outlined" size="small" onClick={() => exportToCSV(sourceData.sources, "source_analysis")} startIcon={<i className="fas fa-download" aria-hidden="true" />}>
+                        CSV
+                      </Button>
+                      <Button variant="outlined" color="error" size="small" onClick={() => downloadPDF("source-analysis")} startIcon={<i className="fas fa-file-pdf" aria-hidden="true" />}>
+                        PDF
+                      </Button>
+                    </Stack>
+                  }
+                >
+                  <ReportTable
+                    columns={[
+                      { label: 'Source' },
+                      { label: 'Total', align: 'right' },
+                      { label: 'Won', align: 'right' },
+                      { label: 'Lost', align: 'right' },
+                      { label: 'Open', align: 'right' },
+                      { label: 'Conversion %', align: 'right' },
+                    ]}
+                  >
                     {sourceData.sources.map((item) => (
-                      <tr key={item.source}>
-                        <td>{item.source}</td>
-                        <td className="text-end">{item.total}</td>
-                        <td className="text-end text-success">{item.won}</td>
-                        <td className="text-end text-danger">{item.lost}</td>
-                        <td className="text-end text-primary">{item.open}</td>
-                        <td className="text-end">{item.conversion_rate}%</td>
-                      </tr>
+                      <TableRow key={item.source} hover>
+                        <TableCell sx={{ px: 2 }}>{item.source}</TableCell>
+                        <TableCell align="right" sx={{ px: 2 }}>{item.total}</TableCell>
+                        <TableCell align="right" sx={{ px: 2, color: 'success.main' }}>{item.won}</TableCell>
+                        <TableCell align="right" sx={{ px: 2, color: 'error.main' }}>{item.lost}</TableCell>
+                        <TableCell align="right" sx={{ px: 2, color: 'primary.main' }}>{item.open}</TableCell>
+                        <TableCell align="right" sx={{ px: 2 }}>{item.conversion_rate}%</TableCell>
+                      </TableRow>
                     ))}
-                  </tbody>
-                </Table>
-              </Card.Body>
-            </Card>
-          </>
-          )}
-        </Tab>
+                  </ReportTable>
+                </SectionCard>
+              </>
+            )}
+          </Box>
+        )}
 
         {/* Product Analysis */}
-        <Tab eventKey="product" title="Product Analysis">
-          {loading && <div className="text-center py-4">Loading...</div>}
-          {!loading && productData && (
-            <>
-              <Row className="g-3 mb-4">
-                <Col md={4}>
-                  <Card className="text-center h-100">
-                    <Card.Body>
-                      <div className="text-secondary small">Total Sources</div>
-                      <div className="h4 mb-0">{productData.total_sources}</div>
-                    </Card.Body>
-                  </Card>
-                </Col>
-                <Col md={4}>
-                  <Card className="text-center h-100">
-                    <Card.Body>
-                      <div className="text-secondary small">Total Products</div>
-                      <div className="h4 mb-0">{productData.total_products}</div>
-                    </Card.Body>
-                  </Card>
-                </Col>
-                <Col md={4}>
-                  <Card className="text-center h-100">
-                    <Card.Body>
-                      <div className="text-secondary small">Top Product</div>
-                      <div className="h4 mb-0 text-primary">
+        {activeTab === "product" && (
+          <Box sx={{ p: 3 }}>
+            {loading && (
+              <Box sx={{ display: 'grid', placeItems: 'center', py: 4, color: 'text.secondary' }}>
+                <CircularProgress size={28} />
+              </Box>
+            )}
+            {!loading && productData && (
+              <>
+                <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(3, 1fr)' }, gap: 2.5, mb: 2.5 }}>
+                  <StatCard label="Total Sources" value={productData.total_sources} />
+                  <StatCard label="Total Products" value={productData.total_products} />
+                  <Card sx={cardSx}>
+                    <CardContent sx={{ p: 2.5, textAlign: 'center' }}>
+                      <Typography variant="body2" sx={{ color: 'text.secondary', mb: .5 }}>Top Product</Typography>
+                      <Typography variant="h5" sx={{ color: 'primary.main', fontWeight: 700 }}>
                         {productData.sources?.[0]?.products?.[0]?.product || "-"}
-                      </div>
-                      <div className="text-secondary small">
+                      </Typography>
+                      <Typography variant="caption" sx={{ color: 'text.secondary' }}>
                         {productData.sources?.[0]?.products?.[0]?.total || 0} leads
-                      </div>
-                    </Card.Body>
+                      </Typography>
+                    </CardContent>
                   </Card>
-                </Col>
-              </Row>
+                </Box>
 
-              {productData.sources?.map((sourceGroup) => (
-                <Card key={sourceGroup.source_type} className="mb-4">
-                  <Card.Header className="bg-light d-flex justify-content-between align-items-center">
-                    <strong>{sourceGroup.source_label} — {sourceGroup.total_leads} leads</strong>
-                    <Button
-                      variant="outline-primary"
-                      size="sm"
-                      onClick={() =>
-                        exportToCSV(
-                          sourceGroup.products.map((p) => ({
-                            Product: p.product,
-                            Total: p.total,
-                            Won: p.won,
-                            Lost: p.lost,
-                            Open: p.open,
-                            "Conversion %": p.conversion_rate,
-                          })),
-                          `product_analysis_${sourceGroup.source_type}`
-                        )
+                <Stack spacing={2.5}>
+                  {productData.sources?.map((sourceGroup) => (
+                    <SectionCard
+                      key={sourceGroup.source_type}
+                      title={`${sourceGroup.source_label} — ${sourceGroup.total_leads} leads`}
+                      contentSx={{ p: 0, '&:last-child': { pb: 0 } }}
+                      action={
+                        <Button
+                          variant="outlined"
+                          size="small"
+                          onClick={() =>
+                            exportToCSV(
+                              sourceGroup.products.map((p) => ({
+                                Product: p.product,
+                                Total: p.total,
+                                Won: p.won,
+                                Lost: p.lost,
+                                Open: p.open,
+                                "Conversion %": p.conversion_rate,
+                              })),
+                              `product_analysis_${sourceGroup.source_type}`
+                            )
+                          }
+                          startIcon={<i className="fas fa-download" aria-hidden="true" />}
+                        >
+                          CSV
+                        </Button>
                       }
                     >
-                      <i className="fas fa-download me-1"></i> CSV
-                    </Button>
-                  </Card.Header>
-                  <Card.Body className="p-0">
-                    <Table responsive hover className="mb-0">
-                      <thead className="table-light">
-                        <tr>
-                          <th>Product</th>
-                          <th className="text-end">Total</th>
-                          <th className="text-end">Won</th>
-                          <th className="text-end">Lost</th>
-                          <th className="text-end">Open</th>
-                          <th className="text-end">Conversion %</th>
-                        </tr>
-                      </thead>
-                      <tbody>
+                      <ReportTable
+                        columns={[
+                          { label: 'Product' },
+                          { label: 'Total', align: 'right' },
+                          { label: 'Won', align: 'right' },
+                          { label: 'Lost', align: 'right' },
+                          { label: 'Open', align: 'right' },
+                          { label: 'Conversion %', align: 'right' },
+                        ]}
+                      >
                         {sourceGroup.products.map((item) => (
-                          <tr key={item.product}>
-                            <td>{item.product}</td>
-                            <td className="text-end">{item.total}</td>
-                            <td className="text-end text-success">{item.won}</td>
-                            <td className="text-end text-danger">{item.lost}</td>
-                            <td className="text-end text-primary">{item.open}</td>
-                            <td className="text-end">{item.conversion_rate}%</td>
-                          </tr>
+                          <TableRow key={item.product} hover>
+                            <TableCell sx={{ px: 2 }}>{item.product}</TableCell>
+                            <TableCell align="right" sx={{ px: 2 }}>{item.total}</TableCell>
+                            <TableCell align="right" sx={{ px: 2, color: 'success.main' }}>{item.won}</TableCell>
+                            <TableCell align="right" sx={{ px: 2, color: 'error.main' }}>{item.lost}</TableCell>
+                            <TableCell align="right" sx={{ px: 2, color: 'primary.main' }}>{item.open}</TableCell>
+                            <TableCell align="right" sx={{ px: 2 }}>{item.conversion_rate}%</TableCell>
+                          </TableRow>
                         ))}
                         {sourceGroup.products.length === 0 && (
-                          <tr>
-                            <td colSpan={6} className="text-muted text-center">
+                          <TableRow>
+                            <TableCell colSpan={6} align="center" sx={{ color: 'text.secondary', py: 4 }}>
                               No product data found.
-                            </td>
-                          </tr>
+                            </TableCell>
+                          </TableRow>
                         )}
-                      </tbody>
-                    </Table>
-                  </Card.Body>
-                </Card>
-              ))}
-            </>
-          )}
-        </Tab>
+                      </ReportTable>
+                    </SectionCard>
+                  ))}
+                </Stack>
+              </>
+            )}
+          </Box>
+        )}
 
         {/* Activity Summary */}
-        <Tab eventKey="activity" title="Activity Summary">
-          {loading && <div className="text-center py-4">Loading...</div>}
-          {!loading && activityData && (
-            <>
-              <Row className="g-4">
-                <Col md={4}>
-                  <Card>
-                    <Card.Header className="bg-light d-flex justify-content-between align-items-center">
-                      <strong>Activities by Type</strong>
-                      <Button variant="outline-primary" size="sm" onClick={() => exportToCSV(activityData.by_type, "activities_by_type")}>
-                        <i className="fas fa-download"></i>
-                      </Button>
-                    </Card.Header>
-                    <Card.Body className="p-0">
-                      <Table responsive hover className="mb-0">
-                        <thead className="table-light">
-                          <tr>
-                            <th>Type</th>
-                            <th className="text-end">Count</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {activityData.by_type.map((item) => (
-                            <tr key={item.type}>
-                              <td className="text-capitalize">{item.type.replace("_", " ")}</td>
-                              <td className="text-end">{item.count}</td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </Table>
-                    </Card.Body>
-                  </Card>
-                </Col>
-                <Col md={8}>
-                  <Card>
-                    <Card.Header className="bg-light d-flex justify-content-between align-items-center">
-                      <strong>Activities by User</strong>
-                      <Button variant="outline-primary" size="sm" onClick={() => exportToCSV(activityData.by_user, "activities_by_user")}>
-                        <i className="fas fa-download"></i>
-                      </Button>
-                    </Card.Header>
-                    <Card.Body className="p-0">
-                      <Table responsive hover className="mb-0">
-                        <thead className="table-light">
-                          <tr>
-                            <th>User</th>
-                            <th className="text-end">Total</th>
-                            <th className="text-end">Calls</th>
-                            <th className="text-end">Meetings</th>
-                            <th className="text-end">Follow-ups</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {activityData.by_user.map((user) => (
-                            <tr key={user.id}>
-                              <td>{user.name}</td>
-                              <td className="text-end">{user.total_activities}</td>
-                              <td className="text-end">{user.calls || 0}</td>
-                              <td className="text-end">{user.meetings || 0}</td>
-                              <td className="text-end">{user.follow_ups || 0}</td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </Table>
-                    </Card.Body>
-                  </Card>
-                </Col>
-              </Row>
-            </>
-          )}
-        </Tab>
+        {activeTab === "activity" && (
+          <Box sx={{ p: 3 }}>
+            {loading && (
+              <Box sx={{ display: 'grid', placeItems: 'center', py: 4, color: 'text.secondary' }}>
+                <CircularProgress size={28} />
+              </Box>
+            )}
+            {!loading && activityData && (
+              <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: '1fr 2fr' }, gap: 2.5 }}>
+                <SectionCard
+                  title="Activities by Type"
+                  contentSx={{ p: 0, '&:last-child': { pb: 0 } }}
+                  action={
+                    <Button variant="outlined" size="small" onClick={() => exportToCSV(activityData.by_type, "activities_by_type")} startIcon={<i className="fas fa-download" aria-hidden="true" />} />
+                  }
+                >
+                  <ReportTable
+                    columns={[
+                      { label: 'Type' },
+                      { label: 'Count', align: 'right' },
+                    ]}
+                  >
+                    {activityData.by_type.map((item) => (
+                      <TableRow key={item.type} hover>
+                        <TableCell sx={{ px: 2, textTransform: 'capitalize' }}>{item.type.replace("_", " ")}</TableCell>
+                        <TableCell align="right" sx={{ px: 2 }}>{item.count}</TableCell>
+                      </TableRow>
+                    ))}
+                  </ReportTable>
+                </SectionCard>
+                <SectionCard
+                  title="Activities by User"
+                  contentSx={{ p: 0, '&:last-child': { pb: 0 } }}
+                  action={
+                    <Button variant="outlined" size="small" onClick={() => exportToCSV(activityData.by_user, "activities_by_user")} startIcon={<i className="fas fa-download" aria-hidden="true" />} />
+                  }
+                >
+                  <ReportTable
+                    columns={[
+                      { label: 'User' },
+                      { label: 'Total', align: 'right' },
+                      { label: 'Calls', align: 'right' },
+                      { label: 'Meetings', align: 'right' },
+                      { label: 'Follow-ups', align: 'right' },
+                    ]}
+                  >
+                    {activityData.by_user.map((user) => (
+                      <TableRow key={user.id} hover>
+                        <TableCell sx={{ px: 2 }}>{user.name}</TableCell>
+                        <TableCell align="right" sx={{ px: 2 }}>{user.total_activities}</TableCell>
+                        <TableCell align="right" sx={{ px: 2 }}>{user.calls || 0}</TableCell>
+                        <TableCell align="right" sx={{ px: 2 }}>{user.meetings || 0}</TableCell>
+                        <TableCell align="right" sx={{ px: 2 }}>{user.follow_ups || 0}</TableCell>
+                      </TableRow>
+                    ))}
+                  </ReportTable>
+                </SectionCard>
+              </Box>
+            )}
+          </Box>
+        )}
 
         {/* Trends Report */}
-        <Tab eventKey="trends" title="Trends">
-          {loading && <div className="text-center py-4">Loading...</div>}
-          {!loading && trendsData && (
-            <Card>
-              <Card.Header className="bg-light">
-                <strong>Leads Over Time</strong>
-              </Card.Header>
-              <Card.Body>
+        {activeTab === "trends" && (
+          <Box sx={{ p: 3 }}>
+            {loading && (
+              <Box sx={{ display: 'grid', placeItems: 'center', py: 4, color: 'text.secondary' }}>
+                <CircularProgress size={28} />
+              </Box>
+            )}
+            {!loading && trendsData && (
+              <SectionCard title="Leads Over Time">
                 <ResponsiveContainer width="100%" height={350}>
                   <AreaChart data={trendsData.daily || []}>
                     <defs>
                       <linearGradient id="colorLeads" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#007bff" stopOpacity={0.8}/>
-                        <stop offset="95%" stopColor="#007bff" stopOpacity={0}/>
+                        <stop offset="5%" stopColor="#062849" stopOpacity={0.8}/>
+                        <stop offset="95%" stopColor="#062849" stopOpacity={0}/>
                       </linearGradient>
                     </defs>
-                    <XAxis dataKey="date" />
-                    <YAxis />
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <Tooltip />
+                    <XAxis dataKey="date" tick={{ fontSize: 12, fill: '#637381' }} axisLine={false} tickLine={false} />
+                    <YAxis tick={{ fontSize: 12, fill: '#637381' }} axisLine={false} tickLine={false} />
+                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(145,158,171,.22)" vertical={false} />
+                    <Tooltip contentStyle={chartTooltipSx} />
                     <Legend />
-                    <Area type="monotone" dataKey="count" stroke="#007bff" fillOpacity={1} fill="url(#colorLeads)" name="New Leads" />
+                    <Area type="monotone" dataKey="count" stroke="#062849" fillOpacity={1} fill="url(#colorLeads)" name="New Leads" />
                   </AreaChart>
                 </ResponsiveContainer>
-              </Card.Body>
-            </Card>
-          )}
-        </Tab>
+              </SectionCard>
+            )}
+          </Box>
+        )}
 
         {/* Conversion Funnel */}
-        <Tab eventKey="funnel" title="Conversion Funnel">
-          {loading && <div className="text-center py-4">Loading...</div>}
-          {!loading && funnelData && (
-            <Card>
-              <Card.Header className="bg-light d-flex justify-content-between align-items-center">
-                <strong>Stage Conversion Funnel</strong>
-                <Button variant="outline-primary" size="sm" onClick={() => exportToCSV(funnelData.stages, "conversion_funnel")}>
-                  <i className="fas fa-download me-1"></i> Export CSV
-                </Button>
-              </Card.Header>
-              <Card.Body>
-                <div className="funnel-container">
+        {activeTab === "funnel" && (
+          <Box sx={{ p: 3 }}>
+            {loading && (
+              <Box sx={{ display: 'grid', placeItems: 'center', py: 4, color: 'text.secondary' }}>
+                <CircularProgress size={28} />
+              </Box>
+            )}
+            {!loading && funnelData && (
+              <SectionCard
+                title="Stage Conversion Funnel"
+                action={
+                  <Button variant="outlined" size="small" onClick={() => exportToCSV(funnelData.stages, "conversion_funnel")} startIcon={<i className="fas fa-download" aria-hidden="true" />}>
+                    Export CSV
+                  </Button>
+                }
+              >
+                <Box>
                   {funnelData.stages?.map((stage, index) => (
-                    <div key={stage.name} className="funnel-stage mb-3">
-                      <div className="d-flex justify-content-between align-items-center mb-1">
-                        <span className="fw-bold">{stage.name}</span>
-                        <span className="text-muted">{stage.count} leads</span>
-                      </div>
-                      <div className="progress" style={{ height: "30px" }}>
-                        <div
-                          className="progress-bar"
-                          role="progressbar"
-                          style={{
+                    <Box key={stage.name} sx={{ mb: 3 }}>
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+                        <Typography variant="body2" sx={{ fontWeight: 700 }}>{stage.name}</Typography>
+                        <Typography variant="caption" sx={{ color: 'text.secondary' }}>{stage.count} leads</Typography>
+                      </Box>
+                      <Box sx={{ height: 30, borderRadius: 1.5, bgcolor: '#f1f5f9', overflow: 'hidden', position: 'relative' }}>
+                        <Box
+                          sx={{
+                            height: '100%',
                             width: `${stage.conversion_rate || 0}%`,
-                            backgroundColor: COLORS.primary[index % COLORS.primary.length]
+                            bgcolor: COLORS.primary[index % COLORS.primary.length],
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            color: '#fff',
+                            fontSize: 12,
+                            fontWeight: 700,
+                            minWidth: stage.conversion_rate > 0 ? 'auto' : 0,
                           }}
                         >
                           {stage.conversion_rate > 0 && `${stage.conversion_rate.toFixed(1)}%`}
-                        </div>
-                      </div>
+                        </Box>
+                      </Box>
                       {index < funnelData.stages.length - 1 && (
-                        <div className="text-center my-2">
-                          <i className="fas fa-arrow-down text-muted"></i>
-                          <span className="text-muted small ms-2">
+                        <Box sx={{ textAlign: 'center', my: 1 }}>
+                          <i className="fas fa-arrow-down" style={{ color: '#919eab', fontSize: 12 }} aria-hidden="true" />
+                          <Typography component="span" variant="caption" sx={{ color: 'text.secondary', ml: 1 }}>
                             {stage.drop_off_count || 0} dropped off ({stage.drop_off_rate?.toFixed(1) || 0}%)
-                          </span>
-                        </div>
+                          </Typography>
+                        </Box>
                       )}
-                    </div>
+                    </Box>
                   ))}
-                </div>
-              </Card.Body>
-            </Card>
-          )}
-        </Tab>
+                </Box>
+              </SectionCard>
+            )}
+          </Box>
+        )}
 
         {/* Follow-ups Report */}
-        <Tab eventKey="followups" title="Follow-ups">
-          {loading && <div className="text-center py-4">Loading...</div>}
-          {!loading && followupReportData && (
-            <>
-              <Row className="g-3 mb-4">
-                {[
-                  { label: "Today", value: followupReportData.summary?.today ?? 0, color: "#007bff" },
-                  { label: "Overdue", value: followupReportData.summary?.overdue ?? 0, color: "#dc3545" },
-                  { label: "Upcoming", value: followupReportData.summary?.upcoming ?? 0, color: "#28a745" },
-                  { label: "Not Scheduled", value: followupReportData.summary?.not_scheduled ?? 0, color: "#6c757d" },
-                ].map((c) => (
-                  <Col md={3} key={c.label}>
-                    <Card className="text-center h-100">
-                      <Card.Body>
-                        <div className="text-secondary small">{c.label}</div>
-                        <div className="h4 mb-0" style={{ color: c.color }}>{c.value}</div>
-                      </Card.Body>
-                    </Card>
-                  </Col>
-                ))}
-              </Row>
+        {activeTab === "followups" && (
+          <Box sx={{ p: 3 }}>
+            {loading && (
+              <Box sx={{ display: 'grid', placeItems: 'center', py: 4, color: 'text.secondary' }}>
+                <CircularProgress size={28} />
+              </Box>
+            )}
+            {!loading && followupReportData && (
+              <>
+                <Box sx={{ display: 'grid', gridTemplateColumns: { xs: 'repeat(2, 1fr)', lg: 'repeat(4, 1fr)' }, gap: 2.5, mb: 2.5 }}>
+                  <StatCard label="Today" value={followupReportData.summary?.today ?? 0} color="#062849" />
+                  <StatCard label="Overdue" value={followupReportData.summary?.overdue ?? 0} color="#b71d18" />
+                  <StatCard label="Upcoming" value={followupReportData.summary?.upcoming ?? 0} color="#118d57" />
+                  <StatCard label="Not Scheduled" value={followupReportData.summary?.not_scheduled ?? 0} color="#637381" />
+                </Box>
 
-              <Card>
-                <Card.Header className="bg-light d-flex justify-content-between align-items-center">
-                  <strong>Follow-up by Assignee</strong>
-                  <Button variant="outline-primary" size="sm"
-                    onClick={() => exportToCSV(
-                      followupReportData.by_assignee?.map(r => ({
-                        Assignee: r.assignee,
-                        Today: r.today,
-                        Overdue: r.overdue,
-                        Upcoming: r.upcoming,
-                        'Not Scheduled': r.not_scheduled,
-                        Total: r.total,
-                      })),
-                      "followup_report"
-                    )}>
-                    <i className="fas fa-download me-1"></i> Export CSV
-                  </Button>
-                </Card.Header>
-                <Card.Body className="p-0">
-                  <Table responsive hover className="mb-0">
-                    <thead className="table-light">
-                      <tr>
-                        <th>Assignee</th>
-                        <th className="text-end">Today</th>
-                        <th className="text-end text-danger">Overdue</th>
-                        <th className="text-end text-success">Upcoming</th>
-                        <th className="text-end text-secondary">Not Scheduled</th>
-                        <th className="text-end">Total</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {followupReportData.by_assignee?.map((row, i) => (
-                        <tr key={i}>
-                          <td>{row.assignee}</td>
-                          <td className="text-end">{row.today}</td>
-                          <td className="text-end text-danger">{row.overdue}</td>
-                          <td className="text-end text-success">{row.upcoming}</td>
-                          <td className="text-end text-secondary">{row.not_scheduled}</td>
-                          <td className="text-end fw-semibold">{row.total}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </Table>
-                </Card.Body>
-              </Card>
-            </>
-          )}
-        </Tab>
+                <SectionCard
+                  title="Follow-up by Assignee"
+                  contentSx={{ p: 0, '&:last-child': { pb: 0 } }}
+                  action={
+                    <Button
+                      variant="outlined"
+                      size="small"
+                      onClick={() => exportToCSV(
+                        followupReportData.by_assignee?.map(r => ({
+                          Assignee: r.assignee,
+                          Today: r.today,
+                          Overdue: r.overdue,
+                          Upcoming: r.upcoming,
+                          'Not Scheduled': r.not_scheduled,
+                          Total: r.total,
+                        })),
+                        "followup_report"
+                      )}
+                      startIcon={<i className="fas fa-download" aria-hidden="true" />}
+                    >
+                      Export CSV
+                    </Button>
+                  }
+                >
+                  <ReportTable
+                    columns={[
+                      { label: 'Assignee' },
+                      { label: 'Today', align: 'right' },
+                      { label: 'Overdue', align: 'right' },
+                      { label: 'Upcoming', align: 'right' },
+                      { label: 'Not Scheduled', align: 'right' },
+                      { label: 'Total', align: 'right' },
+                    ]}
+                  >
+                    {followupReportData.by_assignee?.map((row, i) => (
+                      <TableRow key={i} hover>
+                        <TableCell sx={{ px: 2 }}>{row.assignee}</TableCell>
+                        <TableCell align="right" sx={{ px: 2 }}>{row.today}</TableCell>
+                        <TableCell align="right" sx={{ px: 2, color: 'error.main' }}>{row.overdue}</TableCell>
+                        <TableCell align="right" sx={{ px: 2, color: 'success.main' }}>{row.upcoming}</TableCell>
+                        <TableCell align="right" sx={{ px: 2, color: 'text.secondary' }}>{row.not_scheduled}</TableCell>
+                        <TableCell align="right" sx={{ px: 2, fontWeight: 700 }}>{row.total}</TableCell>
+                      </TableRow>
+                    ))}
+                  </ReportTable>
+                </SectionCard>
+              </>
+            )}
+          </Box>
+        )}
 
         {/* Lead Aging */}
-        <Tab eventKey="aging" title="Lead Aging">
-          {loading && <div className="text-center py-4">Loading...</div>}
-          {!loading && agingData && (
-            <>
-              <Row className="g-3 mb-4">
-                <Col md={3}>
-                  <Card className="text-center h-100">
-                    <Card.Body>
-                      <div className="text-secondary small">Avg Days in Stage</div>
-                      <div className="h4 mb-0">{agingData.avg_days?.toFixed(1) || 0}</div>
-                    </Card.Body>
-                  </Card>
-                </Col>
-                <Col md={3}>
-                  <Card className="text-center h-100">
-                    <Card.Body>
-                      <div className="text-secondary small">Leads &gt; 30 Days</div>
-                      <div className="h4 mb-0 text-danger">{agingData.stale_count || 0}</div>
-                    </Card.Body>
-                  </Card>
-                </Col>
-                <Col md={3}>
-                  <Card className="text-center h-100">
-                    <Card.Body>
-                      <div className="text-secondary small">Leads &gt; 60 Days</div>
-                      <div className="h4 mb-0 text-warning">{agingData.very_stale_count || 0}</div>
-                    </Card.Body>
-                  </Card>
-                </Col>
-                <Col md={3}>
-                  <Card className="text-center h-100">
-                    <Card.Body>
-                      <div className="text-secondary small">Avg Time to Close</div>
-                      <div className="h4 mb-0">{agingData.avg_days_to_close?.toFixed(1) || 0} days</div>
-                    </Card.Body>
-                  </Card>
-                </Col>
-              </Row>
+        {activeTab === "aging" && (
+          <Box sx={{ p: 3 }}>
+            {loading && (
+              <Box sx={{ display: 'grid', placeItems: 'center', py: 4, color: 'text.secondary' }}>
+                <CircularProgress size={28} />
+              </Box>
+            )}
+            {!loading && agingData && (
+              <>
+                <Box sx={{ display: 'grid', gridTemplateColumns: { xs: 'repeat(2, 1fr)', lg: 'repeat(4, 1fr)' }, gap: 2.5, mb: 2.5 }}>
+                  <StatCard label="Avg Days in Stage" value={agingData.avg_days?.toFixed(1) || 0} />
+                  <StatCard label="Leads > 30 Days" value={agingData.stale_count || 0} color="#b71d18" />
+                  <StatCard label="Leads > 60 Days" value={agingData.very_stale_count || 0} color="#b76e00" />
+                  <StatCard label="Avg Time to Close" value={`${agingData.avg_days_to_close?.toFixed(1) || 0} days`} />
+                </Box>
 
-              <Card>
-                <Card.Header className="bg-light d-flex justify-content-between align-items-center">
-                  <strong>Aging by Stage</strong>
-                  <div className="d-flex gap-2">
-                    <Button variant="outline-primary" size="sm" onClick={() => exportToCSV(agingData.by_stage, "lead_aging")}>
-                      <i className="fas fa-download me-1"></i> Export CSV
-                    </Button>
-                    <Button variant="outline-danger" size="sm" onClick={() => downloadPDF("aging")}>
-                      <i className="fas fa-file-pdf me-1"></i> Download PDF
-                    </Button>
-                  </div>
-                </Card.Header>
-                <Card.Body className="p-0">
-                  <Table responsive hover className="mb-0">
-                    <thead className="table-light">
-                      <tr>
-                        <th>Stage</th>
-                        <th className="text-end">Total Leads</th>
-                        <th className="text-end">Avg Days</th>
-                        <th className="text-end">Min Days</th>
-                        <th className="text-end">Max Days</th>
-                        <th className="text-end">&gt;30 Days</th>
-                        <th className="text-end">&gt;60 Days</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {agingData.by_stage?.map((item) => (
-                        <tr key={item.stage}>
-                          <td>{item.stage}</td>
-                          <td className="text-end">{item.count}</td>
-                          <td className="text-end">{item.avg_days?.toFixed(1) || 0}</td>
-                          <td className="text-end">{item.min_days || 0}</td>
-                          <td className="text-end">{item.max_days || 0}</td>
-                          <td className="text-end text-warning">{item.stale_count || 0}</td>
-                          <td className="text-end text-danger">{item.very_stale_count || 0}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </Table>
-                </Card.Body>
-              </Card>
-            </>
-          )}
-        </Tab>
-      </Tabs>
+                <SectionCard
+                  title="Aging by Stage"
+                  contentSx={{ p: 0, '&:last-child': { pb: 0 } }}
+                  action={
+                    <Stack direction="row" spacing={1}>
+                      <Button variant="outlined" size="small" onClick={() => exportToCSV(agingData.by_stage, "lead_aging")} startIcon={<i className="fas fa-download" aria-hidden="true" />}>
+                        Export CSV
+                      </Button>
+                      <Button variant="outlined" color="error" size="small" onClick={() => downloadPDF("aging")} startIcon={<i className="fas fa-file-pdf" aria-hidden="true" />}>
+                        Download PDF
+                      </Button>
+                    </Stack>
+                  }
+                >
+                  <ReportTable
+                    columns={[
+                      { label: 'Stage' },
+                      { label: 'Total Leads', align: 'right' },
+                      { label: 'Avg Days', align: 'right' },
+                      { label: 'Min Days', align: 'right' },
+                      { label: 'Max Days', align: 'right' },
+                      { label: '>30 Days', align: 'right' },
+                      { label: '>60 Days', align: 'right' },
+                    ]}
+                  >
+                    {agingData.by_stage?.map((item) => (
+                      <TableRow key={item.stage} hover>
+                        <TableCell sx={{ px: 2 }}>{item.stage}</TableCell>
+                        <TableCell align="right" sx={{ px: 2 }}>{item.count}</TableCell>
+                        <TableCell align="right" sx={{ px: 2 }}>{item.avg_days?.toFixed(1) || 0}</TableCell>
+                        <TableCell align="right" sx={{ px: 2 }}>{item.min_days || 0}</TableCell>
+                        <TableCell align="right" sx={{ px: 2 }}>{item.max_days || 0}</TableCell>
+                        <TableCell align="right" sx={{ px: 2, color: 'warning.main' }}>{item.stale_count || 0}</TableCell>
+                        <TableCell align="right" sx={{ px: 2, color: 'error.main' }}>{item.very_stale_count || 0}</TableCell>
+                      </TableRow>
+                    ))}
+                  </ReportTable>
+                </SectionCard>
+              </>
+            )}
+          </Box>
+        )}
+      </Card>
 
-      {/* Settings Modal */}
-      <Modal show={showSettings} onHide={() => setShowSettings(false)} size="lg">
-        <Modal.Header closeButton>
-          <Modal.Title>Report Stage Settings</Modal.Title>
-        </Modal.Header>
-        <Modal.Body>
-          <p className="text-muted small">
+      {/* Settings Dialog */}
+      <Dialog open={showSettings} onClose={() => setShowSettings(false)} maxWidth="md" fullWidth>
+        <DialogTitle sx={{ fontWeight: 700 }}>Report Stage Settings</DialogTitle>
+        <DialogContent dividers>
+          <Typography variant="body2" sx={{ color: 'text.secondary', mb: 2 }}>
             Select which lead stages should be treated as <strong>Won</strong> or <strong>Lost</strong> for reporting.
             Stages not selected will be counted as <strong>Open</strong>.
-          </p>
+          </Typography>
 
           {stages.length === 0 && (
-            <div className="text-center py-3 text-muted">No lead stages found. Please create stages first.</div>
+            <Box sx={{ textAlign: 'center', py: 3, color: 'text.secondary' }}>
+              No lead stages found. Please create stages first.
+            </Box>
           )}
 
           {stages.length > 0 && (
-            <Table responsive bordered hover className="mb-0">
-              <thead className="table-light">
-                <tr>
-                  <th>Stage Name</th>
-                  <th className="text-center">Won</th>
-                  <th className="text-center">Lost</th>
-                </tr>
-              </thead>
-              <tbody>
-                {stages.map((stage) => (
-                  <tr key={stage.id}>
-                    <td>{stage.name}</td>
-                    <td className="text-center">
-                      <Form.Check
-                        type="checkbox"
-                        checked={wonStages.includes(stage.name)}
-                        onChange={() => toggleStage(stage.name, "won")}
-                      />
-                    </td>
-                    <td className="text-center">
-                      <Form.Check
-                        type="checkbox"
-                        checked={lostStages.includes(stage.name)}
-                        onChange={() => toggleStage(stage.name, "lost")}
-                      />
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </Table>
+            <TableContainer>
+              <Table size="small">
+                <TableHead>
+                  <TableRow sx={{ bgcolor: '#f8fafc' }}>
+                    <TableCell sx={headCellSx}>Stage Name</TableCell>
+                    <TableCell align="center" sx={headCellSx}>Won</TableCell>
+                    <TableCell align="center" sx={headCellSx}>Lost</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {stages.map((stage) => (
+                    <TableRow key={stage.id} hover>
+                      <TableCell sx={{ px: 2 }}>{stage.name}</TableCell>
+                      <TableCell align="center" sx={{ px: 2 }}>
+                        <Checkbox
+                          checked={wonStages.includes(stage.name)}
+                          onChange={() => toggleStage(stage.name, "won")}
+                        />
+                      </TableCell>
+                      <TableCell align="center" sx={{ px: 2 }}>
+                        <Checkbox
+                          checked={lostStages.includes(stage.name)}
+                          onChange={() => toggleStage(stage.name, "lost")}
+                        />
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </TableContainer>
           )}
-        </Modal.Body>
-        <Modal.Footer>
-          <Button variant="secondary" onClick={() => setShowSettings(false)}>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, py: 2 }}>
+          <Button variant="outlined" onClick={() => setShowSettings(false)}>
             Cancel
           </Button>
-          <Button variant="primary" onClick={saveSettings} disabled={savingSettings}>
+          <Button variant="contained" onClick={saveSettings} disabled={savingSettings}>
             {savingSettings ? "Saving..." : "Save Settings"}
           </Button>
-        </Modal.Footer>
-      </Modal>
-    </div>
+        </DialogActions>
+      </Dialog>
+    </Box>
   );
 }

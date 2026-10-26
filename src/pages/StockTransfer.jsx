@@ -1,8 +1,90 @@
-import { useEffect, useMemo, useState } from "react";
-import DataTable from "react-data-table-component";
-import { Button, Card, Form, Modal, Row, Col, Badge, Table } from "react-bootstrap";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  Alert,
+  AlertTitle,
+  Box,
+  Button,
+  Card,
+  Chip,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  Divider,
+  FormControl,
+  IconButton,
+  InputLabel,
+  LinearProgress,
+  MenuItem,
+  Select,
+  Stack,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TablePagination,
+  TableRow,
+  TableSortLabel,
+  TextField,
+  Tooltip,
+  Typography,
+} from "@mui/material";
 import { canCreate, canDelete, canEdit, canView } from "../utils/permissions";
 import api from "../api";
+
+const toArray = (value) => {
+  if (Array.isArray(value)) return value;
+  if (Array.isArray(value?.data)) return value.data;
+  if (Array.isArray(value?.data?.data)) return value.data.data;
+  if (Array.isArray(value?.items)) return value.items;
+  if (Array.isArray(value?.results)) return value.results;
+  return [];
+};
+
+const strVal = (v) => (v === "" || v == null ? "" : String(v));
+
+const cardSx = {
+  border: '1px solid',
+  borderColor: 'divider',
+  borderRadius: 3,
+  boxShadow: '0 8px 24px rgba(28,37,46,.05)',
+};
+
+const headCellSx = {
+  color: 'text.secondary',
+  fontSize: 12,
+  fontWeight: 700,
+  textTransform: 'uppercase',
+  letterSpacing: '.04em',
+  px: 2,
+  py: 1.5,
+  borderBottom: '1px solid',
+  borderColor: 'divider',
+};
+
+const bodyCellSx = {
+  verticalAlign: 'middle',
+  px: 2,
+  py: 1.5,
+  borderBottom: '1px solid #f1f5f9',
+};
+
+const dialogPaperSx = {
+  borderRadius: 3,
+  boxShadow: '0 8px 24px rgba(28,37,46,.12)',
+};
+
+const actionBtnSx = { border: '1px solid', borderColor: 'divider' };
+
+const statusChipMap = {
+  draft: { label: 'Draft', sx: { bgcolor: '#fff4d6', color: '#b76e00' } },
+  completed: { label: 'Completed', sx: { bgcolor: '#dbf5e9', color: '#118d57' } },
+  cancelled: { label: 'Cancelled', sx: { bgcolor: '#f1f5f9', color: '#475569' } },
+};
+
+const detailLabelSx = { color: 'text.secondary' };
+const detailValueSx = { fontWeight: 700 };
 
 export default function StockTransfer() {
   const canViewTransfers = canView("stock-transfers");
@@ -15,13 +97,15 @@ export default function StockTransfer() {
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
   const [perPage, setPerPage] = useState(10);
+  const [sortField, setSortField] = useState("");
+  const [sortDir, setSortDir] = useState("asc");
   const [warehouses, setWarehouses] = useState([]);
   const [items, setItems] = useState([]);
-  
+
   const [showModal, setShowModal] = useState(false);
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [selectedTransfer, setSelectedTransfer] = useState(null);
-  
+
   const [formData, setFormData] = useState({
     transfer_number: "",
     transfer_date: new Date().toISOString().split("T")[0],
@@ -33,121 +117,45 @@ export default function StockTransfer() {
   const [warehouseStocks, setWarehouseStocks] = useState({});
   const [errors, setErrors] = useState({});
 
-  const statusBadge = {
-    draft: { bg: "warning", label: "Draft" },
-    completed: { bg: "success", label: "Completed" },
-    cancelled: { bg: "secondary", label: "Cancelled" },
-  };
-
-  const columns = useMemo(
-    () => [
-      {
-        name: "Transfer #",
-        selector: (row) => row.transfer_number,
-        sortable: true,
-        width: "120px",
-      },
-      {
-        name: "Date",
-        selector: (row) => row.transfer_date,
-        cell: (row) => new Date(row.transfer_date).toLocaleDateString(),
-        sortable: true,
-        width: "110px",
-      },
-      {
-        name: "From Warehouse",
-        selector: (row) => row.from_warehouse?.name || "-",
-      },
-      {
-        name: "To Warehouse",
-        selector: (row) => row.to_warehouse?.name || "-",
-      },
-      {
-        name: "Items",
-        selector: (row) => row.items?.length || 0,
-        width: "80px",
-        center: true,
-      },
-      {
-        name: "Status",
-        selector: (row) => row.status,
-        cell: (row) => {
-          const badge = statusBadge[row.status];
-          return <Badge bg={badge?.bg || "secondary"}>{badge?.label || row.status}</Badge>;
-        },
-        width: "100px",
-        center: true,
-      },
-      {
-        name: "Actions",
-        cell: (row) => (
-          <div className="d-flex gap-1">
-            <Button variant="outline-info" size="sm" onClick={() => handleView(row)}>
-              <i className="fas fa-eye"></i>
-            </Button>
-            {row.status === "draft" && canEditTransfer && (
-              <>
-                <Button variant="outline-success" size="sm" onClick={() => handleComplete(row)} title="Complete Transfer">
-                  <i className="fas fa-check"></i>
-                </Button>
-                <Button variant="outline-warning" size="sm" onClick={() => handleCancel(row)} title="Cancel Transfer">
-                  <i className="fas fa-times"></i>
-                </Button>
-              </>
-            )}
-            {row.status === "draft" && canDeleteTransfer && (
-              <Button variant="outline-danger" size="sm" onClick={() => handleDelete(row)}>
-                <i className="fas fa-trash"></i>
-              </Button>
-            )}
-          </div>
-        ),
-        width: "150px",
-        center: true,
-      },
-    ],
-    [canEditTransfer, canDeleteTransfer]
-  );
-
-  const loadTransfers = async () => {
+  const loadTransfers = useCallback(async () => {
     if (!canViewTransfers) return;
     setLoading(true);
     try {
       const res = await api.get("/stock-transfers", {
         params: { page, perPage },
       });
-      setTransfers(res.data.data || []);
-      setTotal(res.data.total || 0);
+      setTransfers(toArray(res.data));
+      setTotal(Number(res.data?.total ?? res.data?.data?.total) || 0);
     } catch (err) {
       console.error("Failed to load transfers:", err);
     } finally {
       setLoading(false);
     }
-  };
+  }, [canViewTransfers, page, perPage]);
 
-  const loadWarehouses = async () => {
+  const loadWarehouses = useCallback(async () => {
     try {
       const res = await api.get("/warehouses/list");
-      setWarehouses(res.data.data || []);
+      setWarehouses(toArray(res.data));
     } catch (err) {
       console.error("Failed to load warehouses:", err);
     }
-  };
+  }, []);
 
-  const loadItems = async () => {
+  const loadItems = useCallback(async () => {
     try {
       const res = await api.get("/items", { params: { perPage: 1000 } });
-      setItems(res.data.data || []);
+      setItems(toArray(res.data));
     } catch (err) {
       console.error("Failed to load items:", err);
     }
-  };
+  }, []);
 
   useEffect(() => {
     loadTransfers();
     loadWarehouses();
     loadItems();
-  }, [page, perPage]);
+  }, [loadTransfers, loadWarehouses, loadItems]);
 
   const handleView = (transfer) => {
     setSelectedTransfer(transfer);
@@ -229,7 +237,7 @@ export default function StockTransfer() {
     try {
       const res = await api.get(`/warehouses/${warehouseId}/stock`);
       const stocks = {};
-      (res.data.data || []).forEach((stock) => {
+      toArray(res.data).forEach((stock) => {
         stocks[stock.item_id] = stock.available_quantity || 0;
       });
       setWarehouseStocks(stocks);
@@ -259,307 +267,502 @@ export default function StockTransfer() {
     return `${prefix}-${date}-${random}`;
   };
 
+  const handleDialogClose = (event, reason) => {
+    if (reason === 'backdropClick') return;
+    setShowModal(false);
+  };
+
+  const sortedTransfers = useMemo(() => {
+    if (!sortField) return transfers;
+    const dir = sortDir === "asc" ? 1 : -1;
+    return [...transfers].sort((a, b) => {
+      const av = a?.[sortField];
+      const bv = b?.[sortField];
+      if (av == null && bv == null) return 0;
+      if (av == null) return 1;
+      if (bv == null) return -1;
+      if (typeof av === "number" && typeof bv === "number") return (av - bv) * dir;
+      return String(av).localeCompare(String(bv)) * dir;
+    });
+  }, [transfers, sortField, sortDir]);
+
+  const handleSort = (field) => {
+    if (sortField === field) {
+      setSortDir(d => (d === 'asc' ? 'desc' : 'asc'));
+    } else {
+      setSortField(field);
+      setSortDir('asc');
+    }
+  };
+
+  const columns = [
+    {
+      key: 'transfer_number', label: 'Transfer #', sortField: 'transfer_number', width: 140,
+      render: (row) => <Typography variant="body2" sx={{ fontWeight: 700 }}>{row.transfer_number || '-'}</Typography>,
+    },
+    {
+      key: 'transfer_date', label: 'Date', sortField: 'transfer_date', width: 120,
+      render: (row) => new Date(row.transfer_date).toLocaleDateString(),
+    },
+    {
+      key: 'from_warehouse', label: 'From Warehouse', minWidth: 150,
+      render: (row) => row.from_warehouse?.name || '-',
+    },
+    {
+      key: 'to_warehouse', label: 'To Warehouse', minWidth: 150,
+      render: (row) => row.to_warehouse?.name || '-',
+    },
+    {
+      key: 'items', label: 'Items', width: 80, align: 'center',
+      render: (row) => row.items?.length || 0,
+    },
+    {
+      key: 'status', label: 'Status', width: 120, align: 'center',
+      render: (row) => {
+        const badge = statusChipMap[row.status];
+        return (
+          <Chip
+            label={badge?.label || row.status}
+            size="small"
+            sx={{ ...(badge?.sx || { bgcolor: '#f1f5f9', color: '#475569' }), fontWeight: 700 }}
+          />
+        );
+      },
+    },
+    {
+      key: 'actions', label: 'Actions', width: 170, align: 'right',
+      render: (row) => (
+        <Stack direction="row" spacing={0.5} justifyContent="flex-end">
+          <Tooltip title="View">
+            <IconButton size="small" onClick={() => handleView(row)} sx={{ ...actionBtnSx, color: 'info.main' }} aria-label="View transfer">
+              <i className="fas fa-eye" style={{ fontSize: 13 }} aria-hidden="true" />
+            </IconButton>
+          </Tooltip>
+          {row.status === "draft" && canEditTransfer && (
+            <>
+              <Tooltip title="Complete Transfer">
+                <IconButton size="small" onClick={() => handleComplete(row)} sx={{ ...actionBtnSx, color: 'success.main' }} aria-label="Complete transfer">
+                  <i className="fas fa-check" style={{ fontSize: 13 }} aria-hidden="true" />
+                </IconButton>
+              </Tooltip>
+              <Tooltip title="Cancel Transfer">
+                <IconButton size="small" onClick={() => handleCancel(row)} sx={{ ...actionBtnSx, color: 'warning.main' }} aria-label="Cancel transfer">
+                  <i className="fas fa-times" style={{ fontSize: 13 }} aria-hidden="true" />
+                </IconButton>
+              </Tooltip>
+            </>
+          )}
+          {row.status === "draft" && canDeleteTransfer && (
+            <Tooltip title="Delete">
+              <IconButton size="small" onClick={() => handleDelete(row)} sx={{ ...actionBtnSx, color: 'error.main' }} aria-label="Delete transfer">
+                <i className="fas fa-trash" style={{ fontSize: 13 }} aria-hidden="true" />
+              </IconButton>
+            </Tooltip>
+          )}
+        </Stack>
+      ),
+    },
+  ];
+
   if (!canViewTransfers) {
     return (
-      <div className="container-fluid py-4">
-        <div className="alert alert-warning">You don't have permission to view stock transfers.</div>
-      </div>
+      <Alert severity="warning" sx={{ borderRadius: 3 }}>
+        <AlertTitle>Access denied</AlertTitle>
+        You don&apos;t have permission to view stock transfers.
+      </Alert>
     );
   }
 
   return (
-    <div className="container-fluid py-4">
-      <div className="d-flex justify-content-between align-items-center mb-4">
-        <h4 className="fw-bold mb-0">Stock Transfers</h4>
+    <Box>
+      <Box sx={{ display: 'flex', alignItems: { md: 'center' }, justifyContent: 'space-between', flexDirection: { xs: 'column', md: 'row' }, gap: 2, mb: 3 }}>
+        <Box>
+          <Typography variant="h4" sx={{ color: 'text.primary', fontWeight: 700 }}>
+            Stock Transfers
+          </Typography>
+          <Typography variant="body2" sx={{ color: 'text.secondary', mt: .5 }}>
+            Move stock between warehouses (godowns).
+          </Typography>
+        </Box>
         {canCreateTransfer && (
           <Button
-            variant="primary"
-            size="sm"
+            variant="contained"
             onClick={() => {
               resetForm();
               setFormData((d) => ({ ...d, transfer_number: generateTransferNumber() }));
               setShowModal(true);
             }}
+            startIcon={<i className="fas fa-plus" aria-hidden="true" />}
           >
-            <i className="fas fa-plus me-2"></i>New Transfer
+            New Transfer
           </Button>
         )}
-      </div>
+      </Box>
 
-      <Card className="border" style={{ borderColor: "#e2e8f0" }}>
-        <Card.Header className="bg-white d-flex justify-content-between align-items-center">
-          <div className="fw-semibold">Transfer History</div>
-          <div className="text-muted small">Total: {total} transfers</div>
-        </Card.Header>
-        <Card.Body className="p-0">
-          <DataTable
-          className="modern-datatable"
-            columns={columns}
-            data={transfers}
-            progressPending={loading}
-          progressComponent={<div className="p-4 text-center"><div className="spinner-border spinner-border-sm me-2"></div>Loading...</div>}
-persistTableHead
-            pagination
-            paginationServer
-            paginationTotalRows={total}
-            paginationPerPage={perPage}
-            onChangePage={setPage}
-            onChangeRowsPerPage={setPerPage}
-            highlightOnHover
-            striped
-            dense
-            keyField="id"
-          noDataComponent={
-            <div className="p-5 text-center">
-              <i className="fas fa-folder-open text-muted mb-3" style={{ fontSize: 48, opacity: 0.4 }}></i>
-              <div className="fw-semibold text-secondary mb-1">No data found</div>
-              <div className="small text-muted">Try adjusting your filters or check back later</div>
-            </div>
-          }
-          />
-        </Card.Body>
+      <Card sx={cardSx}>
+        <Box sx={{ px: 3, py: 2, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 2, flexWrap: 'wrap' }}>
+          <Typography variant="subtitle1" sx={{ color: 'text.primary', fontWeight: 700 }}>
+            Transfer History
+          </Typography>
+          <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+            Total: {total} transfers
+          </Typography>
+        </Box>
+        <Divider />
+
+        {loading && <LinearProgress />}
+        <TableContainer sx={{ overflowX: 'auto' }}>
+          <Table sx={{ minWidth: 960 }} size="small">
+            <TableHead>
+              <TableRow sx={{ bgcolor: '#f8fafc' }}>
+                {columns.map((column) => (
+                  <TableCell
+                    key={column.key}
+                    align={column.align || 'left'}
+                    sx={{ ...headCellSx, minWidth: column.minWidth, width: column.width }}
+                  >
+                    {column.sortField ? (
+                      <TableSortLabel
+                        active={sortField === column.sortField}
+                        direction={sortField === column.sortField ? sortDir : 'asc'}
+                        onClick={() => handleSort(column.sortField)}
+                      >
+                        {column.label}
+                      </TableSortLabel>
+                    ) : column.label}
+                  </TableCell>
+                ))}
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {sortedTransfers.length === 0 && !loading ? (
+                <TableRow>
+                  <TableCell colSpan={columns.length} align="center" sx={{ py: 7 }}>
+                    <i className="fas fa-folder-open" style={{ color: '#637381', fontSize: 42, opacity: .4 }} aria-hidden="true" />
+                    <Typography variant="subtitle2" sx={{ color: 'text.secondary', mt: 1.5 }}>
+                      No data found
+                    </Typography>
+                    <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                      Try adjusting your filters or check back later
+                    </Typography>
+                  </TableCell>
+                </TableRow>
+              ) : sortedTransfers.map((row) => (
+                <TableRow
+                  key={row.id}
+                  hover
+                  sx={{
+                    '&:hover': { bgcolor: 'rgba(6,40,73,.035)' },
+                    '&:last-child td': { borderBottom: 0 },
+                  }}
+                >
+                  {columns.map((column) => (
+                    <TableCell
+                      key={`${row.id}-${column.key}`}
+                      align={column.align || 'left'}
+                      sx={bodyCellSx}
+                    >
+                      {column.render(row)}
+                    </TableCell>
+                  ))}
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </TableContainer>
+
+        <TablePagination
+          component="div"
+          count={total}
+          page={Math.max(page - 1, 0)}
+          rowsPerPage={perPage}
+          rowsPerPageOptions={[10, 25, 50, 100]}
+          onPageChange={(event, nextPage) => setPage(nextPage + 1)}
+          onRowsPerPageChange={(event) => setPerPage(Number(event.target.value))}
+          sx={{ borderTop: '1px solid', borderColor: 'divider' }}
+        />
       </Card>
 
       {/* Create Transfer Modal */}
-      <Modal show={showModal} onHide={() => setShowModal(false)} backdrop="static" size="xl">
-        <Modal.Header closeButton>
-          <Modal.Title>New Stock Transfer</Modal.Title>
-        </Modal.Header>
-        <Modal.Body>
-          <Row className="mb-3">
-            <Col md={3}>
-              <Form.Group>
-                <Form.Label className="fw-bold small">
-                  Transfer Number <span className="text-danger">*</span>
-                </Form.Label>
-                <Form.Control
-                  size="sm"
-                  value={formData.transfer_number}
-                  onChange={(e) => setFormData((d) => ({ ...d, transfer_number: e.target.value }))}
-                  isInvalid={!!errors.transfer_number}
-                />
-                <Form.Control.Feedback type="invalid">{errors.transfer_number}</Form.Control.Feedback>
-              </Form.Group>
-            </Col>
-            <Col md={3}>
-              <Form.Group>
-                <Form.Label className="fw-bold small">
-                  Transfer Date <span className="text-danger">*</span>
-                </Form.Label>
-                <Form.Control
-                  type="date"
-                  size="sm"
-                  value={formData.transfer_date}
-                  onChange={(e) => setFormData((d) => ({ ...d, transfer_date: e.target.value }))}
-                />
-              </Form.Group>
-            </Col>
-            <Col md={3}>
-              <Form.Group>
-                <Form.Label className="fw-bold small">
-                  From Warehouse <span className="text-danger">*</span>
-                </Form.Label>
-                <Form.Select
-                  size="sm"
-                  value={formData.from_warehouse_id}
-                  onChange={(e) => {
-                    const value = e.target.value;
-                    setFormData((d) => ({ ...d, from_warehouse_id: value }));
-                    loadWarehouseStocks(value);
-                  }}
-                  isInvalid={!!errors.from_warehouse_id}
-                >
-                  <option value="">Select Source</option>
-                  {warehouses.map((w) => (
-                    <option key={w.id} value={w.id}>{w.name}</option>
-                  ))}
-                </Form.Select>
-                <Form.Control.Feedback type="invalid">{errors.from_warehouse_id}</Form.Control.Feedback>
-              </Form.Group>
-            </Col>
-            <Col md={3}>
-              <Form.Group>
-                <Form.Label className="fw-bold small">
-                  To Warehouse <span className="text-danger">*</span>
-                </Form.Label>
-                <Form.Select
-                  size="sm"
-                  value={formData.to_warehouse_id}
-                  onChange={(e) => setFormData((d) => ({ ...d, to_warehouse_id: e.target.value }))}
-                  isInvalid={!!errors.to_warehouse_id}
-                >
-                  <option value="">Select Destination</option>
-                  {warehouses.map((w) => (
-                    <option key={w.id} value={w.id}>{w.name}</option>
-                  ))}
-                </Form.Select>
-                <Form.Control.Feedback type="invalid">{errors.to_warehouse_id}</Form.Control.Feedback>
-              </Form.Group>
-            </Col>
-          </Row>
+      <Dialog
+        open={showModal}
+        onClose={handleDialogClose}
+        maxWidth="lg"
+        fullWidth
+        slotProps={{ paper: { sx: dialogPaperSx } }}
+      >
+        <DialogTitle sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 2, py: 2 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25 }}>
+            <i className="fas fa-plus" style={{ color: '#062849', fontSize: 15 }} aria-hidden="true" />
+            <Typography variant="h6" sx={{ fontWeight: 700 }}>
+              New Stock Transfer
+            </Typography>
+          </Box>
+          <IconButton size="small" onClick={() => setShowModal(false)} aria-label="Close">
+            <i className="fas fa-times" style={{ fontSize: 14 }} aria-hidden="true" />
+          </IconButton>
+        </DialogTitle>
 
-          <Form.Group className="mb-3">
-            <Form.Label className="fw-bold small">Notes</Form.Label>
-            <Form.Control
-              as="textarea"
-              rows={2}
-              size="sm"
-              value={formData.notes}
-              onChange={(e) => setFormData((d) => ({ ...d, notes: e.target.value }))}
-              placeholder="Optional notes about this transfer"
+        <DialogContent dividers sx={{ p: 3 }}>
+          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(4, 1fr)' }, gap: 2, mb: 2.5 }}>
+            <TextField
+              size="small"
+              label="Transfer Number"
+              required
+              value={formData.transfer_number}
+              onChange={(e) => setFormData((d) => ({ ...d, transfer_number: e.target.value }))}
+              error={Boolean(errors.transfer_number)}
+              helperText={errors.transfer_number}
+              fullWidth
             />
-          </Form.Group>
+            <TextField
+              size="small"
+              type="date"
+              label="Transfer Date"
+              required
+              value={formData.transfer_date}
+              onChange={(e) => setFormData((d) => ({ ...d, transfer_date: e.target.value }))}
+              slotProps={{ inputLabel: { shrink: true } }}
+              fullWidth
+            />
+            <FormControl size="small" fullWidth error={Boolean(errors.from_warehouse_id)}>
+              <InputLabel id="transfer-from-label">From Warehouse</InputLabel>
+              <Select
+                labelId="transfer-from-label"
+                label="From Warehouse"
+                value={strVal(formData.from_warehouse_id)}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  setFormData((d) => ({ ...d, from_warehouse_id: value }));
+                  loadWarehouseStocks(value);
+                }}
+              >
+                <MenuItem value=""><em>Select Source</em></MenuItem>
+                {warehouses.map((w) => (
+                  <MenuItem key={w.id} value={String(w.id)}>{w.name}</MenuItem>
+                ))}
+              </Select>
+              {errors.from_warehouse_id && (
+                <Typography variant="caption" sx={{ color: 'error.main', mt: .5 }}>
+                  {errors.from_warehouse_id}
+                </Typography>
+              )}
+            </FormControl>
+            <FormControl size="small" fullWidth error={Boolean(errors.to_warehouse_id)}>
+              <InputLabel id="transfer-to-label">To Warehouse</InputLabel>
+              <Select
+                labelId="transfer-to-label"
+                label="To Warehouse"
+                value={strVal(formData.to_warehouse_id)}
+                onChange={(e) => setFormData((d) => ({ ...d, to_warehouse_id: e.target.value }))}
+              >
+                <MenuItem value=""><em>Select Destination</em></MenuItem>
+                {warehouses.map((w) => (
+                  <MenuItem key={w.id} value={String(w.id)}>{w.name}</MenuItem>
+                ))}
+              </Select>
+              {errors.to_warehouse_id && (
+                <Typography variant="caption" sx={{ color: 'error.main', mt: .5 }}>
+                  {errors.to_warehouse_id}
+                </Typography>
+              )}
+            </FormControl>
+          </Box>
 
-          <div className="d-flex justify-content-between align-items-center mb-2">
-            <h6 className="mb-0 fw-bold">Items to Transfer</h6>
-            <Button variant="outline-primary" size="sm" onClick={addItemRow}>
-              <i className="fas fa-plus me-1"></i>Add Item
+          <TextField
+            size="small"
+            label="Notes"
+            multiline
+            rows={2}
+            placeholder="Optional notes about this transfer"
+            value={formData.notes}
+            onChange={(e) => setFormData((d) => ({ ...d, notes: e.target.value }))}
+            fullWidth
+            sx={{ mb: 2.5 }}
+          />
+
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 2, mb: 1.5 }}>
+            <Typography variant="subtitle1" sx={{ color: 'text.primary', fontWeight: 700 }}>
+              Items to Transfer
+            </Typography>
+            <Button variant="outlined" size="small" onClick={addItemRow} startIcon={<i className="fas fa-plus" aria-hidden="true" />}>
+              Add Item
             </Button>
-          </div>
+          </Box>
 
-          {errors.items && <div className="text-danger small mb-2">{errors.items}</div>}
+          {errors.items && (
+            <Alert severity="error" sx={{ borderRadius: 2, mb: 2 }}>
+              {errors.items}
+            </Alert>
+          )}
 
-          <Table bordered size="sm">
-            <thead className="bg-light">
-              <tr>
-                  <th style={{ width: "40%" }}>Item</th>
-                <th style={{ width: "25%" }}>Quantity</th>
-                <th style={{ width: "25%" }}>Available Stock</th>
-                <th style={{ width: "10%" }}>Action</th>
-              </tr>
-            </thead>
-            <tbody>
-              {formData.items.map((item, index) => (
-                <tr key={index}>
-                  <td>
-                    <Form.Select
-                      size="sm"
-                      value={item.item_id}
-                      onChange={(e) => updateItemRow(index, "item_id", e.target.value)}
-                    >
-                      <option value="">Select Item</option>
-                      {items.map((i) => (
-                        <option key={i.id} value={i.id}>{i.name} ({i.sku})</option>
-                      ))}
-                    </Form.Select>
-                  </td>
-                  <td>
-                    <Form.Control
-                      type="number"
-                      size="sm"
-                      min="0.001"
-                      step="0.001"
-                      value={item.quantity}
-                      onChange={(e) => updateItemRow(index, "quantity", e.target.value)}
-                      placeholder="Qty"
-                    />
-                  </td>
-                  <td className="align-middle">
-                    {item.item_id && (
-                      <Badge bg={warehouseStocks[item.item_id] > 0 ? "info" : "danger"}>
-                        {warehouseStocks[item.item_id] || 0} available
-                      </Badge>
-                    )}
-                  </td>
-                  <td>
-                    {formData.items.length > 1 && (
-                      <Button variant="outline-danger" size="sm" onClick={() => removeItemRow(index)}>
-                        <i className="fas fa-trash"></i>
-                      </Button>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </Table>
-        </Modal.Body>
-        <Modal.Footer>
-          <Button variant="outline-secondary" size="sm" onClick={() => setShowModal(false)}>
+          <TableContainer sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 2 }}>
+            <Table size="small">
+              <TableHead>
+                <TableRow sx={{ bgcolor: '#f8fafc' }}>
+                  <TableCell sx={{ ...headCellSx, width: '40%' }}>Item</TableCell>
+                  <TableCell sx={{ ...headCellSx, width: '25%' }}>Quantity</TableCell>
+                  <TableCell sx={{ ...headCellSx, width: '25%' }}>Available Stock</TableCell>
+                  <TableCell sx={{ ...headCellSx, width: '10%' }} align="right">Action</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {formData.items.map((item, index) => (
+                  <TableRow key={index}>
+                    <TableCell sx={bodyCellSx}>
+                      <FormControl size="small" fullWidth>
+                        <Select
+                          displayEmpty
+                          value={strVal(item.item_id)}
+                          onChange={(e) => updateItemRow(index, "item_id", e.target.value)}
+                        >
+                          <MenuItem value=""><em>Select Item</em></MenuItem>
+                          {items.map((i) => (
+                            <MenuItem key={i.id} value={String(i.id)}>{i.name} ({i.sku})</MenuItem>
+                          ))}
+                        </Select>
+                      </FormControl>
+                    </TableCell>
+                    <TableCell sx={bodyCellSx}>
+                      <TextField
+                        size="small"
+                        type="number"
+                        placeholder="Qty"
+                        value={item.quantity}
+                        onChange={(e) => updateItemRow(index, "quantity", e.target.value)}
+                        inputProps={{ min: "0.001", step: "0.001" }}
+                        fullWidth
+                      />
+                    </TableCell>
+                    <TableCell sx={bodyCellSx}>
+                      {item.item_id && (
+                        <Chip
+                          label={`${warehouseStocks[item.item_id] || 0} available`}
+                          size="small"
+                          sx={warehouseStocks[item.item_id] > 0
+                            ? { bgcolor: '#caf4ff', color: '#006c9c', fontWeight: 700 }
+                            : { bgcolor: '#ffe4de', color: '#b71d18', fontWeight: 700 }}
+                        />
+                      )}
+                    </TableCell>
+                    <TableCell align="right" sx={bodyCellSx}>
+                      {formData.items.length > 1 && (
+                        <Tooltip title="Remove item">
+                          <IconButton size="small" onClick={() => removeItemRow(index)} sx={{ ...actionBtnSx, color: 'error.main' }} aria-label="Remove item">
+                            <i className="fas fa-trash" style={{ fontSize: 13 }} aria-hidden="true" />
+                          </IconButton>
+                        </Tooltip>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </TableContainer>
+        </DialogContent>
+
+        <DialogActions sx={{ px: 3, py: 2 }}>
+          <Button variant="outlined" color="inherit" onClick={() => setShowModal(false)}>
             Cancel
           </Button>
-          <Button variant="primary" size="sm" onClick={handleSave}>
+          <Button variant="contained" onClick={handleSave}>
             Create Transfer
           </Button>
-        </Modal.Footer>
-      </Modal>
+        </DialogActions>
+      </Dialog>
 
       {/* View Transfer Detail Modal */}
-      <Modal show={showDetailModal} onHide={() => setShowDetailModal(false)} size="lg">
-        <Modal.Header closeButton>
-          <Modal.Title>Transfer Details - {selectedTransfer?.transfer_number}</Modal.Title>
-        </Modal.Header>
-        <Modal.Body>
+      <Dialog
+        open={showDetailModal}
+        onClose={() => setShowDetailModal(false)}
+        maxWidth="md"
+        fullWidth
+        slotProps={{ paper: { sx: dialogPaperSx } }}
+      >
+        <DialogTitle sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 2, py: 2 }}>
+          <Typography variant="h6" sx={{ fontWeight: 700 }}>
+            Transfer Details - {selectedTransfer?.transfer_number}
+          </Typography>
+          <IconButton size="small" onClick={() => setShowDetailModal(false)} aria-label="Close">
+            <i className="fas fa-times" style={{ fontSize: 14 }} aria-hidden="true" />
+          </IconButton>
+        </DialogTitle>
+
+        <DialogContent dividers sx={{ p: 3 }}>
           {selectedTransfer && (
             <>
-              <Row className="mb-3">
-                <Col md={6}>
-                  <div className="small text-muted">Transfer Number</div>
-                  <div className="fw-bold">{selectedTransfer.transfer_number}</div>
-                </Col>
-                <Col md={6}>
-                  <div className="small text-muted">Transfer Date</div>
-                  <div className="fw-bold">{new Date(selectedTransfer.transfer_date).toLocaleDateString()}</div>
-                </Col>
-              </Row>
-              <Row className="mb-3">
-                <Col md={6}>
-                  <div className="small text-muted">From Warehouse</div>
-                  <div className="fw-bold">{selectedTransfer.from_warehouse?.name}</div>
-                </Col>
-                <Col md={6}>
-                  <div className="small text-muted">To Warehouse</div>
-                  <div className="fw-bold">{selectedTransfer.to_warehouse?.name}</div>
-                </Col>
-              </Row>
-              <Row className="mb-3">
-                <Col md={6}>
-                  <div className="small text-muted">Status</div>
-                  <div>
-                    <Badge bg={statusBadge[selectedTransfer.status]?.bg || "secondary"}>
-                      {statusBadge[selectedTransfer.status]?.label || selectedTransfer.status}
-                    </Badge>
-                  </div>
-                </Col>
-                <Col md={6}>
-                  <div className="small text-muted">Created By</div>
-                  <div className="fw-bold">{selectedTransfer.created_by?.name || "-"}</div>
-                </Col>
-              </Row>
-              {selectedTransfer.notes && (
-                <div className="mb-3">
-                  <div className="small text-muted">Notes</div>
-                  <div>{selectedTransfer.notes}</div>
-                </div>
-              )}
+              <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)' }, gap: 2.5, mb: 2.5 }}>
+                <Box>
+                  <Typography variant="caption" sx={detailLabelSx}>Transfer Number</Typography>
+                  <Typography variant="body2" sx={detailValueSx}>{selectedTransfer.transfer_number}</Typography>
+                </Box>
+                <Box>
+                  <Typography variant="caption" sx={detailLabelSx}>Transfer Date</Typography>
+                  <Typography variant="body2" sx={detailValueSx}>{new Date(selectedTransfer.transfer_date).toLocaleDateString()}</Typography>
+                </Box>
+                <Box>
+                  <Typography variant="caption" sx={detailLabelSx}>From Warehouse</Typography>
+                  <Typography variant="body2" sx={detailValueSx}>{selectedTransfer.from_warehouse?.name}</Typography>
+                </Box>
+                <Box>
+                  <Typography variant="caption" sx={detailLabelSx}>To Warehouse</Typography>
+                  <Typography variant="body2" sx={detailValueSx}>{selectedTransfer.to_warehouse?.name}</Typography>
+                </Box>
+                <Box>
+                  <Typography variant="caption" sx={detailLabelSx}>Status</Typography>
+                  <Box sx={{ mt: .5 }}>
+                    <Chip
+                      label={statusChipMap[selectedTransfer.status]?.label || selectedTransfer.status}
+                      size="small"
+                      sx={{ ...(statusChipMap[selectedTransfer.status]?.sx || { bgcolor: '#f1f5f9', color: '#475569' }), fontWeight: 700 }}
+                    />
+                  </Box>
+                </Box>
+                <Box>
+                  <Typography variant="caption" sx={detailLabelSx}>Created By</Typography>
+                  <Typography variant="body2" sx={detailValueSx}>{selectedTransfer.created_by?.name || "-"}</Typography>
+                </Box>
+                {selectedTransfer.notes && (
+                  <Box sx={{ gridColumn: '1 / -1' }}>
+                    <Typography variant="caption" sx={detailLabelSx}>Notes</Typography>
+                    <Typography variant="body2">{selectedTransfer.notes}</Typography>
+                  </Box>
+                )}
+              </Box>
 
-              <h6 className="fw-bold mb-2">Items</h6>
-              <Table bordered size="sm">
-                <thead className="bg-light">
-                  <tr>
-                    <th>Item</th>
-                    <th>SKU</th>
-                    <th>Quantity</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {selectedTransfer.items?.map((item) => (
-                    <tr key={item.id}>
-                      <td>{item.item?.name}</td>
-                      <td>{item.item?.sku}</td>
-                      <td>{item.quantity}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </Table>
+              <Typography variant="subtitle1" sx={{ color: 'text.primary', fontWeight: 700, mb: 1.5 }}>
+                Items
+              </Typography>
+              <TableContainer sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 2 }}>
+                <Table size="small">
+                  <TableHead>
+                    <TableRow sx={{ bgcolor: '#f8fafc' }}>
+                      <TableCell sx={headCellSx}>Item</TableCell>
+                      <TableCell sx={headCellSx}>SKU</TableCell>
+                      <TableCell sx={headCellSx}>Quantity</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {selectedTransfer.items?.map((item) => (
+                      <TableRow key={item.id} hover>
+                        <TableCell sx={bodyCellSx}>{item.item?.name}</TableCell>
+                        <TableCell sx={bodyCellSx}>{item.item?.sku}</TableCell>
+                        <TableCell sx={bodyCellSx}>{item.quantity}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </TableContainer>
             </>
           )}
-        </Modal.Body>
-        <Modal.Footer>
-          <Button variant="outline-secondary" size="sm" onClick={() => setShowDetailModal(false)}>
+        </DialogContent>
+
+        <DialogActions sx={{ px: 3, py: 2 }}>
+          <Button variant="outlined" color="inherit" onClick={() => setShowDetailModal(false)}>
             Close
           </Button>
-        </Modal.Footer>
-      </Modal>
-    </div>
+        </DialogActions>
+      </Dialog>
+    </Box>
   );
 }

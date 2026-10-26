@@ -1,7 +1,42 @@
-import { useEffect, useMemo, useReducer, useState, useCallback } from "react";
+import { useEffect, useReducer, useState, useCallback } from "react";
 import { useSearchParams } from "react-router-dom";
-import DataTable from "react-data-table-component";
-import { Modal, Button, Form, Badge, Row, Col, Table } from "react-bootstrap";
+import {
+  Alert,
+  AlertTitle,
+  Box,
+  Button,
+  Card,
+  CardContent,
+  Chip,
+  CircularProgress,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  Divider,
+  FormControl,
+  IconButton,
+  InputAdornment,
+  InputLabel,
+  LinearProgress,
+  ListItemIcon,
+  ListItemText,
+  Menu,
+  MenuItem,
+  Select,
+  Stack,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TablePagination,
+  TableRow,
+  TableSortLabel,
+  TextField,
+  Tooltip,
+  Typography,
+} from "@mui/material";
 import Swal from "sweetalert2";
 import { toast } from "react-toastify";
 import api from "../api";
@@ -22,17 +57,95 @@ const getNum = (v, fallback = 1) => {
   return isNaN(n) || n < 1 ? fallback : n;
 };
 
+const toArray = (value) => {
+  if (Array.isArray(value)) return value;
+  if (Array.isArray(value?.data)) return value.data;
+  if (Array.isArray(value?.data?.data)) return value.data.data;
+  if (Array.isArray(value?.items)) return value.items;
+  if (Array.isArray(value?.results)) return value.results;
+  return [];
+};
+
 const formatMoney = (v) => {
   const n = Number(v || 0);
   return n.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 };
 
-const statusColors = {
-  draft: 'secondary',
-  sent: 'info',
-  accepted: 'success',
-  rejected: 'danger',
-  converted: 'primary',
+const statusChipSx = {
+  draft: { bgcolor: '#f1f5f9', color: '#475569' },
+  sent: { bgcolor: '#caf4ff', color: '#006c9c' },
+  accepted: { bgcolor: '#dbf5e9', color: '#118d57' },
+  rejected: { bgcolor: '#ffe4de', color: '#b71d18' },
+  converted: { bgcolor: '#eaf0f6', color: '#062849' },
+};
+
+const pageCardSx = {
+  border: '1px solid',
+  borderColor: 'divider',
+  borderRadius: 3,
+  boxShadow: '0 8px 24px rgba(28,37,46,.05)',
+};
+
+const headerCellSx = {
+  color: 'text.secondary',
+  fontSize: 12,
+  fontWeight: 700,
+  textTransform: 'uppercase',
+  letterSpacing: '.04em',
+  px: 2,
+  py: 1.5,
+  borderBottom: '1px solid',
+  borderColor: 'divider',
+};
+
+const bodyCellSx = {
+  verticalAlign: 'middle',
+  px: 2,
+  py: 1.5,
+  borderBottom: '1px solid #f1f5f9',
+};
+
+const sectionBoxSx = {
+  p: 2,
+  bgcolor: '#f8fafc',
+  border: '1px solid',
+  borderColor: 'divider',
+  borderRadius: 2,
+};
+
+const sectionTitleSx = {
+  display: 'flex',
+  alignItems: 'center',
+  gap: 1,
+  color: 'primary.main',
+  fontWeight: 700,
+  fontSize: 15,
+  mb: 1.5,
+};
+
+const borderedTableSx = {
+  border: '1px solid',
+  borderColor: 'divider',
+  borderRadius: 2,
+  overflow: 'hidden',
+  bgcolor: '#fff',
+};
+
+const borderedCellSx = {
+  borderBottom: '1px solid',
+  borderColor: 'divider',
+  borderRight: '1px solid',
+  borderRightColor: 'divider',
+  '&:last-child': { borderRight: 0 },
+};
+
+const menuPaperSx = {
+  mt: .75,
+  minWidth: 188,
+  borderRadius: 2.5,
+  border: '1px solid',
+  borderColor: 'divider',
+  boxShadow: '0 12px 32px rgba(28,37,46,.14)',
 };
 
 export default function Quotations() {
@@ -55,11 +168,14 @@ export default function Quotations() {
 
   const [customers, setCustomers] = useState([]);
   const [items, setItems] = useState([]);
-  const [taxes, setTaxes] = useState([]);
+  const [, setTaxes] = useState([]);
 
   const [show, setShow] = useState(false);
   const [viewShow, setViewShow] = useState(false);
   const [viewData, setViewData] = useState(null);
+
+  const [actionAnchorEl, setActionAnchorEl] = useState(null);
+  const [actionRow, setActionRow] = useState(null);
 
   const [form, setForm] = useState({
     customer_id: "",
@@ -88,52 +204,44 @@ export default function Quotations() {
     return () => clearTimeout(t);
   }, [searchInput, table.search]);
 
-  const loadTable = async (signal) => {
+  const loadTable = useCallback(async (signal) => {
     if (!canViewQuotations) return;
     setLoading(true);
     try {
       const res = await api.get("/quotations", { params: table, signal });
-      setRows(res.data.data || []);
-      setTotal(res.data.total || 0);
+      setRows(toArray(res.data));
+      setTotal(Number(res.data?.total ?? res.data?.data?.total ?? 0));
     } catch { setRows([]); setTotal(0); }
     finally { setLoading(false); }
-  };
+  }, [table, canViewQuotations]);
 
-  const loadDropdowns = async (signal) => {
+  const loadDropdowns = useCallback(async (signal) => {
     const [custRes, itemRes, taxRes] = await Promise.allSettled([
       api.get("/customers", { params: { perPage: 200 }, signal }),
       api.get("/items", { params: { perPage: 200 }, signal }),
       api.get("/taxes", { params: { perPage: 200 }, signal })
     ]);
-    if (custRes.status === 'fulfilled') setCustomers(custRes.value.data.data || []);
+    if (custRes.status === 'fulfilled') setCustomers(toArray(custRes.value.data));
     else { setCustomers([]); toast.error("Failed to load customers"); }
-    if (itemRes.status === 'fulfilled') setItems(itemRes.value.data.data || []);
+    if (itemRes.status === 'fulfilled') setItems(toArray(itemRes.value.data));
     else { setItems([]); toast.error("Failed to load items"); }
-    if (taxRes.status === 'fulfilled') setTaxes(taxRes.value.data.data || []);
+    if (taxRes.status === 'fulfilled') setTaxes(toArray(taxRes.value.data));
     else { setTaxes([]); toast.error("Failed to load taxes"); }
-  };
+  }, []);
 
   useEffect(() => {
     const controller = new AbortController();
-    loadTable(controller.signal);
-    return () => controller.abort();
+    const timer = setTimeout(() => loadTable(controller.signal), 0);
+    return () => { clearTimeout(timer); controller.abort(); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [table, reloadKey, canViewQuotations]);
 
   useEffect(() => {
     const controller = new AbortController();
-    loadDropdowns(controller.signal);
-    return () => controller.abort();
+    const timer = setTimeout(() => loadDropdowns(controller.signal), 0);
+    return () => { clearTimeout(timer); controller.abort(); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [reloadKey]);
-
-  const generateQuotationNumber = () => {
-    const year = new Date().getFullYear();
-    const prefix = `QT${year}`;
-    const existing = rows.filter(r => r.quotation_number?.startsWith(prefix));
-    const maxNum = existing.length > 0
-      ? Math.max(...existing.map(r => parseInt(r.quotation_number.slice(-4)) || 0))
-      : 0;
-    return `${prefix}${String(maxNum + 1).padStart(4, '0')}`;
-  };
 
   const openAdd = () => {
     setEditingId(null);
@@ -148,7 +256,7 @@ export default function Quotations() {
     setShow(true);
   };
 
-  const openEdit = (row) => {
+  const openEdit = useCallback((row) => {
     setEditingId(row.id);
     setForm({
       customer_id: row.customer_id || "",
@@ -166,12 +274,12 @@ export default function Quotations() {
       })) || [{ item_id: "", quantity: 1, price: 0, discount: 0, tax_percentage: 0, description: "" }]
     });
     setShow(true);
-  };
+  }, []);
 
-  const viewQuotation = (row) => {
+  const viewQuotation = useCallback((row) => {
     setViewData(row);
     setViewShow(true);
-  };
+  }, []);
 
   const addItemRow = () => {
     setForm(f => ({ ...f, items: [...f.items, { item_id: "", quantity: 1, price: 0, discount: 0, tax_percentage: 0, description: "" }] }));
@@ -245,7 +353,7 @@ export default function Quotations() {
     }
   };
 
-  const deleteQuotation = (row) => {
+  const deleteQuotation = useCallback((row) => {
     Swal.fire({
       title: "Delete quotation?",
       text: `Quotation #${row.quotation_number}?`,
@@ -258,9 +366,9 @@ export default function Quotations() {
         toast.success("Quotation deleted");
       } catch { toast.error("Delete failed"); }
     });
-  };
+  }, []);
 
-  const convertToSale = (row) => {
+  const convertToSale = useCallback((row) => {
     Swal.fire({
       title: "Convert to Sale?",
       text: `Convert quotation #${row.quotation_number} to invoice?`,
@@ -275,7 +383,7 @@ export default function Quotations() {
         toast.error(e.response?.data?.message || "Conversion failed");
       }
     });
-  };
+  }, []);
 
   const handleDownloadQuotationPDF = useCallback(async (row) => {
     try {
@@ -288,7 +396,7 @@ export default function Quotations() {
       link.click();
       document.body.removeChild(link);
       URL.revokeObjectURL(link.href);
-    } catch (err) {
+    } catch {
       toast.error('Failed to download PDF');
     }
   }, []);
@@ -299,318 +407,567 @@ export default function Quotations() {
       const blob = new Blob([res.data], { type: 'application/pdf' });
       const url = URL.createObjectURL(blob);
       window.open(url, '_blank', 'noopener,noreferrer');
-    } catch (err) {
+    } catch {
       toast.error('Failed to open PDF');
     }
   }, []);
 
-  const columns = useMemo(() => [
-    { name: "ID", selector: r => r.id, sortable: true, sortField: "id", width: "60px" },
-    { name: "Quotation #", selector: r => r.quotation_number, sortable: true, sortField: "quotation_number" },
-    { name: "Date", selector: r => r.quotation_date, sortable: true, sortField: "quotation_date", width: "110px" },
-    { name: "Customer", selector: r => r.customer?.name },
-    { name: "Amount", selector: r => `₹${formatMoney(r.grand_total)}`, sortable: true, sortField: "grand_total" },
-    { 
-      name: "Status", 
-      cell: row => (
-        <Badge bg={statusColors[row.status] || 'secondary'} className="py-2 px-3">
-          {row.status?.toUpperCase()}
-        </Badge>
-      ), 
-      width: "120px" 
+  const closeActionMenu = () => {
+    setActionAnchorEl(null);
+    setActionRow(null);
+  };
+
+  const runRowAction = (callback) => () => {
+    const row = actionRow;
+    closeActionMenu();
+    if (row) callback(row);
+  };
+
+  const handleSort = (field) => {
+    const isAsc = table.sortField === field && table.sortDir === 'asc';
+    dispatch({ type: 'SORT', field, dir: isAsc ? 'desc' : 'asc' });
+  };
+
+  const columns = [
+    { key: 'id', label: 'ID', width: 70, sortField: 'id', render: (row) => <Typography variant="body2" sx={{ fontWeight: 700 }}>#{row.id}</Typography> },
+    { key: 'quotation_number', label: 'Quotation #', minWidth: 140, sortField: 'quotation_number', render: (row) => row.quotation_number || '-' },
+    { key: 'quotation_date', label: 'Date', minWidth: 110, sortField: 'quotation_date', render: (row) => row.quotation_date || '-' },
+    { key: 'customer', label: 'Customer', minWidth: 150, sortField: 'customer_id', render: (row) => row.customer?.name || '-' },
+    {
+      key: 'grand_total', label: 'Amount', minWidth: 110, sortField: 'grand_total',
+      render: (row) => `₹${formatMoney(row.grand_total)}`,
     },
     {
-      name: "Action", width: "280px",
-      cell: row => (
-        <div className="btn-group btn-group-sm">
-          <button className="btn btn-outline-info" onClick={() => viewQuotation(row)} title="View"><i className="fas fa-eye"></i></button>
-          <button className="btn btn-outline-dark" onClick={() => handleViewQuotationPDF(row)} title="View PDF"><i className="fas fa-file-pdf"></i></button>
-          <button className="btn btn-outline-primary" onClick={() => handleDownloadQuotationPDF(row)} title="Download PDF"><i className="fas fa-download"></i></button>
-          {row.status !== 'converted' && canEdit("quotations") && (
-            <button className="btn btn-outline-primary" onClick={() => openEdit(row)} title="Edit"><i className="fas fa-edit"></i></button>
-          )}
-          {row.status === 'accepted' && canCreate("quotations") && (
-            <button className="btn btn-success" onClick={() => convertToSale(row)} title="Convert to Invoice">
-              <i className="fas fa-file-invoice"></i>
-            </button>
-          )}
-          {row.status !== 'converted' && canDelete("quotations") && (
-            <button className="btn btn-outline-danger" onClick={() => deleteQuotation(row)} title="Delete"><i className="fas fa-trash"></i></button>
-          )}
-        </div>
+      key: 'status', label: 'Status', minWidth: 120,
+      render: (row) => (
+        <Chip
+          label={row.status?.toUpperCase()}
+          size="small"
+          sx={{ ...(statusChipSx[row.status] || statusChipSx.draft), fontWeight: 700 }}
+        />
       ),
     },
-  ], []);
+    {
+      key: 'action', label: 'Action', minWidth: 84, align: 'right',
+      render: (row) => (
+        <Tooltip title="Actions">
+          <IconButton
+            size="small"
+            onClick={(event) => {
+              event.stopPropagation();
+              setActionRow(row);
+              setActionAnchorEl(event.currentTarget);
+            }}
+            aria-label="Quotation actions"
+            aria-haspopup="true"
+            sx={{ border: '1px solid', borderColor: 'divider' }}
+          >
+            <i className="fas fa-ellipsis-vertical" style={{ fontSize: 13 }} aria-hidden="true" />
+          </IconButton>
+        </Tooltip>
+      ),
+    },
+  ];
 
   const totals = calculateTotals();
 
   if (!canViewQuotations) {
     return (
-      <div className="p-4">
-        <div className="card"><div className="card-body text-center py-5"><div className="text-secondary">Access denied</div></div></div>
-      </div>
+      <Alert severity="error" sx={{ borderRadius: 3 }}>
+        <AlertTitle>Access denied</AlertTitle>
+        You don’t have permission to view quotations.
+      </Alert>
     );
   }
 
   return (
-    <div className="card card-outline card-primary">
-      <div className="card-header">
-        <div className="row g-2 align-items-center">
-          <div className="col-12 col-md-6"><h3 className="card-title">Quotations</h3></div>
-          <div className="col-12 col-md-6">
-            <div className="d-flex gap-2 flex-wrap justify-content-md-end">
-              <input className="form-control form-control-sm" style={{ maxWidth: 220 }}
-                placeholder="Search quotations..." value={searchInput} onChange={e => setSearchInput(e.target.value)} />
+    <Box>
+
+      <Card sx={pageCardSx}>
+        <CardContent sx={{ p: 3 }}>
+          <Box sx={{ display: 'flex', alignItems: { md: 'center' }, justifyContent: 'space-between', flexDirection: { xs: 'column', md: 'row' }, gap: 2 }}>
+            <Box>
+              <Typography variant="h4" sx={{ color: 'text.primary', fontWeight: 700 }}>
+                Quotations
+              </Typography>
+              <Typography variant="body2" sx={{ color: 'text.secondary', mt: .5 }}>
+                {total} total quotations
+              </Typography>
+            </Box>
+            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} alignItems={{ sm: 'center' }}>
+              <TextField
+                size="small"
+                placeholder="Search quotations..."
+                value={searchInput}
+                onChange={e => setSearchInput(e.target.value)}
+                sx={{ minWidth: { xs: '100%', sm: 240 } }}
+                slotProps={{
+                  input: {
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <i className="fas fa-search" style={{ fontSize: 13 }} aria-hidden="true" />
+                      </InputAdornment>
+                    ),
+                  },
+                }}
+              />
               {canCreate("quotations") && (
-                <button className="btn btn-primary btn-sm" onClick={openAdd}><i className="fas fa-plus"></i> New Quotation</button>
+                <Button variant="contained" onClick={openAdd} startIcon={<i className="fas fa-plus" aria-hidden="true" />}>
+                  New Quotation
+                </Button>
               )}
-            </div>
-          </div>
-        </div>
-      </div>
+            </Stack>
+          </Box>
+        </CardContent>
 
-      <div className="card-body p-0">
-        <DataTable columns={columns} data={rows} progressPending={loading} persistTableHead
-          className="modern-datatable"
-          pagination paginationServer paginationTotalRows={total} paginationPerPage={table.perPage}
-          onChangePage={(p) => p !== table.page && dispatch({ type: "PAGE", page: p })}
-          onChangeRowsPerPage={(n) => n !== table.perPage && dispatch({ type: "PER_PAGE", perPage: n })}
-          progressComponent={<div className="p-4 text-center"><div className="spinner-border spinner-border-sm me-2"></div>Loading...</div>}
-          noDataComponent={
-            <div className="p-5 text-center">
-              <i className="fas fa-folder-open text-muted mb-3" style={{ fontSize: 48, opacity: 0.4 }}></i>
-              <div className="fw-semibold text-secondary mb-1">No data found</div>
-              <div className="small text-muted">Try adjusting your filters or check back later</div>
-            </div>
-          }
-          striped highlightOnHover dense keyField="id" />
-      </div>
+        {loading && <LinearProgress />}
+        <TableContainer sx={{ overflowX: 'auto' }}>
+          <Table sx={{ minWidth: 960 }} size="small">
+            <TableHead>
+              <TableRow sx={{ bgcolor: '#f8fafc' }}>
+                {columns.map((column) => (
+                  <TableCell
+                    key={column.key}
+                    align={column.align || 'left'}
+                    sx={{ ...headerCellSx, minWidth: column.minWidth, width: column.width }}
+                  >
+                    {column.sortField ? (
+                      <TableSortLabel
+                        active={table.sortField === column.sortField}
+                        direction={table.sortField === column.sortField ? table.sortDir : 'asc'}
+                        onClick={() => handleSort(column.sortField)}
+                      >
+                        {column.label}
+                      </TableSortLabel>
+                    ) : column.label}
+                  </TableCell>
+                ))}
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {rows.length === 0 && !loading ? (
+                <TableRow>
+                  <TableCell colSpan={Math.max(columns.length, 1)} align="center" sx={{ py: 7 }}>
+                    <i className="fas fa-folder-open" style={{ color: '#637381', fontSize: 42, opacity: .4 }} aria-hidden="true" />
+                    <Typography variant="subtitle2" sx={{ color: 'text.secondary', mt: 1.5 }}>
+                      No data found
+                    </Typography>
+                    <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                      Try adjusting your filters or check back later
+                    </Typography>
+                  </TableCell>
+                </TableRow>
+              ) : rows.map((row) => (
+                <TableRow
+                  key={row.id}
+                  hover
+                  sx={{
+                    '&:hover': { bgcolor: 'rgba(6,40,73,.035)' },
+                    '&:last-child td': { borderBottom: 0 },
+                  }}
+                >
+                  {columns.map((column) => (
+                    <TableCell
+                      key={`${row.id}-${column.key}`}
+                      align={column.align || 'left'}
+                      sx={bodyCellSx}
+                    >
+                      {column.render ? column.render(row) : '-'}
+                    </TableCell>
+                  ))}
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </TableContainer>
 
-      {/* Add/Edit Modal */}
-      <Modal show={show} onHide={() => setShow(false)} backdrop="static" size="xl">
-        <Modal.Header closeButton><Modal.Title>{editingId ? 'Edit Quotation' : 'New Quotation'}</Modal.Title></Modal.Header>
-        <Modal.Body>
-          <Row className="mb-3">
-            <Col md={6}>
-              <Form.Group className="mb-3">
-                <Form.Label>Customer <span className="text-danger">*</span></Form.Label>
-                <Form.Select value={form.customer_id} onChange={e => setForm(f => ({ ...f, customer_id: e.target.value }))}>
-                  <option value="">Select Customer</option>
-                  {customers.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                </Form.Select>
-              </Form.Group>
-            </Col>
-            <Col md={3}>
-              <Form.Group className="mb-3">
-                <Form.Label>Quotation Date <span className="text-danger">*</span></Form.Label>
-                <Form.Control type="date" value={form.quotation_date} onChange={e => setForm(f => ({ ...f, quotation_date: e.target.value }))} />
-              </Form.Group>
-            </Col>
-            <Col md={3}>
-              <Form.Group className="mb-3">
-                <Form.Label>Expiry Date</Form.Label>
-                <Form.Control type="date" value={form.expiry_date} onChange={e => setForm(f => ({ ...f, expiry_date: e.target.value }))} />
-              </Form.Group>
-            </Col>
-          </Row>
+        <Menu
+          anchorEl={actionAnchorEl}
+          open={Boolean(actionAnchorEl)}
+          onClose={closeActionMenu}
+          anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+          transformOrigin={{ vertical: 'top', horizontal: 'right' }}
+          slotProps={{ paper: { sx: menuPaperSx } }}
+        >
+          <MenuItem onClick={runRowAction(viewQuotation)}>
+            <ListItemIcon><i className="fas fa-eye" aria-hidden="true" /></ListItemIcon>
+            <ListItemText primary="View" />
+          </MenuItem>
+          <MenuItem onClick={runRowAction(handleViewQuotationPDF)}>
+            <ListItemIcon><i className="fas fa-file-pdf" aria-hidden="true" /></ListItemIcon>
+            <ListItemText primary="View PDF" />
+          </MenuItem>
+          <MenuItem onClick={runRowAction(handleDownloadQuotationPDF)}>
+            <ListItemIcon><i className="fas fa-download" aria-hidden="true" /></ListItemIcon>
+            <ListItemText primary="Download PDF" />
+          </MenuItem>
+          {actionRow?.status !== 'converted' && canEdit("quotations") && (
+            <MenuItem onClick={runRowAction(openEdit)}>
+              <ListItemIcon><i className="fas fa-edit" aria-hidden="true" /></ListItemIcon>
+              <ListItemText primary="Edit" />
+            </MenuItem>
+          )}
+          {actionRow?.status === 'accepted' && canCreate("quotations") && (
+            <MenuItem onClick={runRowAction(convertToSale)}>
+              <ListItemIcon sx={{ color: 'success.main' }}><i className="fas fa-file-invoice" aria-hidden="true" /></ListItemIcon>
+              <ListItemText primary="Convert to Invoice" />
+            </MenuItem>
+          )}
+          {actionRow?.status !== 'converted' && canDelete("quotations") && <Divider />}
+          {actionRow?.status !== 'converted' && canDelete("quotations") && (
+            <MenuItem onClick={runRowAction(deleteQuotation)} sx={{ color: 'error.main' }}>
+              <ListItemIcon sx={{ color: 'error.main' }}><i className="fas fa-trash" aria-hidden="true" /></ListItemIcon>
+              <ListItemText primary="Delete" />
+            </MenuItem>
+          )}
+        </Menu>
+
+        <TablePagination
+          component="div"
+          count={total}
+          page={Math.max(table.page - 1, 0)}
+          rowsPerPage={table.perPage}
+          rowsPerPageOptions={[10, 20, 50, 100, 200]}
+          onPageChange={(event, page) => {
+            const nextPage = page + 1;
+            if (nextPage !== table.page) dispatch({ type: 'PAGE', page: nextPage });
+          }}
+          onRowsPerPageChange={(event) => {
+            const nextSize = Number(event.target.value);
+            if (nextSize !== table.perPage) dispatch({ type: 'PER_PAGE', perPage: nextSize });
+          }}
+          sx={{ borderTop: '1px solid', borderColor: 'divider' }}
+        />
+      </Card>
+
+      {/* Add/Edit Dialog */}
+      <Dialog
+        open={show}
+        onClose={(event, reason) => { if (reason === 'backdropClick' || reason === 'escapeKeyDown') return; setShow(false); }}
+        maxWidth="xl"
+        fullWidth
+      >
+        <DialogTitle sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 2 }}>
+          <Typography variant="h6" sx={{ fontWeight: 700 }}>{editingId ? 'Edit Quotation' : 'New Quotation'}</Typography>
+          <IconButton size="small" onClick={() => setShow(false)} aria-label="Close">
+            <i className="fas fa-times" style={{ fontSize: 14 }} aria-hidden="true" />
+          </IconButton>
+        </DialogTitle>
+        <DialogContent dividers>
+          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(2, 1fr) 1fr' }, gap: 2, mb: 2 }}>
+            <FormControl size="small" fullWidth required>
+              <InputLabel>Customer</InputLabel>
+              <Select
+                label="Customer"
+                value={form.customer_id === '' ? '' : String(form.customer_id)}
+                onChange={e => setForm(f => ({ ...f, customer_id: e.target.value }))}
+              >
+                <MenuItem value=""><em>Select Customer</em></MenuItem>
+                {customers.map(c => <MenuItem key={c.id} value={String(c.id)}>{c.name}</MenuItem>)}
+              </Select>
+            </FormControl>
+            <TextField
+              size="small"
+              type="date"
+              label="Quotation Date"
+              required
+              value={form.quotation_date}
+              onChange={e => setForm(f => ({ ...f, quotation_date: e.target.value }))}
+              slotProps={{ inputLabel: { shrink: true } }}
+            />
+            <TextField
+              size="small"
+              type="date"
+              label="Expiry Date"
+              value={form.expiry_date}
+              onChange={e => setForm(f => ({ ...f, expiry_date: e.target.value }))}
+              slotProps={{ inputLabel: { shrink: true } }}
+            />
+          </Box>
 
           {editingId && (
-            <Form.Group className="mb-3">
-              <Form.Label>Status</Form.Label>
-              <Form.Select value={form.status} onChange={e => setForm(f => ({ ...f, status: e.target.value }))}>
-                <option value="draft">Draft</option>
-                <option value="sent">Sent</option>
-                <option value="accepted">Accepted</option>
-                <option value="rejected">Rejected</option>
-              </Form.Select>
-            </Form.Group>
+            <FormControl size="small" sx={{ mb: 2, minWidth: 220 }}>
+              <InputLabel>Status</InputLabel>
+              <Select
+                label="Status"
+                value={form.status}
+                onChange={e => setForm(f => ({ ...f, status: e.target.value }))}
+              >
+                <MenuItem value="draft">Draft</MenuItem>
+                <MenuItem value="sent">Sent</MenuItem>
+                <MenuItem value="accepted">Accepted</MenuItem>
+                <MenuItem value="rejected">Rejected</MenuItem>
+              </Select>
+            </FormControl>
           )}
 
-          <div className="bg-light p-2 rounded border mb-3">
-            <h6 className="text-primary mb-2 px-2"><i className="fas fa-box me-2"></i>Items</h6>
-            <div className="table-responsive bg-white rounded">
-              <Table bordered size="sm" className="mb-0">
-                <thead className="bg-light">
-                  <tr className="text-center">
-                    <th style={{width: '40px'}}>#</th>
-                    <th style={{width: '30%'}}>Item</th>
-                    <th style={{width: '80px'}}>Qty</th>
-                    <th style={{width: '100px'}}>Price</th>
-                    <th style={{width: '80px'}}>Discount</th>
-                    <th style={{width: '80px'}}>Tax %</th>
-                    <th style={{width: '100px'}}>Amount</th>
-                    <th style={{width: '40px'}}></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {form.items.map((it, idx) => {
-                    const qty = parseFloat(it.quantity) || 0;
-                    const price = parseFloat(it.price) || 0;
-                    const discount = parseFloat(it.discount) || 0;
-                    const amount = (qty * price) - discount;
-                    return (
-                    <tr key={idx}>
-                      <td className="text-center">{idx + 1}</td>
-                      <td>
-                        <Form.Select size="sm" value={it.item_id} onChange={e => updateItem(idx, 'item_id', e.target.value)}>
-                          <option value="">Select Item</option>
-                          {items.map(i => <option key={i.id} value={i.id}>{i.name}</option>)}
-                        </Form.Select>
-                      </td>
-                      <td><Form.Control type="number" size="sm" value={it.quantity} onChange={e => updateItem(idx, 'quantity', e.target.value)} /></td>
-                      <td><Form.Control type="number" size="sm" step="0.01" value={it.price} onChange={e => updateItem(idx, 'price', e.target.value)} /></td>
-                      <td><Form.Control type="number" size="sm" step="0.01" value={it.discount || ''} onChange={e => updateItem(idx, 'discount', e.target.value)} placeholder="0" /></td>
-                      <td><Form.Control type="number" size="sm" step="0.01" value={it.tax_percentage || ''} onChange={e => updateItem(idx, 'tax_percentage', e.target.value)} placeholder="0" /></td>
-                      <td className="text-end fw-bold">₹{amount.toFixed(2)}</td>
-                      <td className="text-center">
-                        <Button variant="outline-danger" size="sm" onClick={() => removeItemRow(idx)}><i className="fas fa-trash"></i></Button>
-                      </td>
-                    </tr>
-                    );
-                  })}
-                </tbody>
-              </Table>
-            </div>
-            <div className="mt-2 px-2">
-              <Button variant="outline-primary" size="sm" onClick={addItemRow}><i className="fas fa-plus me-1"></i>Add Item</Button>
-            </div>
-          </div>
-
-          <Row>
-            <Col md={6}>
-              <Form.Group>
-                <Form.Label>Notes</Form.Label>
-                <Form.Control as="textarea" rows={3} value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} placeholder="Terms & conditions, delivery details, etc." />
-              </Form.Group>
-            </Col>
-            <Col md={6}>
-              <div className="bg-light p-3 rounded border">
-                <Table bordered size="sm" className="mb-0 bg-white">
-                  <tbody>
-                    <tr><td className="text-end fw-bold" style={{width: '50%'}}>Subtotal:</td><td className="text-end">₹{totals.subtotal.toFixed(2)}</td></tr>
-                    <tr><td className="text-end">Discount:</td><td className="text-end text-danger">-₹{totals.discount.toFixed(2)}</td></tr>
-                    <tr><td className="text-end">Tax:</td><td className="text-end">₹{totals.tax.toFixed(2)}</td></tr>
-                    <tr className="bg-primary text-white"><td className="text-end fw-bold">Grand Total:</td><td className="text-end fw-bold">₹{totals.grandTotal.toFixed(2)}</td></tr>
-                  </tbody>
+          <Box sx={{ ...sectionBoxSx, mb: 3 }}>
+            <Typography sx={sectionTitleSx}>
+              <i className="fas fa-box" aria-hidden="true" />Items
+            </Typography>
+            <Box sx={borderedTableSx}>
+              <TableContainer sx={{ overflowX: 'auto' }}>
+                <Table size="small" sx={{ minWidth: 780 }}>
+                  <TableHead>
+                    <TableRow sx={{ bgcolor: '#f8fafc' }}>
+                      <TableCell align="center" sx={{ ...headerCellSx, ...borderedCellSx, width: 40 }}>#</TableCell>
+                      <TableCell sx={{ ...headerCellSx, ...borderedCellSx, minWidth: 220 }}>Item</TableCell>
+                      <TableCell sx={{ ...headerCellSx, ...borderedCellSx, width: 80 }}>Qty</TableCell>
+                      <TableCell sx={{ ...headerCellSx, ...borderedCellSx, width: 110 }}>Price</TableCell>
+                      <TableCell sx={{ ...headerCellSx, ...borderedCellSx, width: 90 }}>Discount</TableCell>
+                      <TableCell sx={{ ...headerCellSx, ...borderedCellSx, width: 90 }}>Tax %</TableCell>
+                      <TableCell align="right" sx={{ ...headerCellSx, ...borderedCellSx, width: 110 }}>Amount</TableCell>
+                      <TableCell sx={{ ...headerCellSx, ...borderedCellSx, width: 48 }} />
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {form.items.map((it, idx) => {
+                      const qty = parseFloat(it.quantity) || 0;
+                      const price = parseFloat(it.price) || 0;
+                      const discount = parseFloat(it.discount) || 0;
+                      const amount = (qty * price) - discount;
+                      return (
+                        <TableRow key={idx}>
+                          <TableCell align="center" sx={borderedCellSx}>{idx + 1}</TableCell>
+                          <TableCell sx={borderedCellSx}>
+                            <FormControl size="small" fullWidth>
+                              <Select
+                                value={it.item_id === '' || it.item_id == null ? '' : String(it.item_id)}
+                                onChange={e => updateItem(idx, 'item_id', e.target.value)}
+                              >
+                                <MenuItem value=""><em>Select Item</em></MenuItem>
+                                {items.map(i => <MenuItem key={i.id} value={String(i.id)}>{i.name}</MenuItem>)}
+                              </Select>
+                            </FormControl>
+                          </TableCell>
+                          <TableCell sx={borderedCellSx}>
+                            <TextField size="small" type="number" value={it.quantity} onChange={e => updateItem(idx, 'quantity', e.target.value)} />
+                          </TableCell>
+                          <TableCell sx={borderedCellSx}>
+                            <TextField size="small" type="number" inputProps={{ step: '0.01' }} value={it.price} onChange={e => updateItem(idx, 'price', e.target.value)} />
+                          </TableCell>
+                          <TableCell sx={borderedCellSx}>
+                            <TextField size="small" type="number" inputProps={{ step: '0.01' }} value={it.discount || ''} onChange={e => updateItem(idx, 'discount', e.target.value)} placeholder="0" />
+                          </TableCell>
+                          <TableCell sx={borderedCellSx}>
+                            <TextField size="small" type="number" inputProps={{ step: '0.01' }} value={it.tax_percentage || ''} onChange={e => updateItem(idx, 'tax_percentage', e.target.value)} placeholder="0" />
+                          </TableCell>
+                          <TableCell align="right" sx={{ ...borderedCellSx, fontWeight: 700 }}>₹{amount.toFixed(2)}</TableCell>
+                          <TableCell align="center" sx={borderedCellSx}>
+                            <IconButton size="small" color="error" onClick={() => removeItemRow(idx)} aria-label="Remove item">
+                              <i className="fas fa-trash" style={{ fontSize: 13 }} aria-hidden="true" />
+                            </IconButton>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
                 </Table>
-              </div>
-            </Col>
-          </Row>
-        </Modal.Body>
-        <Modal.Footer>
-          <Button variant="secondary" onClick={() => setShow(false)}>Cancel</Button>
-          <Button variant="primary" onClick={save} disabled={saving}>
-            {saving && <span className="spinner-border spinner-border-sm me-2"></span>} {editingId ? 'Update' : 'Save'}
-          </Button>
-        </Modal.Footer>
-      </Modal>
+              </TableContainer>
+            </Box>
+            <Box sx={{ mt: 1.5 }}>
+              <Button variant="outlined" size="small" onClick={addItemRow} startIcon={<i className="fas fa-plus" aria-hidden="true" />}>
+                Add Item
+              </Button>
+            </Box>
+          </Box>
 
-      {/* View Modal */}
-      <Modal show={viewShow} onHide={() => setViewShow(false)} size="lg">
-        <Modal.Header closeButton>
-          <Modal.Title>Quotation #{viewData?.quotation_number}</Modal.Title>
-          <div className="ms-auto d-flex gap-2">
+          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(2, 1fr)' }, gap: 2.5 }}>
+            <TextField
+              size="small"
+              label="Notes"
+              multiline
+              rows={3}
+              fullWidth
+              value={form.notes}
+              onChange={e => setForm(f => ({ ...f, notes: e.target.value }))}
+              placeholder="Terms & conditions, delivery details, etc."
+            />
+            <Box sx={sectionBoxSx}>
+              <Box sx={borderedTableSx}>
+                <Table size="small">
+                  <TableBody>
+                    <TableRow>
+                      <TableCell align="right" sx={{ ...borderedCellSx, width: '50%', fontWeight: 700 }}>Subtotal:</TableCell>
+                      <TableCell align="right" sx={borderedCellSx}>₹{totals.subtotal.toFixed(2)}</TableCell>
+                    </TableRow>
+                    <TableRow>
+                      <TableCell align="right" sx={borderedCellSx}>Discount:</TableCell>
+                      <TableCell align="right" sx={{ ...borderedCellSx, color: 'error.main' }}>-₹{totals.discount.toFixed(2)}</TableCell>
+                    </TableRow>
+                    <TableRow>
+                      <TableCell align="right" sx={borderedCellSx}>Tax:</TableCell>
+                      <TableCell align="right" sx={borderedCellSx}>₹{totals.tax.toFixed(2)}</TableCell>
+                    </TableRow>
+                    <TableRow sx={{ bgcolor: 'primary.main' }}>
+                      <TableCell align="right" sx={{ borderBottom: 0, color: '#fff', fontWeight: 700 }}>Grand Total:</TableCell>
+                      <TableCell align="right" sx={{ borderBottom: 0, color: '#fff', fontWeight: 700 }}>₹{totals.grandTotal.toFixed(2)}</TableCell>
+                    </TableRow>
+                  </TableBody>
+                </Table>
+              </Box>
+            </Box>
+          </Box>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, py: 2 }}>
+          <Button variant="outlined" onClick={() => setShow(false)}>Cancel</Button>
+          <Button variant="contained" onClick={save} disabled={saving} startIcon={saving ? <CircularProgress size={14} color="inherit" /> : null}>
+            {editingId ? 'Update' : 'Save'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* View Dialog */}
+      <Dialog open={viewShow} onClose={() => setViewShow(false)} maxWidth="lg" fullWidth>
+        <DialogTitle sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 2, flexWrap: 'wrap' }}>
+          <Typography variant="h6" sx={{ fontWeight: 700 }}>Quotation #{viewData?.quotation_number}</Typography>
+          <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
             {viewData?.status === 'accepted' && canCreate("quotations") && (
-              <Button variant="success" size="sm" onClick={() => { setViewShow(false); convertToSale(viewData); }}>
-                <i className="fas fa-file-invoice me-1"></i> Convert to Invoice
+              <Button variant="contained" color="success" size="small" onClick={() => { setViewShow(false); convertToSale(viewData); }} startIcon={<i className="fas fa-file-invoice" aria-hidden="true" />}>
+                Convert to Invoice
               </Button>
             )}
             {viewData?.status !== 'converted' && canEdit("quotations") && (
-              <Button variant="primary" size="sm" onClick={() => { setViewShow(false); openEdit(viewData); }}>
-                <i className="fas fa-edit me-1"></i> Edit
+              <Button variant="contained" size="small" onClick={() => { setViewShow(false); openEdit(viewData); }} startIcon={<i className="fas fa-edit" aria-hidden="true" />}>
+                Edit
               </Button>
             )}
-            <Button variant="outline-secondary" size="sm" disabled={!viewData} onClick={() => handleViewQuotationPDF(viewData)}>
-              <i className="fas fa-file-pdf me-1"></i> View PDF
+            <Button variant="outlined" size="small" disabled={!viewData} onClick={() => handleViewQuotationPDF(viewData)} startIcon={<i className="fas fa-file-pdf" aria-hidden="true" />}>
+              View PDF
             </Button>
-            <Button variant="outline-primary" size="sm" disabled={!viewData} onClick={() => handleDownloadQuotationPDF(viewData)}>
-              <i className="fas fa-download me-1"></i> Download
+            <Button variant="outlined" size="small" disabled={!viewData} onClick={() => handleDownloadQuotationPDF(viewData)} startIcon={<i className="fas fa-download" aria-hidden="true" />}>
+              Download
             </Button>
-          </div>
-        </Modal.Header>
-        <Modal.Body>
+            <IconButton size="small" onClick={() => setViewShow(false)} aria-label="Close">
+              <i className="fas fa-times" style={{ fontSize: 14 }} aria-hidden="true" />
+            </IconButton>
+          </Stack>
+        </DialogTitle>
+        <DialogContent dividers>
           {viewData && (
             <>
-              <div className="bg-light p-3 rounded border mb-3">
-                <Row>
-                  <Col md={4}><strong className="text-muted small">Customer:</strong><br/>{viewData.customer?.name}</Col>
-                  <Col md={3}><strong className="text-muted small">Date:</strong><br/>{viewData.quotation_date}</Col>
-                  <Col md={3}><strong className="text-muted small">Expiry:</strong><br/>{viewData.expiry_date || '-'}</Col>
-                  <Col md={2}><strong className="text-muted small">Status:</strong><br/><Badge bg={statusColors[viewData.status]}>{viewData.status?.toUpperCase()}</Badge></Col>
-                </Row>
-              </div>
-              
+              <Box sx={{ ...sectionBoxSx, p: 2.5, mb: 3 }}>
+                <Box sx={{ display: 'grid', gridTemplateColumns: { xs: 'repeat(2, 1fr)', md: 'repeat(4, 1fr)' }, gap: 2 }}>
+                  <Box>
+                    <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 700 }}>Customer:</Typography>
+                    <Typography variant="body2">{viewData.customer?.name}</Typography>
+                  </Box>
+                  <Box>
+                    <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 700 }}>Date:</Typography>
+                    <Typography variant="body2">{viewData.quotation_date}</Typography>
+                  </Box>
+                  <Box>
+                    <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 700 }}>Expiry:</Typography>
+                    <Typography variant="body2">{viewData.expiry_date || '-'}</Typography>
+                  </Box>
+                  <Box>
+                    <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 700 }}>Status:</Typography>
+                    <Box><Chip label={viewData.status?.toUpperCase()} size="small" sx={{ ...(statusChipSx[viewData.status] || statusChipSx.draft), fontWeight: 700 }} /></Box>
+                  </Box>
+                </Box>
+              </Box>
+
               {/* Status Workflow */}
-              <div className="mb-3">
-                <div className="d-flex gap-2 flex-wrap">
+              <Box sx={{ mb: 3 }}>
+                <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
                   {viewData.status === 'draft' && canEdit("quotations") && (
                     <>
-                      <Button variant="outline-info" size="sm" onClick={async () => { await api.put(`/quotations/${viewData.id}`, {...viewData, status: 'sent'}); setReloadKey(k => k + 1); setViewShow(false); toast.success("Marked as Sent"); }}>
-                        <i className="fas fa-paper-plane me-1"></i> Mark as Sent
+                      <Button variant="outlined" size="small" onClick={async () => { await api.put(`/quotations/${viewData.id}`, {...viewData, status: 'sent'}); setReloadKey(k => k + 1); setViewShow(false); toast.success("Marked as Sent"); }} startIcon={<i className="fas fa-paper-plane" aria-hidden="true" />}>
+                        Mark as Sent
                       </Button>
-                      <Button variant="outline-success" size="sm" onClick={async () => { await api.put(`/quotations/${viewData.id}`, {...viewData, status: 'accepted'}); setReloadKey(k => k + 1); setViewShow(false); toast.success("Marked as Accepted"); }}>
-                        <i className="fas fa-check me-1"></i> Mark as Accepted
+                      <Button variant="outlined" size="small" color="success" onClick={async () => { await api.put(`/quotations/${viewData.id}`, {...viewData, status: 'accepted'}); setReloadKey(k => k + 1); setViewShow(false); toast.success("Marked as Accepted"); }} startIcon={<i className="fas fa-check" aria-hidden="true" />}>
+                        Mark as Accepted
                       </Button>
                     </>
                   )}
                   {viewData.status === 'sent' && canEdit("quotations") && (
                     <>
-                      <Button variant="outline-success" size="sm" onClick={async () => { await api.put(`/quotations/${viewData.id}`, {...viewData, status: 'accepted'}); setReloadKey(k => k + 1); setViewShow(false); toast.success("Marked as Accepted"); }}>
-                        <i className="fas fa-check me-1"></i> Mark as Accepted
+                      <Button variant="outlined" size="small" color="success" onClick={async () => { await api.put(`/quotations/${viewData.id}`, {...viewData, status: 'accepted'}); setReloadKey(k => k + 1); setViewShow(false); toast.success("Marked as Accepted"); }} startIcon={<i className="fas fa-check" aria-hidden="true" />}>
+                        Mark as Accepted
                       </Button>
-                      <Button variant="outline-danger" size="sm" onClick={async () => { await api.put(`/quotations/${viewData.id}`, {...viewData, status: 'rejected'}); setReloadKey(k => k + 1); setViewShow(false); toast.success("Marked as Rejected"); }}>
-                        <i className="fas fa-times me-1"></i> Mark as Rejected
+                      <Button variant="outlined" size="small" color="error" onClick={async () => { await api.put(`/quotations/${viewData.id}`, {...viewData, status: 'rejected'}); setReloadKey(k => k + 1); setViewShow(false); toast.success("Marked as Rejected"); }} startIcon={<i className="fas fa-times" aria-hidden="true" />}>
+                        Mark as Rejected
                       </Button>
                     </>
                   )}
-                </div>
-              </div>
+                </Stack>
+              </Box>
 
-              <Table bordered size="sm">
-                <thead className="bg-light">
-                  <tr><th>Item</th><th>Qty</th><th>Price</th><th>Discount</th><th>Tax</th><th>Amount</th></tr>
-                </thead>
-                <tbody>
-                  {viewData.items?.map((it, idx) => (
-                    <tr key={idx}>
-                      <td>{it.item?.name}</td>
-                      <td>{it.quantity}</td>
-                      <td>₹{it.price}</td>
-                      <td>₹{it.discount || 0}</td>
-                      <td>₹{it.tax_amount || 0}</td>
-                      <td className="text-end fw-bold">₹{it.amount}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </Table>
-              <div className="mt-3">
-                <Table bordered size="sm" className="mb-0" style={{maxWidth: '400px', marginLeft: 'auto'}}>
-                  <tbody>
-                    <tr><td className="text-end fw-bold">Subtotal:</td><td className="text-end">₹{viewData.subtotal}</td></tr>
-                    <tr><td className="text-end">Discount:</td><td className="text-end text-danger">-₹{viewData.discount}</td></tr>
-                    <tr><td className="text-end">Tax:</td><td className="text-end">₹{viewData.tax}</td></tr>
-                    <tr className="bg-primary text-white"><td className="text-end fw-bold">Grand Total:</td><td className="text-end fw-bold">₹{viewData.grand_total}</td></tr>
-                  </tbody>
-                </Table>
-              </div>
+              <Box sx={{ ...borderedTableSx, mb: 3 }}>
+                <TableContainer sx={{ overflowX: 'auto' }}>
+                  <Table size="small">
+                    <TableHead>
+                      <TableRow sx={{ bgcolor: '#f8fafc' }}>
+                        <TableCell sx={{ ...headerCellSx, ...borderedCellSx }}>Item</TableCell>
+                        <TableCell sx={{ ...headerCellSx, ...borderedCellSx }}>Qty</TableCell>
+                        <TableCell sx={{ ...headerCellSx, ...borderedCellSx }}>Price</TableCell>
+                        <TableCell sx={{ ...headerCellSx, ...borderedCellSx }}>Discount</TableCell>
+                        <TableCell sx={{ ...headerCellSx, ...borderedCellSx }}>Tax</TableCell>
+                        <TableCell align="right" sx={{ ...headerCellSx, ...borderedCellSx }}>Amount</TableCell>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {viewData.items?.map((it, idx) => (
+                        <TableRow key={idx}>
+                          <TableCell sx={borderedCellSx}>{it.item?.name}</TableCell>
+                          <TableCell sx={borderedCellSx}>{it.quantity}</TableCell>
+                          <TableCell sx={borderedCellSx}>₹{it.price}</TableCell>
+                          <TableCell sx={borderedCellSx}>₹{it.discount || 0}</TableCell>
+                          <TableCell sx={borderedCellSx}>₹{it.tax_amount || 0}</TableCell>
+                          <TableCell align="right" sx={{ ...borderedCellSx, fontWeight: 700 }}>₹{it.amount}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </TableContainer>
+              </Box>
+
+              <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 2 }}>
+                <Box sx={{ ...borderedTableSx, maxWidth: 400, width: '100%' }}>
+                  <Table size="small">
+                    <TableBody>
+                      <TableRow>
+                        <TableCell align="right" sx={{ ...borderedCellSx, fontWeight: 700 }}>Subtotal:</TableCell>
+                        <TableCell align="right" sx={borderedCellSx}>₹{viewData.subtotal}</TableCell>
+                      </TableRow>
+                      <TableRow>
+                        <TableCell align="right" sx={borderedCellSx}>Discount:</TableCell>
+                        <TableCell align="right" sx={{ ...borderedCellSx, color: 'error.main' }}>-₹{viewData.discount}</TableCell>
+                      </TableRow>
+                      <TableRow>
+                        <TableCell align="right" sx={borderedCellSx}>Tax:</TableCell>
+                        <TableCell align="right" sx={borderedCellSx}>₹{viewData.tax}</TableCell>
+                      </TableRow>
+                      <TableRow sx={{ bgcolor: 'primary.main' }}>
+                        <TableCell align="right" sx={{ borderBottom: 0, color: '#fff', fontWeight: 700 }}>Grand Total:</TableCell>
+                        <TableCell align="right" sx={{ borderBottom: 0, color: '#fff', fontWeight: 700 }}>₹{viewData.grand_total}</TableCell>
+                      </TableRow>
+                    </TableBody>
+                  </Table>
+                </Box>
+              </Box>
+
               {viewData.notes && (
-                <div className="mt-3 p-2 bg-light rounded">
-                  <strong className="text-muted small">Notes:</strong>
-                  <p className="mb-0">{viewData.notes}</p>
-                </div>
+                <Box sx={{ mt: 2, p: 2, bgcolor: '#f8fafc', borderRadius: 2 }}>
+                  <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 700 }}>Notes:</Typography>
+                  <Typography variant="body2" sx={{ mb: 0 }}>{viewData.notes}</Typography>
+                </Box>
               )}
               {viewData.converted_sale && (
-                <div className="mt-3 p-2 bg-success text-white rounded">
-                  <strong><i className="fas fa-check-circle me-2"></i>Converted to Invoice:</strong> {viewData.converted_sale.invoice_number}
-                </div>
+                <Box sx={{ mt: 2, p: 2, bgcolor: 'success.main', color: '#fff', borderRadius: 2 }}>
+                  <Typography variant="body2" sx={{ fontWeight: 700 }}>
+                    <i className="fas fa-check-circle" style={{ marginRight: 8 }} aria-hidden="true" />
+                    Converted to Invoice: {viewData.converted_sale.invoice_number}
+                  </Typography>
+                </Box>
               )}
             </>
           )}
-        </Modal.Body>
-        <Modal.Footer>
-          <Button variant="secondary" onClick={() => setViewShow(false)}>Close</Button>
-        </Modal.Footer>
-      </Modal>
-    </div>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, py: 2 }}>
+          <Button variant="outlined" onClick={() => setViewShow(false)}>Close</Button>
+        </DialogActions>
+      </Dialog>
+    </Box>
   );
 }

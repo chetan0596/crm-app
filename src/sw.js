@@ -37,5 +37,5 @@ self.addEventListener('notificationclick', (event) => {
   event.notification.close();
   const leadId = event.notification.data?.lead_id;
   const url = leadId ? `/leads/${leadId}` : '/';
-  event.waitUntil(clients.openWindow(url));
+  event.waitUntil(self.clients.openWindow(url));
 });

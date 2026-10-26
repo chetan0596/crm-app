@@ -1,5 +1,16 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { Card, Form, Button, Spinner, Row, Col, Alert } from "react-bootstrap";
+import {
+  Alert,
+  Box,
+  Button,
+  Card,
+  CardContent,
+  CircularProgress,
+  Divider,
+  IconButton,
+  TextField,
+  Typography,
+} from "@mui/material";
 import { toast } from "react-toastify";
 import api from "../api";
 
@@ -20,6 +31,78 @@ const DEFAULTS = {
   stamp: "",
   notes: "",
 };
+
+const cardSx = {
+  height: '100%',
+  border: '1px solid',
+  borderColor: 'divider',
+  borderRadius: 3,
+  boxShadow: '0 8px 24px rgba(28,37,46,.05)',
+};
+
+const iconBoxSx = {
+  width: 40,
+  height: 40,
+  borderRadius: 2,
+  display: 'grid',
+  placeItems: 'center',
+  bgcolor: '#eaf0f6',
+  color: 'primary.main',
+  flexShrink: 0,
+};
+
+const helperSx = {
+  display: 'block',
+  color: 'text.secondary',
+  fontSize: 12,
+  mt: .5,
+};
+
+function SectionCard({ icon, title, children, contentSx }) {
+  return (
+    <Card sx={cardSx}>
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, px: 3, py: 2.5 }}>
+        <Box sx={iconBoxSx}>
+          <i className={icon} style={{ fontSize: 16 }} aria-hidden="true" />
+        </Box>
+        <Typography variant="subtitle1" sx={{ color: 'text.primary', fontWeight: 700 }}>
+          {title}
+        </Typography>
+      </Box>
+      <Divider />
+      <CardContent sx={{ p: 3, ...contentSx }}>
+        {children}
+      </CardContent>
+    </Card>
+  );
+}
+
+function ImageSlot({ preview, emptyText }) {
+  return preview ? (
+    <Box
+      component="img"
+      src={preview}
+      alt={emptyText}
+      sx={{ maxHeight: 60, maxWidth: 120, border: '1px solid', borderColor: 'divider', borderRadius: 1, p: '2px' }}
+    />
+  ) : (
+    <Box
+      sx={{
+        width: 120,
+        textAlign: 'center',
+        py: 1.25,
+        px: 1,
+        border: '1px dashed',
+        borderColor: 'divider',
+        borderRadius: 1,
+        color: 'text.secondary',
+        fontSize: 12,
+      }}
+    >
+      {emptyText}
+    </Box>
+  );
+}
 
 export default function InvoiceSettings() {
   const [settings, setSettings] = useState(DEFAULTS);
@@ -42,7 +125,10 @@ export default function InvoiceSettings() {
     }
   }, []);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    const timer = setTimeout(() => { load(); }, 0);
+    return () => clearTimeout(timer);
+  }, [load]);
 
   const save = async () => {
     try {
@@ -74,306 +160,251 @@ export default function InvoiceSettings() {
   };
 
   if (loading) {
-    return <div className="text-center py-5"><Spinner /></div>;
+    return (
+      <Box sx={{ display: 'grid', placeItems: 'center', py: 8 }}>
+        <CircularProgress />
+      </Box>
+    );
   }
 
   return (
-    <div className="container-fluid py-3">
-      <div className="d-flex justify-content-between align-items-center mb-3">
-        <div>
-          <h4 className="m-0 fw-bold">Invoice Settings</h4>
-          <div className="small text-muted">Configure company details, branding, and PDF invoice output</div>
-        </div>
-        <Button variant="primary" size="sm" onClick={save} disabled={saving}>
-          {saving ? <Spinner size="sm" className="me-1" /> : <i className="fas fa-save me-1"></i>}
+    <Box>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: { sm: 'center' }, flexDirection: { xs: 'column', sm: 'row' }, gap: 2, mb: 3 }}>
+        <Box>
+          <Typography variant="h4" sx={{ color: 'text.primary', fontWeight: 700, mb: .5 }}>Invoice Settings</Typography>
+          <Typography variant="body2" sx={{ color: 'text.secondary' }}>Configure company details, branding, and PDF invoice output</Typography>
+        </Box>
+        <Button variant="contained" onClick={save} disabled={saving} startIcon={saving ? <CircularProgress size={14} color="inherit" /> : <i className="fas fa-save" aria-hidden="true" />}>
           Save Settings
         </Button>
-      </div>
+      </Box>
 
-      <Row className="g-3">
+      <Alert severity="info" sx={{ mb: 3, borderRadius: 3, border: '1px solid', borderColor: 'divider' }}>
+        These settings control how your PDF invoices, quotations, credit notes, and debit notes look. Upload your logo and stamp once — they will appear on every generated document.
+      </Alert>
+
+      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(2, 1fr)' }, gap: 2.5 }}>
         {/* Company Information */}
-        <Col xs={12}>
-          <Card>
-            <Card.Header>
-              <i className="fas fa-building me-2"></i>Company Information
-            </Card.Header>
-            <Card.Body>
-              <Row className="g-3">
-                <Col md={6}>
-                  <Form.Group>
-                    <Form.Label className="fw-bold small">Company Name</Form.Label>
-                    <Form.Control
-                      size="sm"
-                      value={settings.company_name}
-                      onChange={e => update("company_name", e.target.value)}
-                      placeholder="Your Company Pvt Ltd"
-                    />
-                  </Form.Group>
-                </Col>
-                <Col md={6}>
-                  <Form.Group>
-                    <Form.Label className="fw-bold small">GSTIN / VAT Number</Form.Label>
-                    <Form.Control
-                      size="sm"
-                      value={settings.company_gstin}
-                      onChange={e => update("company_gstin", e.target.value)}
-                      placeholder="22AAAAA0000A1Z5"
-                    />
-                  </Form.Group>
-                </Col>
-                <Col md={12}>
-                  <Form.Group>
-                    <Form.Label className="fw-bold small">Company Address</Form.Label>
-                    <Form.Control
-                      as="textarea"
-                      rows={2}
-                      size="sm"
-                      value={settings.company_address}
-                      onChange={e => update("company_address", e.target.value)}
-                      placeholder="Plot No, Street, City, State - PIN"
-                    />
-                  </Form.Group>
-                </Col>
-                <Col md={6}>
-                  <Form.Group>
-                    <Form.Label className="fw-bold small">Phone</Form.Label>
-                    <Form.Control
-                      size="sm"
-                      value={settings.company_phone}
-                      onChange={e => update("company_phone", e.target.value)}
-                      placeholder="+91 98765 43210"
-                    />
-                  </Form.Group>
-                </Col>
-                <Col md={6}>
-                  <Form.Group>
-                    <Form.Label className="fw-bold small">Email</Form.Label>
-                    <Form.Control
-                      size="sm"
-                      type="email"
-                      value={settings.company_email}
-                      onChange={e => update("company_email", e.target.value)}
-                      placeholder="accounts@company.com"
-                    />
-                  </Form.Group>
-                </Col>
-              </Row>
-            </Card.Body>
-          </Card>
-        </Col>
+        <Box sx={{ gridColumn: '1 / -1' }}>
+          <SectionCard icon="fas fa-building" title="Company Information">
+            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)' }, gap: 2.5 }}>
+              <TextField
+                size="small"
+                label="Company Name"
+                value={settings.company_name}
+                onChange={e => update("company_name", e.target.value)}
+                placeholder="Your Company Pvt Ltd"
+              />
+              <TextField
+                size="small"
+                label="GSTIN / VAT Number"
+                value={settings.company_gstin}
+                onChange={e => update("company_gstin", e.target.value)}
+                placeholder="22AAAAA0000A1Z5"
+              />
+              <Box sx={{ gridColumn: { sm: '1 / -1' } }}>
+                <TextField
+                  size="small"
+                  label="Company Address"
+                  multiline
+                  rows={2}
+                  fullWidth
+                  value={settings.company_address}
+                  onChange={e => update("company_address", e.target.value)}
+                  placeholder="Plot No, Street, City, State - PIN"
+                />
+              </Box>
+              <TextField
+                size="small"
+                label="Phone"
+                value={settings.company_phone}
+                onChange={e => update("company_phone", e.target.value)}
+                placeholder="+91 98765 43210"
+              />
+              <TextField
+                size="small"
+                type="email"
+                label="Email"
+                value={settings.company_email}
+                onChange={e => update("company_email", e.target.value)}
+                placeholder="accounts@company.com"
+              />
+            </Box>
+          </SectionCard>
+        </Box>
 
         {/* Logo & Branding */}
-        <Col md={6}>
-          <Card className="h-100">
-            <Card.Header>
-              <i className="fas fa-image me-2"></i>Logo &amp; Branding
-            </Card.Header>
-            <Card.Body>
-              <Form.Group className="mb-3">
-                <Form.Label className="fw-bold small">Company Logo</Form.Label>
-                <div className="d-flex align-items-center gap-3 mb-2">
-                  {settings.logo ? (
-                    <img
-                      src={settings.logo}
-                      alt="Logo preview"
-                      style={{ maxHeight: 60, maxWidth: 120, border: "1px solid #ddd", borderRadius: 4, padding: 2 }}
-                    />
-                  ) : (
-                    <div className="text-muted small" style={{ width: 120, textAlign: "center", padding: 10, border: "1px dashed #ccc", borderRadius: 4 }}>
-                      No logo
-                    </div>
+        <SectionCard icon="fas fa-image" title="Logo & Branding">
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
+            <Box>
+              <Typography variant="caption" sx={{ display: 'block', color: 'text.secondary', fontWeight: 700, mb: 1 }}>
+                Company Logo
+              </Typography>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: .5 }}>
+                <ImageSlot preview={settings.logo} emptyText="No logo" />
+                <Box>
+                  <input
+                    ref={logoRef}
+                    type="file"
+                    accept="image/png,image/jpeg,image/svg+xml"
+                    hidden
+                    onChange={e => handleFileUpload("logo", e.target.files?.[0])}
+                  />
+                  <Button variant="outlined" size="small" onClick={() => logoRef.current?.click()} startIcon={<i className="fas fa-upload" aria-hidden="true" />}>
+                    Upload
+                  </Button>
+                  {settings.logo && (
+                    <IconButton size="small" color="error" sx={{ ml: .5, border: '1px solid', borderColor: 'divider' }} onClick={() => update("logo", "")} aria-label="Remove logo">
+                      <i className="fas fa-times" style={{ fontSize: 12 }} aria-hidden="true" />
+                    </IconButton>
                   )}
-                  <div>
-                    <input
-                      ref={logoRef}
-                      type="file"
-                      accept="image/png,image/jpeg,image/svg+xml"
-                      className="d-none"
-                      onChange={e => handleFileUpload("logo", e.target.files?.[0])}
-                    />
-                    <Button variant="outline-primary" size="sm" onClick={() => logoRef.current?.click()}>
-                      <i className="fas fa-upload me-1"></i>Upload
-                    </Button>
-                    {settings.logo && (
-                      <Button variant="outline-danger" size="sm" className="ms-1" onClick={() => update("logo", "")}>
-                        <i className="fas fa-times"></i>
-                      </Button>
-                    )}
-                  </div>
-                </div>
-                <Form.Text className="text-muted">PNG, JPEG, or SVG. Max 2MB.</Form.Text>
-              </Form.Group>
+                </Box>
+              </Box>
+              <Typography sx={helperSx}>PNG, JPEG, or SVG. Max 2MB.</Typography>
+            </Box>
 
-              <Form.Group className="mb-3">
-                <Form.Label className="fw-bold small">Invoice Title</Form.Label>
-                <Form.Control
-                  size="sm"
-                  value={settings.invoice_title}
-                  onChange={e => update("invoice_title", e.target.value)}
-                  placeholder="TAX INVOICE"
+            <Box>
+              <TextField
+                size="small"
+                fullWidth
+                label="Invoice Title"
+                value={settings.invoice_title}
+                onChange={e => update("invoice_title", e.target.value)}
+                placeholder="TAX INVOICE"
+              />
+              <Typography sx={helperSx}>Shown as the heading on the PDF. Use "TAX INVOICE" or "RETAIL INVOICE".</Typography>
+            </Box>
+
+            <Box>
+              <TextField
+                size="small"
+                fullWidth
+                label="Invoice Prefix"
+                value={settings.invoice_prefix}
+                onChange={e => update("invoice_prefix", e.target.value)}
+                placeholder="INV"
+              />
+              <Typography sx={helperSx}>Used when generating new invoice numbers (e.g. INV-001).</Typography>
+            </Box>
+
+            <Box>
+              <Typography variant="caption" sx={{ display: 'block', color: 'text.secondary', fontWeight: 700, mb: 1 }}>
+                Theme Color
+              </Typography>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                <Box
+                  component="input"
+                  type="color"
+                  value={settings.theme_color}
+                  onChange={e => update("theme_color", e.target.value)}
+                  sx={{ width: 50, height: 38, p: '2px', border: '1px solid', borderColor: 'divider', borderRadius: 1, bgcolor: '#fff', cursor: 'pointer' }}
                 />
-                <Form.Text className="text-muted">Shown as the heading on the PDF. Use "TAX INVOICE" or "RETAIL INVOICE".</Form.Text>
-              </Form.Group>
-
-              <Form.Group className="mb-3">
-                <Form.Label className="fw-bold small">Invoice Prefix</Form.Label>
-                <Form.Control
-                  size="sm"
-                  value={settings.invoice_prefix}
-                  onChange={e => update("invoice_prefix", e.target.value)}
-                  placeholder="INV"
+                <TextField
+                  size="small"
+                  sx={{ maxWidth: 140 }}
+                  value={settings.theme_color}
+                  onChange={e => update("theme_color", e.target.value)}
+                  placeholder="#1e3a5f"
                 />
-                <Form.Text className="text-muted">Used when generating new invoice numbers (e.g. INV-001).</Form.Text>
-              </Form.Group>
-
-              <Form.Group>
-                <Form.Label className="fw-bold small">Theme Color</Form.Label>
-                <div className="d-flex align-items-center gap-2">
-                  <Form.Control
-                    type="color"
-                    style={{ width: 50, height: 38, padding: 2 }}
-                    value={settings.theme_color}
-                    onChange={e => update("theme_color", e.target.value)}
-                  />
-                  <Form.Control
-                    size="sm"
-                    style={{ maxWidth: 120 }}
-                    value={settings.theme_color}
-                    onChange={e => update("theme_color", e.target.value)}
-                    placeholder="#1e3a5f"
-                  />
-                </div>
-              </Form.Group>
-            </Card.Body>
-          </Card>
-        </Col>
+              </Box>
+            </Box>
+          </Box>
+        </SectionCard>
 
         {/* Bank Details */}
-        <Col md={6}>
-          <Card className="h-100">
-            <Card.Header>
-              <i className="fas fa-university me-2"></i>Bank Details
-            </Card.Header>
-            <Card.Body>
-              <Form.Group>
-                <Form.Label className="fw-bold small">Bank Account Information</Form.Label>
-                <Form.Control
-                  as="textarea"
-                  rows={8}
-                  size="sm"
-                  value={settings.bank_details}
-                  onChange={e => update("bank_details", e.target.value)}
-                  placeholder={"Bank Name: HDFC Bank\nAccount Name: Your Company Pvt Ltd\nAccount No: 1234567890\nIFSC: HDFC0001234\nBranch: Mumbai"}
-                />
-                <Form.Text className="text-muted">Displayed in the bank details section of the PDF.</Form.Text>
-              </Form.Group>
-            </Card.Body>
-          </Card>
-        </Col>
+        <SectionCard icon="fas fa-university" title="Bank Details">
+          <TextField
+            size="small"
+            label="Bank Account Information"
+            multiline
+            rows={8}
+            fullWidth
+            value={settings.bank_details}
+            onChange={e => update("bank_details", e.target.value)}
+            placeholder={"Bank Name: HDFC Bank\nAccount Name: Your Company Pvt Ltd\nAccount No: 1234567890\nIFSC: HDFC0001234\nBranch: Mumbai"}
+          />
+          <Typography sx={helperSx}>Displayed in the bank details section of the PDF.</Typography>
+        </SectionCard>
 
         {/* Signature & Stamp */}
-        <Col md={6}>
-          <Card className="h-100">
-            <Card.Header>
-              <i className="fas fa-stamp me-2"></i>Authorized Signatory &amp; Stamp
-            </Card.Header>
-            <Card.Body>
-              <Form.Group className="mb-3">
-                <Form.Label className="fw-bold small">Authorized Signatory Name</Form.Label>
-                <Form.Control
-                  size="sm"
-                  value={settings.signatory_name}
-                  onChange={e => update("signatory_name", e.target.value)}
-                  placeholder="John Doe"
-                />
-              </Form.Group>
-              <Form.Group>
-                <Form.Label className="fw-bold small">Stamp / Signature Image</Form.Label>
-                <div className="d-flex align-items-center gap-3 mb-2">
-                  {settings.stamp ? (
-                    <img
-                      src={settings.stamp}
-                      alt="Stamp preview"
-                      style={{ maxHeight: 70, maxWidth: 120, border: "1px solid #ddd", borderRadius: 4, padding: 2 }}
-                    />
-                  ) : (
-                    <div className="text-muted small" style={{ width: 120, textAlign: "center", padding: 12, border: "1px dashed #ccc", borderRadius: 4 }}>
-                      No stamp
-                    </div>
+        <SectionCard icon="fas fa-stamp" title="Authorized Signatory & Stamp">
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
+            <TextField
+              size="small"
+              label="Authorized Signatory Name"
+              value={settings.signatory_name}
+              onChange={e => update("signatory_name", e.target.value)}
+              placeholder="John Doe"
+            />
+            <Box>
+              <Typography variant="caption" sx={{ display: 'block', color: 'text.secondary', fontWeight: 700, mb: 1 }}>
+                Stamp / Signature Image
+              </Typography>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: .5 }}>
+                <ImageSlot preview={settings.stamp} emptyText="No stamp" />
+                <Box>
+                  <input
+                    ref={stampRef}
+                    type="file"
+                    accept="image/png,image/jpeg,image/svg+xml"
+                    hidden
+                    onChange={e => handleFileUpload("stamp", e.target.files?.[0])}
+                  />
+                  <Button variant="outlined" size="small" onClick={() => stampRef.current?.click()} startIcon={<i className="fas fa-upload" aria-hidden="true" />}>
+                    Upload
+                  </Button>
+                  {settings.stamp && (
+                    <IconButton size="small" color="error" sx={{ ml: .5, border: '1px solid', borderColor: 'divider' }} onClick={() => update("stamp", "")} aria-label="Remove stamp">
+                      <i className="fas fa-times" style={{ fontSize: 12 }} aria-hidden="true" />
+                    </IconButton>
                   )}
-                  <div>
-                    <input
-                      ref={stampRef}
-                      type="file"
-                      accept="image/png,image/jpeg,image/svg+xml"
-                      className="d-none"
-                      onChange={e => handleFileUpload("stamp", e.target.files?.[0])}
-                    />
-                    <Button variant="outline-primary" size="sm" onClick={() => stampRef.current?.click()}>
-                      <i className="fas fa-upload me-1"></i>Upload
-                    </Button>
-                    {settings.stamp && (
-                      <Button variant="outline-danger" size="sm" className="ms-1" onClick={() => update("stamp", "")}>
-                        <i className="fas fa-times"></i>
-                      </Button>
-                    )}
-                  </div>
-                </div>
-                <Form.Text className="text-muted">Transparent PNG works best. Max 2MB.</Form.Text>
-              </Form.Group>
-            </Card.Body>
-          </Card>
-        </Col>
+                </Box>
+              </Box>
+              <Typography sx={helperSx}>Transparent PNG works best. Max 2MB.</Typography>
+            </Box>
+          </Box>
+        </SectionCard>
 
         {/* Terms, Notes & Footer */}
-        <Col md={6}>
-          <Card className="h-100">
-            <Card.Header>
-              <i className="fas fa-file-contract me-2"></i>Terms, Notes &amp; Footer
-            </Card.Header>
-            <Card.Body>
-              <Form.Group className="mb-3">
-                <Form.Label className="fw-bold small">Terms &amp; Conditions</Form.Label>
-                <Form.Control
-                  as="textarea"
-                  rows={4}
-                  size="sm"
-                  value={settings.terms}
-                  onChange={e => update("terms", e.target.value)}
-                  placeholder={"1. Goods once sold will not be taken back.\n2. Payment within 30 days of invoice date.\n3. Subject to local jurisdiction."}
-                />
-              </Form.Group>
-              <Form.Group className="mb-3">
-                <Form.Label className="fw-bold small">Additional Invoice Notes</Form.Label>
-                <Form.Control
-                  as="textarea"
-                  rows={2}
-                  size="sm"
-                  value={settings.notes}
-                  onChange={e => update("notes", e.target.value)}
-                  placeholder="Any extra notes shown on the invoice..."
-                />
-              </Form.Group>
-              <Form.Group>
-                <Form.Label className="fw-bold small">Footer Text</Form.Label>
-                <Form.Control
-                  size="sm"
-                  value={settings.footer_text}
-                  onChange={e => update("footer_text", e.target.value)}
-                  placeholder="Thank you for your business!"
-                />
-              </Form.Group>
-            </Card.Body>
-          </Card>
-        </Col>
-      </Row>
+        <SectionCard icon="fas fa-file-contract" title="Terms, Notes & Footer">
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
+            <TextField
+              size="small"
+              label="Terms & Conditions"
+              multiline
+              rows={4}
+              fullWidth
+              value={settings.terms}
+              onChange={e => update("terms", e.target.value)}
+              placeholder={"1. Goods once sold will not be taken back.\n2. Payment within 30 days of invoice date.\n3. Subject to local jurisdiction."}
+            />
+            <TextField
+              size="small"
+              label="Additional Invoice Notes"
+              multiline
+              rows={2}
+              fullWidth
+              value={settings.notes}
+              onChange={e => update("notes", e.target.value)}
+              placeholder="Any extra notes shown on the invoice..."
+            />
+            <TextField
+              size="small"
+              label="Footer Text"
+              fullWidth
+              value={settings.footer_text}
+              onChange={e => update("footer_text", e.target.value)}
+              placeholder="Thank you for your business!"
+            />
+          </Box>
+        </SectionCard>
+      </Box>
 
-      <div className="d-flex justify-content-end mt-3">
-        <Button variant="primary" onClick={save} disabled={saving}>
-          {saving ? <Spinner size="sm" className="me-1" /> : <i className="fas fa-save me-1"></i>}
+      <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 3 }}>
+        <Button variant="contained" onClick={save} disabled={saving} startIcon={saving ? <CircularProgress size={14} color="inherit" /> : <i className="fas fa-save" aria-hidden="true" />}>
           Save Settings
         </Button>
-      </div>
-    </div>
+      </Box>
+    </Box>
   );
 }

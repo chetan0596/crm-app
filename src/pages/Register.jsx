@@ -2,6 +2,30 @@ import { useState } from "react";
 import api from "../api";
 import { useNavigate, Link } from "react-router-dom";
 import { toast } from "react-toastify";
+import { Alert, Box, Button, CircularProgress, IconButton, InputAdornment, Link as MuiLink, TextField, Typography } from "@mui/material";
+
+const loginFeatures = [
+  { label: "Invoices", icon: "fa-file-invoice-dollar", x: 170, y: 90, color: "#e77885" },
+  { label: "Reports", icon: "fa-chart-pie", x: 300, y: 55, color: "#6488df" },
+  { label: "WhatsApp", icon: "fa-comments", x: 440, y: 90, color: "#ba5e9b" },
+  { label: "Customers", icon: "fa-user-group", x: 250, y: 155, color: "#8270ed" },
+  { label: "Quotations", icon: "fa-file-lines", x: 345, y: 165, color: "#ec9761" },
+  { label: "Inventory", icon: "fa-boxes-stacked", x: 80, y: 225, color: "#b39660" },
+  { label: "Automation", icon: "fa-wand-magic-sparkles", x: 190, y: 215, color: "#d1a244" },
+  { label: "Sales", icon: "fa-chart-line", x: 410, y: 215, color: "#25afaa" },
+  { label: "Leads", icon: "fa-filter", x: 515, y: 235, color: "#3ca8e0" },
+  { label: "Follow-ups", icon: "fa-calendar-check", x: 185, y: 300, color: "#db647d" },
+  { label: "Teams", icon: "fa-people-group", x: 425, y: 305, color: "#9a79bd" },
+  { label: "Payments", icon: "fa-credit-card", x: 95, y: 380, color: "#54add4" },
+  { label: "Targets", icon: "fa-bullseye", x: 200, y: 385, color: "#e97b62" },
+  { label: "Vendors", icon: "fa-store", x: 405, y: 390, color: "#d9a553" },
+  { label: "Purchases", icon: "fa-bag-shopping", x: 530, y: 385, color: "#9275bd" },
+  { label: "Users", icon: "fa-user-tie", x: 260, y: 450, color: "#599ba2" },
+  { label: "Services", icon: "fa-handshake", x: 345, y: 450, color: "#c974aa" },
+  { label: "Notes", icon: "fa-note-sticky", x: 165, y: 515, color: "#79b56c" },
+  { label: "Tasks", icon: "fa-list-check", x: 445, y: 510, color: "#ed9073" },
+  { label: "Reminders", icon: "fa-bell", x: 305, y: 555, color: "#e5a040" },
+];
 
 export default function Register() {
 
@@ -12,6 +36,7 @@ export default function Register() {
   const [password, setPassword] = useState("");
   const [passwordConfirmation, setPasswordConfirmation] = useState("");
   const [showPass, setShowPass] = useState(false);
+  const [animationPaused, setAnimationPaused] = useState(false);
 
   const [err, setErr] = useState("");
   const [loading, setLoading] = useState(false);
@@ -49,7 +74,7 @@ export default function Register() {
       nav("/login");
 
     } catch (e) {
-      const msg = e.response?.data?.message 
+      const msg = e.response?.data?.message
         || e.response?.data?.errors?.email?.[0]
         || e.response?.data?.errors?.password?.[0]
         || "Registration failed";
@@ -60,153 +85,214 @@ export default function Register() {
   };
 
   return (
-    <div
-      className="login-page d-flex align-items-center justify-content-center"
-      style={{
-        minHeight: "100vh",
-        background: "linear-gradient(135deg,#0d6efd 0%, #6f42c1 100%)"
+    <Box
+      component="main"
+      sx={{
+        display: 'grid',
+        gridTemplateColumns: { xs: '1fr', md: '52% 48%', lg: '58.5% 41.5%' },
+        minHeight: '100vh',
+        bgcolor: 'background.paper',
       }}
     >
-
-      <div className="login-box">
-
-        {/* Logo */}
-        <div className="text-center mb-3 text-white">
-          <div
-            className="mb-2"
-            style={{
-              width: 64,
-              height: 64,
-              borderRadius: "50%",
-              background: "rgba(255,255,255,0.2)",
-              display: "inline-flex",
-              alignItems: "center",
-              justifyContent: "center",
-              fontSize: 28,
-              fontWeight: 700
-            }}
-          >
-            C
+      <Box
+        component="section"
+        className={`login-illustration${animationPaused ? " is-paused" : ""}`}
+        aria-label="Connected business tools"
+        sx={{ display: { xs: 'none', md: 'flex' } }}
+      >
+        <div className="login-feature-network" aria-hidden="true">
+          <svg className="login-network-lines" viewBox="0 0 600 600" focusable="false">
+            {loginFeatures.map((feature, index) => (
+              <path
+                key={feature.label}
+                d={`M 300 310 Q ${300 + (feature.x - 300) * 0.15} ${feature.y} ${feature.x} ${feature.y}`}
+                style={{ "--delay": `${-index * 0.4}s` }}
+              />
+            ))}
+          </svg>
+          <div className="login-network-hub">
+            <svg viewBox="200 130 395 385" focusable="false">
+              <image href={`${import.meta.env.BASE_URL}sarth-logo.png`} width="1568" height="627" />
+            </svg>
           </div>
-
-          <h3 className="mb-0"><b>CRM</b> Admin</h3>
-          <small>Management System</small>
+          {loginFeatures.map((feature, index) => (
+            <div
+              key={feature.label}
+              className="login-feature"
+              style={{
+                left: `${feature.x / 6}%`,
+                top: `${feature.y / 6}%`,
+                "--feature-color": feature.color,
+                "--delay": `${-index * 0.4}s`,
+              }}
+            >
+              <span className="login-feature-icon"><i className={`fas ${feature.icon}`} /></span>
+              <span className="login-feature-label">{feature.label}</span>
+            </div>
+          ))}
         </div>
+        <IconButton
+          className="login-motion-toggle"
+          onClick={() => setAnimationPaused(paused => !paused)}
+          aria-pressed={animationPaused}
+          aria-label={animationPaused ? "Resume illustration animation" : "Pause illustration animation"}
+        >
+          <i className={`fas ${animationPaused ? "fa-play" : "fa-pause"}`} aria-hidden="true" />
+        </IconButton>
+      </Box>
 
+      <Box
+        component="section"
+        aria-labelledby="register-title"
+        sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', px: { xs: 3, sm: 6 }, py: 6 }}
+      >
+        <Box sx={{ width: '100%', maxWidth: 420 }}>
+          {/* Logo */}
+          <Box sx={{ textAlign: 'center', mb: 5 }}>
+            <Box
+              component="img"
+              src={`${import.meta.env.BASE_URL}sarth-logo.png`}
+              alt="Sarth — Grow Business"
+              sx={{ width: 220, maxWidth: '100%', height: 'auto' }}
+            />
+          </Box>
 
-        {/* Card */}
-        <div className="card shadow-lg border-0">
-
-          <div className="card-body p-4">
-
-            <p className="text-center text-muted mb-3">
+          {/* Card */}
+          <Box>
+            <Typography id="register-title" variant="h4" sx={{ color: 'text.primary', fontWeight: 700, textAlign: 'center', mb: 1 }}>
               Create your account
-            </p>
+            </Typography>
+            <Typography variant="body2" sx={{ color: 'text.secondary', textAlign: 'center', mb: 5 }}>
+              Get started with your CRM account.
+            </Typography>
 
-            <form onSubmit={register}>
-
+            <Box component="form" onSubmit={register} noValidate>
               {/* Name */}
-              <div className="input-group mb-3">
-                <input
-                  type="text"
-                  className="form-control"
-                  placeholder="Full name"
-                  value={name}
-                  onChange={e => setName(e.target.value)}
-                />
-                <div className="input-group-append">
-                  <div className="input-group-text">
-                    <i className="fas fa-user"></i>
-                  </div>
-                </div>
-              </div>
+              <TextField
+                label="Full name"
+                name="name"
+                type="text"
+                autoComplete="name"
+                fullWidth
+                required
+                value={name}
+                onChange={e => setName(e.target.value)}
+                sx={{ mb: 3 }}
+                slotProps={{
+                  input: {
+                    endAdornment: (
+                      <InputAdornment position="end">
+                        <i className="fas fa-user" style={{ fontSize: 13, color: '#637381' }} aria-hidden="true" />
+                      </InputAdornment>
+                    ),
+                  },
+                }}
+              />
 
               {/* Email */}
-              <div className="input-group mb-3">
-                <input
-                  type="email"
-                  className="form-control"
-                  placeholder="Email address"
-                  value={email}
-                  onChange={e => setEmail(e.target.value)}
-                />
-                <div className="input-group-append">
-                  <div className="input-group-text">
-                    <i className="fas fa-envelope"></i>
-                  </div>
-                </div>
-              </div>
+              <TextField
+                label="Email address"
+                name="email"
+                type="email"
+                autoComplete="email"
+                fullWidth
+                required
+                value={email}
+                onChange={e => setEmail(e.target.value)}
+                sx={{ mb: 3 }}
+                slotProps={{
+                  input: {
+                    endAdornment: (
+                      <InputAdornment position="end">
+                        <i className="fas fa-envelope" style={{ fontSize: 13, color: '#637381' }} aria-hidden="true" />
+                      </InputAdornment>
+                    ),
+                  },
+                }}
+              />
 
               {/* Password */}
-              <div className="input-group mb-3">
-                <input
-                  type={showPass ? "text" : "password"}
-                  className="form-control"
-                  placeholder="Password"
-                  value={password}
-                  onChange={e => setPassword(e.target.value)}
-                />
-                <div
-                  className="input-group-append"
-                  style={{ cursor: "pointer" }}
-                  onClick={() => setShowPass(s => !s)}
-                >
-                  <div className="input-group-text">
-                    <i className={`fas ${showPass ? "fa-eye-slash" : "fa-eye"}`}></i>
-                  </div>
-                </div>
-              </div>
+              <TextField
+                label="Password"
+                name="password"
+                type={showPass ? "text" : "password"}
+                autoComplete="new-password"
+                fullWidth
+                required
+                value={password}
+                onChange={e => setPassword(e.target.value)}
+                sx={{ mb: 3 }}
+                slotProps={{
+                  input: {
+                    endAdornment: (
+                      <InputAdornment position="end">
+                        <IconButton
+                          onClick={() => setShowPass(s => !s)}
+                          aria-label={showPass ? "Hide password" : "Show password"}
+                          aria-pressed={showPass}
+                          edge="end"
+                        >
+                          <i className={`fas ${showPass ? "fa-eye-slash" : "fa-eye"}`} aria-hidden="true" />
+                        </IconButton>
+                      </InputAdornment>
+                    ),
+                  },
+                }}
+              />
 
               {/* Confirm Password */}
-              <div className="input-group mb-3">
-                <input
-                  type={showPass ? "text" : "password"}
-                  className="form-control"
-                  placeholder="Confirm password"
-                  value={passwordConfirmation}
-                  onChange={e => setPasswordConfirmation(e.target.value)}
-                />
-                <div className="input-group-append">
-                  <div className="input-group-text">
-                    <i className="fas fa-lock"></i>
-                  </div>
-                </div>
-              </div>
+              <TextField
+                label="Confirm password"
+                name="passwordConfirmation"
+                type={showPass ? "text" : "password"}
+                autoComplete="new-password"
+                fullWidth
+                required
+                value={passwordConfirmation}
+                onChange={e => setPasswordConfirmation(e.target.value)}
+                sx={{ mb: 3 }}
+                slotProps={{
+                  input: {
+                    endAdornment: (
+                      <InputAdornment position="end">
+                        <i className="fas fa-lock" style={{ fontSize: 13, color: '#637381' }} aria-hidden="true" />
+                      </InputAdornment>
+                    ),
+                  },
+                }}
+              />
 
               {/* Error */}
-              {err && (
-                <div className="alert alert-danger py-2">
-                  <i className="fas fa-exclamation-circle mr-1"></i>
-                  {err}
-                </div>
-              )}
+              {err && <Alert severity="error" sx={{ mb: 3 }}>{err}</Alert>}
 
               {/* Button */}
-              <button
-                className="btn btn-success btn-block"
+              <Button
+                type="submit"
+                variant="contained"
+                size="large"
+                fullWidth
                 disabled={loading}
+                startIcon={loading ? <CircularProgress color="inherit" size={18} /> : null}
+                sx={{ py: 1.35, fontSize: 15 }}
               >
-                {loading
-                  ? <><i className="fas fa-spinner fa-spin mr-2"></i> Creating account...</>
-                  : "Register"}
-              </button>
+                {loading ? "Creating account..." : "Register"}
+              </Button>
+            </Box>
 
-            </form>
+            <Typography variant="body2" sx={{ color: 'text.secondary', textAlign: 'center', mt: 4 }}>
+              Already have an account?{' '}
+              <MuiLink component={Link} to="/login" underline="hover" sx={{ fontWeight: 700 }}>
+                Sign in
+              </MuiLink>
+            </Typography>
+          </Box>
 
-            <div className="text-center mt-3">
-              <span className="text-muted">Already have an account? </span>
-              <Link to="/login" className="text-primary">Sign in</Link>
-            </div>
-
-          </div>
-        </div>
-
-        {/* Footer */}
-        <div className="text-center mt-3 text-white-50 small">
-          © {new Date().getFullYear()} CRM System
-        </div>
-
-      </div>
-    </div>
+          {/* Footer */}
+          <Typography variant="caption" sx={{ display: 'block', color: 'text.secondary', textAlign: 'center', mt: 6 }}>
+            © {new Date().getFullYear()} Sarth. All rights reserved.
+          </Typography>
+        </Box>
+      </Box>
+    </Box>
   );
 }

@@ -1,7 +1,43 @@
-import { useEffect, useMemo, useReducer, useState } from "react";
+import { useCallback, useEffect, useMemo, useReducer, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import DataTable from "react-data-table-component";
-import { Modal, Button, Form, Dropdown } from "react-bootstrap";
+import {
+  Alert,
+  Box,
+  Button,
+  Card,
+  CardContent,
+  Checkbox,
+  Chip,
+  CircularProgress,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  Divider,
+  FormControl,
+  FormControlLabel,
+  IconButton,
+  InputAdornment,
+  InputLabel,
+  LinearProgress,
+  ListItemText,
+  Menu,
+  MenuItem,
+  Select,
+  Stack,
+  Switch,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TablePagination,
+  TableRow,
+  TableSortLabel,
+  TextField,
+  Tooltip,
+  Typography,
+} from "@mui/material";
 import Swal from "sweetalert2";
 import { toast } from "react-toastify";
 import api from "../api";
@@ -10,6 +46,17 @@ function getNum(v, d) {
   const n = Number(v);
   return Number.isFinite(n) && n > 0 ? n : d;
 }
+
+const toArray = (value) => {
+  if (Array.isArray(value)) return value;
+  if (Array.isArray(value?.data)) return value.data;
+  if (Array.isArray(value?.data?.data)) return value.data.data;
+  if (Array.isArray(value?.items)) return value.items;
+  if (Array.isArray(value?.results)) return value.results;
+  return [];
+};
+
+const strVal = (v) => (v === "" || v == null ? "" : String(v));
 
 function tableReducer(state, action) {
   switch (action.type) {
@@ -25,6 +72,52 @@ function tableReducer(state, action) {
       return state;
   }
 }
+
+const cardSx = {
+  border: '1px solid',
+  borderColor: 'divider',
+  borderRadius: 3,
+  boxShadow: '0 8px 24px rgba(28,37,46,.05)',
+};
+
+const headCellSx = {
+  color: 'text.secondary',
+  fontSize: 12,
+  fontWeight: 700,
+  textTransform: 'uppercase',
+  letterSpacing: '.04em',
+  px: 2,
+  py: 1.5,
+  borderBottom: '1px solid',
+  borderColor: 'divider',
+};
+
+const bodyCellSx = {
+  verticalAlign: 'middle',
+  px: 2,
+  py: 1.5,
+  borderBottom: '1px solid #f1f5f9',
+};
+
+const dialogPaperSx = {
+  borderRadius: 3,
+  boxShadow: '0 8px 24px rgba(28,37,46,.12)',
+};
+
+const actionBtnSx = { border: '1px solid', borderColor: 'divider' };
+
+const statusChipSx = (active) => (active
+  ? { bgcolor: '#dbf5e9', color: '#118d57', fontWeight: 700 }
+  : { bgcolor: '#f1f5f9', color: '#475569', fontWeight: 700 });
+
+const visibleColumnOptions = [
+  ['id', 'ID'],
+  ['name', 'Name'],
+  ['state', 'State'],
+  ['pincode', 'Pincode'],
+  ['status', 'Status'],
+  ['action', 'Action'],
+];
 
 export default function City() {
 
@@ -51,12 +144,23 @@ export default function City() {
 
   const [searchInput, setSearchInput] = useState(initialTable.search);
 
+  const [columnAnchorEl, setColumnAnchorEl] = useState(null);
+
   const [visibleCols, setVisibleCols] = useState(() => {
     const saved = localStorage.getItem('city-visible-cols');
     if (saved) {
       try {
         return JSON.parse(saved);
-      } catch {}
+      } catch {
+        return {
+          id: true,
+          name: true,
+          state: true,
+          pincode: true,
+          status: true,
+          action: true,
+        };
+      }
     }
     return {
       id: true,
@@ -109,7 +213,7 @@ export default function City() {
     return () => clearTimeout(t);
   }, [searchInput, table.search]);
 
-  const load = async (signal) => {
+  const load = useCallback(async (signal) => {
     try {
       setLoading(true);
       const r = await api.get("/cities", {
@@ -147,7 +251,7 @@ export default function City() {
         params: { perPage: 1000 },
         signal,
       });
-      setStates(Array.isArray(statesRes.data?.data) ? statesRes.data.data : []);
+      setStates(toArray(statesRes.data));
     } catch {
       setServerMode(false);
       setRawRows([]);
@@ -157,27 +261,29 @@ export default function City() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [table]);
 
   useEffect(() => {
     const controller = new AbortController();
     load(controller.signal);
     return () => controller.abort();
-  }, [reloadKey, table]);
+  }, [load, reloadKey]);
+
+  const filteredRows = useMemo(() => {
+    if (serverMode) return [];
+
+    const q = table.search.trim().toLowerCase();
+    if (!q) return rawRows;
+    return rawRows.filter(r => (r?.name ?? "").toLowerCase().includes(q));
+  }, [rawRows, serverMode, table.search]);
 
   const clientRows = useMemo(() => {
     if (serverMode) return [];
 
-    let data = rawRows;
-    const q = table.search.trim().toLowerCase();
-    if (q) {
-      data = data.filter(r => (r?.name ?? "").toLowerCase().includes(q));
-    }
-
     const dir = table.sortDir === "asc" ? 1 : -1;
     const field = table.sortField;
 
-    const sorted = [...data].sort((a, b) => {
+    const sorted = [...filteredRows].sort((a, b) => {
       const av = a?.[field];
       const bv = b?.[field];
 
@@ -195,23 +301,14 @@ export default function City() {
     const start = (table.page - 1) * table.perPage;
     const end = start + table.perPage;
     return sorted.slice(start, end);
-  }, [rawRows, serverMode, table.page, table.perPage, table.search, table.sortDir, table.sortField]);
+  }, [filteredRows, serverMode, table.page, table.perPage, table.sortDir, table.sortField]);
 
-  useEffect(() => {
-    if (serverMode) return;
-
-    const q = table.search.trim().toLowerCase();
-    const filtered = q
-      ? rawRows.filter(r => (r?.name ?? "").toLowerCase().includes(q))
-      : rawRows;
-
-    setTotal(filtered.length);
-    setRows(clientRows);
-  }, [clientRows, rawRows, serverMode, table.search]);
+  const displayRows = serverMode ? rows : clientRows;
+  const displayTotal = serverMode ? total : filteredRows.length;
 
   // ================= MODAL =================
 
-  const openAdd = ()=>{
+  const openAdd = () => {
     setEdit(null);
     setName("");
     setStateId("");
@@ -221,10 +318,10 @@ export default function City() {
     setShow(true);
   };
 
-  const openEdit = (r)=>{
+  const openEdit = (r) => {
     setEdit(r);
     setName(r.name);
-    setStateId(r.state_id);
+    setStateId(strVal(r.state_id));
     setPincode(r.pincode || "");
     setStatus(r.status === 1 || r.status === true);
     setErr("");
@@ -272,10 +369,10 @@ export default function City() {
       setReloadKey(k => k + 1);
       toast.success("City saved successfully");
 
-    } catch(e) {
+    } catch (e) {
 
-      const msg = e.response?.data?.errors?.name?.[0] ?? 
-                  e.response?.data?.errors?.state_id?.[0] ?? 
+      const msg = e.response?.data?.errors?.name?.[0] ??
+                  e.response?.data?.errors?.state_id?.[0] ??
                   e.response?.data?.message ??
                   "Save failed";
       toast.error(msg);
@@ -305,287 +402,299 @@ export default function City() {
     });
   };
 
+  const handleDialogClose = (event, reason) => {
+    if (reason === 'backdropClick') return;
+    setShow(false);
+  };
+
   // ================= TABLE =================
 
-  const cols = useMemo(() => {
-    const all = [
-      visibleCols.id && {
-        name: "ID",
-        selector: r => r.id,
-        sortable: true,
-        sortField: "id",
-        width: "100px",
-      },
-      visibleCols.name && {
-        name: "Name",
-        selector: r => r.name,
-        sortable: true,
-        sortField: "name",
-      },
-      visibleCols.state && {
-        name: "State",
-        selector: r => r.state?.name,
-        sortable: true,
-        sortField: "state.name",
-      },
-      visibleCols.pincode && {
-        name: "Pincode",
-        selector: r => r.pincode || "-",
-        sortable: true,
-        sortField: "pincode",
-        width: "120px",
-      },
-      visibleCols.status && {
-        name: "Status",
-        selector: r => (
-          <span className={`badge ${r.status ? 'bg-success' : 'bg-secondary'}`}>
-            {r.status ? 'Active' : 'Inactive'}
-          </span>
-        ),
-        sortable: true,
-        sortField: "status",
-        width: "100px",
-      },
-      visibleCols.action && {
-        name: "Action",
-        width: "140px",
-        cell: r => (
-          <div className="btn-group btn-group-sm">
-            <button
-              className="btn btn-outline-primary"
-              onClick={() => openEdit(r)}
-            >
-              <i className="fas fa-edit"></i>
-            </button>
-            <button
-              className="btn btn-outline-danger"
-              onClick={() => del(r)}
-            >
-              <i className="fas fa-trash"></i>
-            </button>
-          </div>
-        ),
-      },
-    ];
+  const columns = [
+    visibleCols.id && {
+      key: 'id', label: 'ID', sortField: 'id', width: 90,
+      render: (row) => <Typography variant="body2" sx={{ fontWeight: 700 }}>#{row.id}</Typography>,
+    },
+    visibleCols.name && {
+      key: 'name', label: 'Name', sortField: 'name', minWidth: 160,
+      render: (row) => row.name || '-',
+    },
+    visibleCols.state && {
+      key: 'state', label: 'State', sortField: 'state.name', minWidth: 140,
+      render: (row) => row.state?.name || '-',
+    },
+    visibleCols.pincode && {
+      key: 'pincode', label: 'Pincode', sortField: 'pincode', width: 110,
+      render: (row) => row.pincode || '-',
+    },
+    visibleCols.status && {
+      key: 'status', label: 'Status', sortField: 'status', width: 110,
+      render: (row) => <Chip label={row.status ? 'Active' : 'Inactive'} size="small" sx={statusChipSx(Boolean(row.status))} />,
+    },
+    visibleCols.action && {
+      key: 'action', label: 'Action', width: 110, align: 'right',
+      render: (row) => (
+        <Stack direction="row" spacing={0.5} justifyContent="flex-end">
+          <Tooltip title="Edit">
+            <IconButton size="small" onClick={() => openEdit(row)} sx={actionBtnSx} aria-label="Edit city">
+              <i className="fas fa-edit" style={{ fontSize: 13 }} aria-hidden="true" />
+            </IconButton>
+          </Tooltip>
+          <Tooltip title="Delete">
+            <IconButton size="small" onClick={() => del(row)} sx={{ ...actionBtnSx, color: 'error.main' }} aria-label="Delete city">
+              <i className="fas fa-trash" style={{ fontSize: 13 }} aria-hidden="true" />
+            </IconButton>
+          </Tooltip>
+        </Stack>
+      ),
+    },
+  ].filter(Boolean);
 
-    return all.filter(Boolean);
-  }, [visibleCols]);
+  const shownColumnCount = visibleColumnOptions.filter(([key]) => visibleCols[key]).length;
+
+  const handleSort = (field) => {
+    const isAsc = table.sortField === field && table.sortDir === 'asc';
+    dispatch({ type: 'SORT', field, dir: isAsc ? 'desc' : 'asc' });
+  };
 
   // ================= UI =================
 
   return (
-    <div className="card card-outline card-primary">
+    <Box>
 
-      <div className="card-header">
-        <div className="row g-2 align-items-center">
-
-          <div className="col-12 col-md-6">
-            <h3 className="card-title">Cities</h3>
-          </div>
-
-          <div className="col-12 col-md-6">
-            <div className="d-flex gap-2 flex-wrap justify-content-md-end">
-              <input
-                className="form-control form-control-sm"
-                style={{ maxWidth: 220 }}
+      <Card sx={cardSx}>
+        <CardContent sx={{ p: 3 }}>
+          <Box sx={{ display: 'flex', alignItems: { md: 'center' }, justifyContent: 'space-between', flexDirection: { xs: 'column', md: 'row' }, gap: 2 }}>
+            <Box>
+              <Typography variant="h4" sx={{ color: 'text.primary', fontWeight: 700 }}>
+                Cities
+              </Typography>
+              <Typography variant="body2" sx={{ color: 'text.secondary', mt: .5 }}>
+                {displayTotal} total cities
+              </Typography>
+            </Box>
+            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} alignItems={{ sm: 'center' }}>
+              <TextField
+                size="small"
                 placeholder="Search..."
                 value={searchInput}
                 onChange={e => setSearchInput(e.target.value)}
+                sx={{ minWidth: { xs: '100%', sm: 240 } }}
+                slotProps={{
+                  input: {
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <i className="fas fa-search" style={{ fontSize: 13 }} aria-hidden="true" />
+                      </InputAdornment>
+                    ),
+                  },
+                }}
               />
+              <Button variant="contained" onClick={openAdd} startIcon={<i className="fas fa-plus" aria-hidden="true" />}>
+                Add
+              </Button>
+            </Stack>
+          </Box>
+        </CardContent>
 
-              <button
-                className="btn btn-primary btn-sm"
-                onClick={openAdd}
-              >
-                <i className="fas fa-plus"></i> Add
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
+        <Divider />
+        <Box sx={{ px: 3, py: 1.5, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 2, flexWrap: 'wrap' }}>
+          <Stack direction="row" spacing={1.5} alignItems="center">
+            <Typography variant="body2" sx={{ color: 'text.secondary', fontWeight: 700 }}>
+              Columns:
+            </Typography>
+            <Button
+              variant="text"
+              size="small"
+              onClick={(event) => setColumnAnchorEl(event.currentTarget)}
+              startIcon={<i className="fas fa-columns" aria-hidden="true" />}
+            >
+              {shownColumnCount === 0 ? 'No columns' : shownColumnCount === visibleColumnOptions.length ? `All columns (${visibleColumnOptions.length})` : `${shownColumnCount} of ${visibleColumnOptions.length} columns`}
+            </Button>
+            <Menu anchorEl={columnAnchorEl} open={Boolean(columnAnchorEl)} onClose={() => setColumnAnchorEl(null)}>
+              {visibleColumnOptions.map(([key, label]) => (
+                <MenuItem key={key} onClick={() => setVisibleCols(v => ({ ...v, [key]: !v[key] }))}>
+                  <Checkbox checked={Boolean(visibleCols[key])} size="small" />
+                  <ListItemText primary={label} />
+                </MenuItem>
+              ))}
+            </Menu>
+          </Stack>
+          <Button
+            variant="outlined"
+            size="small"
+            onClick={() => setReloadKey(k => k + 1)}
+            disabled={loading}
+            startIcon={<i className="fas fa-sync-alt" aria-hidden="true" />}
+          >
+            Refresh
+          </Button>
+        </Box>
 
-      <div className="p-2 border-bottom bg-light">
-        <div className="d-flex align-items-center gap-2 flex-wrap">
-          <span className="text-muted small fw-bold">Show columns:</span>
+        {loading && <LinearProgress />}
+        <TableContainer sx={{ overflowX: 'auto' }}>
+          <Table sx={{ minWidth: 760 }} size="small">
+            <TableHead>
+              <TableRow sx={{ bgcolor: '#f8fafc' }}>
+                {columns.map((column) => (
+                  <TableCell
+                    key={column.key}
+                    align={column.align || 'left'}
+                    sx={{ ...headCellSx, minWidth: column.minWidth, width: column.width }}
+                  >
+                    {column.sortField ? (
+                      <TableSortLabel
+                        active={table.sortField === column.sortField}
+                        direction={table.sortField === column.sortField ? table.sortDir : 'asc'}
+                        onClick={() => handleSort(column.sortField)}
+                      >
+                        {column.label}
+                      </TableSortLabel>
+                    ) : column.label}
+                  </TableCell>
+                ))}
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {displayRows.length === 0 && !loading ? (
+                <TableRow>
+                  <TableCell colSpan={Math.max(columns.length, 1)} align="center" sx={{ py: 7 }}>
+                    <i className="fas fa-folder-open" style={{ color: '#637381', fontSize: 42, opacity: .4 }} aria-hidden="true" />
+                    <Typography variant="subtitle2" sx={{ color: 'text.secondary', mt: 1.5 }}>
+                      No data found
+                    </Typography>
+                    <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                      Try adjusting your filters or check back later
+                    </Typography>
+                  </TableCell>
+                </TableRow>
+              ) : displayRows.map((row) => (
+                <TableRow
+                  key={row.id}
+                  hover
+                  sx={{
+                    '&:hover': { bgcolor: 'rgba(6,40,73,.035)' },
+                    '&:last-child td': { borderBottom: 0 },
+                  }}
+                >
+                  {columns.map((column) => (
+                    <TableCell
+                      key={`${row.id}-${column.key}`}
+                      align={column.align || 'left'}
+                      sx={bodyCellSx}
+                    >
+                      {column.render(row)}
+                    </TableCell>
+                  ))}
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </TableContainer>
 
-          <Dropdown>
-            <Dropdown.Toggle variant="outline-secondary" size="sm" id="citycol-toggle">
-              <i className="fas fa-columns me-1"></i>
-              {[
-                visibleCols.id && 'ID',
-                visibleCols.name && 'Name',
-                visibleCols.state && 'State',
-                visibleCols.pincode && 'Pincode',
-                visibleCols.status && 'Status'
-              ].filter(Boolean).join(', ') || 'None'}
-            </Dropdown.Toggle>
-
-            <Dropdown.Menu>
-              <Dropdown.Item
-                active={visibleCols.id}
-                onClick={() => setVisibleCols(v => ({ ...v, id: !v.id }))}
-              >
-                <i className={`fas ${visibleCols.id ? 'fa-check-square text-primary' : 'fa-square'} me-2`}></i>
-                ID
-              </Dropdown.Item>
-              <Dropdown.Item
-                active={visibleCols.name}
-                onClick={() => setVisibleCols(v => ({ ...v, name: !v.name }))}
-              >
-                <i className={`fas ${visibleCols.name ? 'fa-check-square text-primary' : 'fa-square'} me-2`}></i>
-                Name
-              </Dropdown.Item>
-              <Dropdown.Item
-                active={visibleCols.state}
-                onClick={() => setVisibleCols(v => ({ ...v, state: !v.state }))}
-              >
-                <i className={`fas ${visibleCols.state ? 'fa-check-square text-primary' : 'fa-square'} me-2`}></i>
-                State
-              </Dropdown.Item>
-              <Dropdown.Item
-                active={visibleCols.pincode}
-                onClick={() => setVisibleCols(v => ({ ...v, pincode: !v.pincode }))}
-              >
-                <i className={`fas ${visibleCols.pincode ? 'fa-check-square text-primary' : 'fa-square'} me-2`}></i>
-                Pincode
-              </Dropdown.Item>
-              <Dropdown.Item
-                active={visibleCols.status}
-                onClick={() => setVisibleCols(v => ({ ...v, status: !v.status }))}
-              >
-                <i className={`fas ${visibleCols.status ? 'fa-check-square text-primary' : 'fa-square'} me-2`}></i>
-                Status
-              </Dropdown.Item>
-            </Dropdown.Menu>
-          </Dropdown>
-        </div>
-      </div>
-
-      <div className="card-body p-0">
-        <DataTable
-          className="modern-datatable"
-          keyField="id"
-          columns={cols}
-          data={rows}
-          progressPending={loading}
-          progressComponent={<div className="p-4 text-center"><div className="spinner-border spinner-border-sm me-2"></div>Loading...</div>}
-persistTableHead
-          pagination
-          paginationServer
-          paginationTotalRows={total}
-          paginationPerPage={table.perPage}
-          onChangePage={(p) => {
-            if (p !== table.page) {
-              dispatch({ type: "PAGE", page: p });
-            }
+        <TablePagination
+          component="div"
+          count={displayTotal}
+          page={Math.max(table.page - 1, 0)}
+          rowsPerPage={table.perPage}
+          rowsPerPageOptions={[10, 25, 50, 100]}
+          onPageChange={(event, page) => {
+            const nextPage = page + 1;
+            if (nextPage !== table.page) dispatch({ type: 'PAGE', page: nextPage });
           }}
-          onChangeRowsPerPage={(n) => {
-            if (n !== table.perPage) {
-              dispatch({ type: "PER_PAGE", perPage: n });
-            }
+          onRowsPerPageChange={(event) => {
+            const nextSize = Number(event.target.value);
+            if (nextSize !== table.perPage) dispatch({ type: 'PER_PAGE', perPage: nextSize });
           }}
-          sortServer
-          onSort={(col, dir) => {
-            if (col.sortField) {
-              dispatch({ type: "SORT", field: col.sortField, dir });
-            }
-          }}
-          striped
-          highlightOnHover
-          dense
-          noDataComponent={
-            <div className="p-5 text-center">
-              <i className="fas fa-folder-open text-muted mb-3" style={{ fontSize: 48, opacity: 0.4 }}></i>
-              <div className="fw-semibold text-secondary mb-1">No data found</div>
-              <div className="small text-muted">Try adjusting your filters or check back later</div>
-            </div>
-          }
+          sx={{ borderTop: '1px solid', borderColor: 'divider' }}
         />
-      </div>
+      </Card>
 
 
       {/* ================= MODAL ================= */}
 
-      <Modal show={show} onHide={() => setShow(false)} backdrop="static">
-        <Modal.Header closeButton>
-          <Modal.Title>
-            {edit?"Edit":"Add"} City
-          </Modal.Title>
-        </Modal.Header>
+      <Dialog
+        open={show}
+        onClose={handleDialogClose}
+        maxWidth="sm"
+        fullWidth
+        slotProps={{ paper: { sx: dialogPaperSx } }}
+      >
+        <DialogTitle sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 2, py: 2 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25 }}>
+            <i className={`fas ${edit ? 'fa-edit' : 'fa-plus'}`} style={{ color: '#062849', fontSize: 15 }} aria-hidden="true" />
+            <Typography variant="h6" sx={{ fontWeight: 700 }}>
+              {edit ? "Edit" : "Add"} City
+            </Typography>
+          </Box>
+          <IconButton size="small" onClick={() => setShow(false)} aria-label="Close">
+            <i className="fas fa-times" style={{ fontSize: 14 }} aria-hidden="true" />
+          </IconButton>
+        </DialogTitle>
 
-        <Modal.Body>
-          <Form.Label>State</Form.Label>
-          <Form.Select
-            value={stateId}
-            onChange={e=>setStateId(e.target.value)}
-          >
-            <option value="">Select State</option>
-            {states.map(s=>(
-              <option key={s.id} value={s.id}>
-                {s.name}
-              </option>
-            ))}
-          </Form.Select>
+        <DialogContent dividers sx={{ p: 3 }}>
+          <Stack spacing={2.5}>
+            <FormControl size="small" fullWidth>
+              <InputLabel id="city-state-label">State</InputLabel>
+              <Select
+                labelId="city-state-label"
+                label="State"
+                value={strVal(stateId)}
+                onChange={e => setStateId(e.target.value)}
+              >
+                <MenuItem value=""><em>Select State</em></MenuItem>
+                {states.map(s => (
+                  <MenuItem key={s.id} value={String(s.id)}>
+                    {s.name}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
 
-          <Form.Label className="mt-2">
-            Name
-          </Form.Label>
+            <TextField
+              size="small"
+              label="Name"
+              value={name}
+              onChange={e => setName(e.target.value)}
+              fullWidth
+            />
 
-          <Form.Control
-            value={name}
-            onChange={e=>setName(e.target.value)}
-          />
+            <TextField
+              size="small"
+              label="Pincode"
+              placeholder="Enter pincode (optional)"
+              value={pincode}
+              onChange={e => setPincode(e.target.value)}
+              fullWidth
+            />
 
-          <Form.Label className="mt-2">
-            Pincode
-          </Form.Label>
+            <FormControlLabel
+              control={<Switch checked={status} onChange={e => setStatus(e.target.checked)} />}
+              label="Active"
+            />
 
-          <Form.Control
-            value={pincode}
-            onChange={e=>setPincode(e.target.value)}
-            placeholder="Enter pincode (optional)"
-          />
+            {err && (
+              <Alert severity="error" sx={{ borderRadius: 2 }}>
+                {err}
+              </Alert>
+            )}
+          </Stack>
+        </DialogContent>
 
-          <Form.Check
-            type="switch"
-            id="city-status-switch"
-            label="Active"
-            checked={status}
-            onChange={e=>setStatus(e.target.checked)}
-            className="mt-3"
-          />
-
-          {err && (
-            <div className="text-danger mt-2">
-              {err}
-            </div>
-          )}
-
-        </Modal.Body>
-
-        <Modal.Footer>
-
-          <Button
-            variant="secondary"
-            onClick={()=>setShow(false)}
-          >
+        <DialogActions sx={{ px: 3, py: 2 }}>
+          <Button variant="outlined" color="inherit" onClick={() => setShow(false)} disabled={saving}>
             Cancel
           </Button>
-
           <Button
-            variant="primary"
+            variant="contained"
             onClick={save}
             disabled={saving}
+            startIcon={saving ? <CircularProgress size={16} color="inherit" /> : null}
           >
-            {saving && (
-              <span className="spinner-border spinner-border-sm me-2"/>
-            )}
-            Save
+            {saving ? "Saving..." : "Save"}
           </Button>
+        </DialogActions>
+      </Dialog>
 
-        </Modal.Footer>
-      </Modal>
-
-    </div>
+    </Box>
   );
 }

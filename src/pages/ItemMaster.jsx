@@ -1,7 +1,40 @@
-import { useEffect, useMemo, useReducer, useState, useCallback } from "react";
+import { useCallback, useEffect, useReducer, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import DataTable from "react-data-table-component";
-import { Modal, Button, Form, Dropdown, Row, Col, Table, Badge } from "react-bootstrap";
+import {
+  Box,
+  Button,
+  Card,
+  CardContent,
+  Checkbox,
+  Chip,
+  CircularProgress,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  Divider,
+  FormControl,
+  IconButton,
+  InputAdornment,
+  InputLabel,
+  LinearProgress,
+  ListItemText,
+  Menu,
+  MenuItem,
+  Select,
+  Stack,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TablePagination,
+  TableRow,
+  TableSortLabel,
+  TextField,
+  Tooltip,
+  Typography,
+} from "@mui/material";
 import Swal from "sweetalert2";
 import { toast } from "react-toastify";
 import api from "../api";
@@ -21,6 +54,67 @@ const getNum = (v, fallback = 1) => {
   return isNaN(n) || n < 1 ? fallback : n;
 };
 
+const toArray = (value) => {
+  if (Array.isArray(value)) return value;
+  if (Array.isArray(value?.data)) return value.data;
+  if (Array.isArray(value?.data?.data)) return value.data.data;
+  if (Array.isArray(value?.items)) return value.items;
+  if (Array.isArray(value?.results)) return value.results;
+  return [];
+};
+
+const strVal = (v) => (v === "" || v == null ? "" : String(v));
+
+const cardSx = {
+  border: '1px solid',
+  borderColor: 'divider',
+  borderRadius: 3,
+  boxShadow: '0 8px 24px rgba(28,37,46,.05)',
+};
+
+const headCellSx = {
+  color: 'text.secondary',
+  fontSize: 12,
+  fontWeight: 700,
+  textTransform: 'uppercase',
+  letterSpacing: '.04em',
+  px: 2,
+  py: 1.5,
+  borderBottom: '1px solid',
+  borderColor: 'divider',
+};
+
+const bodyCellSx = {
+  verticalAlign: 'middle',
+  px: 2,
+  py: 1.5,
+  borderBottom: '1px solid #f1f5f9',
+};
+
+const dialogPaperSx = {
+  borderRadius: 3,
+  boxShadow: '0 8px 24px rgba(28,37,46,.12)',
+};
+
+const actionBtnSx = { border: '1px solid', borderColor: 'divider' };
+
+const formGridSx = {
+  display: 'grid',
+  gridTemplateColumns: { xs: '1fr', md: 'repeat(2, 1fr)' },
+  gap: 2,
+};
+
+const visibleColumnOptions = [
+  ['id', 'ID'],
+  ['name', 'Name'],
+  ['sku', 'SKU'],
+  ['unit', 'Unit'],
+  ['price', 'Price'],
+  ['stock', 'Stock'],
+  ['tax', 'Tax'],
+  ['action', 'Action'],
+];
+
 export default function ItemMaster() {
   const [params, setParams] = useSearchParams();
   const initialTable = {
@@ -36,6 +130,7 @@ export default function ItemMaster() {
   const [loading, setLoading] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
   const [searchInput, setSearchInput] = useState(initialTable.search);
+  const [columnAnchorEl, setColumnAnchorEl] = useState(null);
 
   const [warehouses, setWarehouses] = useState([]);
   const [units, setUnits] = useState([]);
@@ -47,7 +142,9 @@ export default function ItemMaster() {
 
   const [visibleCols, setVisibleCols] = useState(() => {
     const saved = localStorage.getItem('item-visible-cols');
-    if (saved) { try { return JSON.parse(saved); } catch {} }
+    if (saved) { try { return JSON.parse(saved); } catch {
+      return { id: true, name: true, sku: true, unit: true, price: true, stock: true, tax: true, action: true };
+    } }
     return { id: true, name: true, sku: true, unit: true, price: true, stock: true, tax: true, action: true };
   });
 
@@ -79,21 +176,21 @@ export default function ItemMaster() {
     return () => clearTimeout(t);
   }, [searchInput, table.search]);
 
-  const loadTable = async (signal) => {
+  const loadTable = useCallback(async (signal) => {
     try {
       setLoading(true);
       const res = await api.get("/items", { params: table, signal });
-      setRows(res.data.data || []);
-      setTotal(res.data.total || 0);
+      setRows(toArray(res.data));
+      setTotal(Number(res.data?.total ?? res.data?.data?.total) || 0);
     } catch {
       setRows([]); setTotal(0);
       toast.error("Failed to load items");
     } finally {
       setLoading(false);
     }
-  };
+  }, [table]);
 
-  const loadDropdowns = async (signal) => {
+  const loadDropdowns = useCallback(async (signal) => {
     const [unitsRes, taxesRes, warehousesRes] = await Promise.allSettled([
       api.get("/units", { params: { perPage: 200 }, signal }),
       api.get("/taxes", { params: { perPage: 200 }, signal }),
@@ -101,29 +198,29 @@ export default function ItemMaster() {
     ]);
 
     if (unitsRes.status === 'fulfilled') {
-      setUnits(unitsRes.value.data.data || []);
+      setUnits(toArray(unitsRes.value.data));
     } else { setUnits([]); toast.error("Failed to load units"); }
 
     if (taxesRes.status === 'fulfilled') {
-      setTaxes(taxesRes.value.data.data || []);
+      setTaxes(toArray(taxesRes.value.data));
     } else { setTaxes([]); toast.error("Failed to load taxes"); }
 
     if (warehousesRes.status === 'fulfilled') {
-      setWarehouses(warehousesRes.value.data.data || []);
+      setWarehouses(toArray(warehousesRes.value.data));
     } else { setWarehouses([]); }
-  };
+  }, []);
 
   useEffect(() => {
     const controller = new AbortController();
     loadTable(controller.signal);
     return () => controller.abort();
-  }, [table, reloadKey]);
+  }, [loadTable, reloadKey]);
 
   useEffect(() => {
     const controller = new AbortController();
     loadDropdowns(controller.signal);
     return () => controller.abort();
-  }, [reloadKey]);
+  }, [loadDropdowns, reloadKey]);
 
   const openAdd = () => {
     setEditRow(null);
@@ -131,16 +228,16 @@ export default function ItemMaster() {
     setShow(true);
   };
 
-  const openEdit = useCallback((row) => {
+  const openEdit = (row) => {
     setEditRow(row);
     setForm({
-      name: row.name || "", sku: row.sku || "", unit_id: row.unit_id || "",
-      tax_id: row.tax_id || "", purchase_price: row.purchase_price || "",
+      name: row.name || "", sku: row.sku || "", unit_id: strVal(row.unit_id),
+      tax_id: strVal(row.tax_id), purchase_price: row.purchase_price || "",
       sale_price: row.sale_price || "", opening_stock: row.opening_stock || "0",
       min_stock: row.min_stock || "0"
     });
     setShow(true);
-  }, []);
+  };
 
   const save = async () => {
     if (!form.name.trim()) {
@@ -168,21 +265,21 @@ export default function ItemMaster() {
     }
   };
 
-  const openWarehouseStock = useCallback(async (row) => {
+  const openWarehouseStock = async (row) => {
     setSelectedItem(row);
     setShowStockModal(true);
     setLoadingStock(true);
     try {
       const res = await api.get(`/items/${row.id}/warehouse-stock`);
-      setItemWarehouseStocks(res.data.data || []);
+      setItemWarehouseStocks(toArray(res.data));
     } catch {
       setItemWarehouseStocks([]);
     } finally {
       setLoadingStock(false);
     }
-  }, []);
+  };
 
-  const remove = useCallback((row) => {
+  const remove = (row) => {
     Swal.fire({
       title: "Delete item?",
       text: `Remove "${row.name}"?`,
@@ -195,225 +292,430 @@ export default function ItemMaster() {
         toast.success("Item deleted");
       } catch { toast.error("Delete failed"); }
     });
-  }, []);
+  };
 
-  const updateField = useCallback((field, value) => setForm(f => ({ ...f, [field]: value })), []);
+  const updateField = (field, value) => setForm(f => ({ ...f, [field]: value }));
 
-  const columns = useMemo(() => {
-    const all = [
-      visibleCols.id && { name: "ID", selector: r => r.id, sortable: true, sortField: "id", width: "70px" },
-      visibleCols.name && { name: "Item Name", selector: r => r.name, sortable: true, sortField: "name" },
-      visibleCols.sku && { name: "SKU/Code", selector: r => r.sku, sortable: true, sortField: "sku", width: "120px" },
-      visibleCols.unit && { name: "Unit", selector: r => r.unit?.symbol || r.unit?.name, sortable: true, sortField: "unit_id", width: "80px" },
-      visibleCols.price && { name: "Sale Price", selector: r => `₹${r.sale_price}`, sortable: true, sortField: "sale_price", width: "100px" },
-      visibleCols.stock && { name: "Stock", selector: r => r.current_stock || 0, sortable: true, sortField: "current_stock", width: "80px", cell: row => (
-        <div className="d-flex align-items-center gap-2">
-          <span>{row.current_stock || 0}</span>
-          <button className="btn btn-link btn-sm p-0 text-primary" onClick={(e) => { e.stopPropagation(); openWarehouseStock(row); }} title="View Godown-wise Stock">
-            <i className="fas fa-warehouse"></i>
-          </button>
-        </div>
-      ) },
-      visibleCols.tax && { name: "Tax", selector: r => r.tax ? `${r.tax.name} (${r.tax.percentage}%)` : '-', sortable: true, sortField: "tax_id", width: "120px" },
-      visibleCols.action && {
-        name: "Action", width: "120px",
-        cell: row => (
-          <div className="btn-group btn-group-sm">
-            <button className="btn btn-outline-primary" onClick={() => openEdit(row)}><i className="fas fa-edit"></i></button>
-            <button className="btn btn-outline-danger" onClick={() => remove(row)}><i className="fas fa-trash"></i></button>
-          </div>
-        ),
-      },
-    ];
-    return all.filter(Boolean);
-  }, [visibleCols, openEdit, openWarehouseStock, remove]);
+  const handleDialogClose = (event, reason) => {
+    if (reason === 'backdropClick') return;
+    setShow(false);
+  };
 
-  const stockStatus = useCallback((row) => {
-    const stock = row.current_stock || 0;
-    const min = row.min_stock || 0;
-    if (stock <= 0) return <span className="badge bg-danger">Out of Stock</span>;
-    if (stock <= min) return <span className="badge bg-warning text-dark">Low Stock</span>;
-    return <span className="badge bg-success">In Stock</span>;
-  }, []);
+  const columns = [
+    visibleCols.id && {
+      key: 'id', label: 'ID', sortField: 'id', width: 90,
+      render: (row) => <Typography variant="body2" sx={{ fontWeight: 700 }}>#{row.id}</Typography>,
+    },
+    visibleCols.name && {
+      key: 'name', label: 'Item Name', sortField: 'name', minWidth: 170,
+      render: (row) => row.name || '-',
+    },
+    visibleCols.sku && {
+      key: 'sku', label: 'SKU/Code', sortField: 'sku', width: 120,
+      render: (row) => row.sku || '-',
+    },
+    visibleCols.unit && {
+      key: 'unit', label: 'Unit', sortField: 'unit_id', width: 90,
+      render: (row) => row.unit?.symbol || row.unit?.name || '-',
+    },
+    visibleCols.price && {
+      key: 'price', label: 'Sale Price', sortField: 'sale_price', width: 110,
+      render: (row) => `₹${row.sale_price}`,
+    },
+    visibleCols.stock && {
+      key: 'stock', label: 'Stock', sortField: 'current_stock', width: 110,
+      render: (row) => (
+        <Stack direction="row" spacing={0.5} alignItems="center">
+          <Typography variant="body2">{row.current_stock || 0}</Typography>
+          <Tooltip title="View Godown-wise Stock">
+            <IconButton size="small" onClick={(e) => { e.stopPropagation(); openWarehouseStock(row); }} sx={{ color: 'secondary.main' }} aria-label="View warehouse stock">
+              <i className="fas fa-warehouse" style={{ fontSize: 13 }} aria-hidden="true" />
+            </IconButton>
+          </Tooltip>
+        </Stack>
+      ),
+    },
+    visibleCols.tax && {
+      key: 'tax', label: 'Tax', sortField: 'tax_id', width: 130,
+      render: (row) => row.tax ? `${row.tax.name} (${row.tax.percentage}%)` : '-',
+    },
+    visibleCols.action && {
+      key: 'action', label: 'Action', width: 110, align: 'right',
+      render: (row) => (
+        <Stack direction="row" spacing={0.5} justifyContent="flex-end">
+          <Tooltip title="Edit">
+            <IconButton size="small" onClick={() => openEdit(row)} sx={actionBtnSx} aria-label="Edit item">
+              <i className="fas fa-edit" style={{ fontSize: 13 }} aria-hidden="true" />
+            </IconButton>
+          </Tooltip>
+          <Tooltip title="Delete">
+            <IconButton size="small" onClick={() => remove(row)} sx={{ ...actionBtnSx, color: 'error.main' }} aria-label="Delete item">
+              <i className="fas fa-trash" style={{ fontSize: 13 }} aria-hidden="true" />
+            </IconButton>
+          </Tooltip>
+        </Stack>
+      ),
+    },
+  ].filter(Boolean);
 
-  const progressComponent = useMemo(() => (
-    <div className="p-4 text-center"><div className="spinner-border spinner-border-sm me-2"></div>Loading...</div>
-  ), []);
+  const shownColumnCount = visibleColumnOptions.filter(([key]) => visibleCols[key]).length;
 
-  const noDataComponent = useMemo(() => (
-    <div className="p-5 text-center">
-      <i className="fas fa-folder-open text-muted mb-3" style={{ fontSize: 48, opacity: 0.4 }}></i>
-      <div className="fw-semibold text-secondary mb-1">No data found</div>
-      <div className="small text-muted">Try adjusting your filters or check back later</div>
-    </div>
-  ), []);
+  const handleSort = (field) => {
+    const isAsc = table.sortField === field && table.sortDir === 'asc';
+    dispatch({ type: 'SORT', field, dir: isAsc ? 'desc' : 'asc' });
+  };
 
   return (
-    <div className="card card-outline card-primary">
-      <div className="card-header">
-        <div className="row g-2 align-items-center">
-          <div className="col-12 col-md-6"><h3 className="card-title">Item Master</h3></div>
-          <div className="col-12 col-md-6">
-            <div className="d-flex gap-2 flex-wrap justify-content-md-end">
-              <input className="form-control form-control-sm" style={{ maxWidth: 220 }}
-                placeholder="Search items..." value={searchInput} onChange={e => setSearchInput(e.target.value)} />
-              <button className="btn btn-primary btn-sm" onClick={openAdd}><i className="fas fa-plus"></i> Add Item</button>
-            </div>
-          </div>
-        </div>
-      </div>
+    <Box>
+      <Card sx={cardSx}>
+        <CardContent sx={{ p: 3 }}>
+          <Box sx={{ display: 'flex', alignItems: { md: 'center' }, justifyContent: 'space-between', flexDirection: { xs: 'column', md: 'row' }, gap: 2 }}>
+            <Box>
+              <Typography variant="h4" sx={{ color: 'text.primary', fontWeight: 700 }}>
+                Item Master
+              </Typography>
+              <Typography variant="body2" sx={{ color: 'text.secondary', mt: .5 }}>
+                {total} total items
+              </Typography>
+            </Box>
+            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} alignItems={{ sm: 'center' }}>
+              <TextField
+                size="small"
+                placeholder="Search items..."
+                value={searchInput}
+                onChange={e => setSearchInput(e.target.value)}
+                sx={{ minWidth: { xs: '100%', sm: 240 } }}
+                slotProps={{
+                  input: {
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <i className="fas fa-search" style={{ fontSize: 13 }} aria-hidden="true" />
+                      </InputAdornment>
+                    ),
+                  },
+                }}
+              />
+              <Button variant="contained" onClick={openAdd} startIcon={<i className="fas fa-plus" aria-hidden="true" />}>
+                Add Item
+              </Button>
+            </Stack>
+          </Box>
+        </CardContent>
 
-      <div className="p-2 border-bottom bg-light">
-        <div className="d-flex align-items-center gap-2 flex-wrap">
-          <span className="text-muted small fw-bold">Show columns:</span>
-          <Dropdown>
-            <Dropdown.Toggle variant="outline-secondary" size="sm">
-              <i className="fas fa-columns me-1"></i>
-              {[visibleCols.id && 'ID', visibleCols.name && 'Name', visibleCols.sku && 'SKU', visibleCols.unit && 'Unit', visibleCols.price && 'Price', visibleCols.stock && 'Stock', visibleCols.tax && 'Tax'].filter(Boolean).join(', ') || 'None'}
-            </Dropdown.Toggle>
-            <Dropdown.Menu>
-              {['id','name','sku','unit','price','stock','tax'].map(col => (
-                <Dropdown.Item key={col} active={visibleCols[col]} onClick={() => setVisibleCols(v => ({ ...v, [col]: !v[col] }))}>
-                  <i className={`fas ${visibleCols[col] ? 'fa-check-square text-primary' : 'fa-square'} me-2`}></i>
-                  {col === 'sku' ? 'SKU' : col.charAt(0).toUpperCase() + col.slice(1)}
-                </Dropdown.Item>
+        <Divider />
+        <Box sx={{ px: 3, py: 1.5, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 2, flexWrap: 'wrap' }}>
+          <Stack direction="row" spacing={1.5} alignItems="center">
+            <Typography variant="body2" sx={{ color: 'text.secondary', fontWeight: 700 }}>
+              Columns:
+            </Typography>
+            <Button
+              variant="text"
+              size="small"
+              onClick={(event) => setColumnAnchorEl(event.currentTarget)}
+              startIcon={<i className="fas fa-columns" aria-hidden="true" />}
+            >
+              {shownColumnCount === 0 ? 'No columns' : shownColumnCount === visibleColumnOptions.length ? `All columns (${visibleColumnOptions.length})` : `${shownColumnCount} of ${visibleColumnOptions.length} columns`}
+            </Button>
+            <Menu anchorEl={columnAnchorEl} open={Boolean(columnAnchorEl)} onClose={() => setColumnAnchorEl(null)}>
+              {visibleColumnOptions.map(([key, label]) => (
+                <MenuItem key={key} onClick={() => setVisibleCols(v => ({ ...v, [key]: !v[key] }))}>
+                  <Checkbox checked={Boolean(visibleCols[key])} size="small" />
+                  <ListItemText primary={label} />
+                </MenuItem>
               ))}
-            </Dropdown.Menu>
-          </Dropdown>
-        </div>
-      </div>
-
-      <div className="card-body p-0">
-        <DataTable columns={columns} data={rows} progressPending={loading} persistTableHead
-          className="modern-datatable"
-          pagination paginationServer paginationTotalRows={total} paginationPerPage={table.perPage}
-          onChangePage={(p) => p !== table.page && dispatch({ type: "PAGE", page: p })}
-          onChangeRowsPerPage={(n) => n !== table.perPage && dispatch({ type: "PER_PAGE", perPage: n })}
-          sortServer onSort={(col, dir) => col.sortField && dispatch({ type: "SORT", field: col.sortField, dir })}
-          progressComponent={progressComponent}
-          noDataComponent={noDataComponent}
-          striped highlightOnHover dense keyField="id" />
-      </div>
-
-      <Modal show={show} onHide={() => setShow(false)} backdrop="static" size="lg">
-        <Modal.Header closeButton><Modal.Title>{editRow ? "Edit Item" : "Add Item"}</Modal.Title></Modal.Header>
-        <Modal.Body>
-          <Row>
-            <Col md={6}><Form.Group className="mb-3">
-              <Form.Label>Item Name <span className="text-danger">*</span></Form.Label>
-              <Form.Control value={form.name} onChange={e => updateField('name', e.target.value)} />
-            </Form.Group></Col>
-            <Col md={6}><Form.Group className="mb-3">
-              <Form.Label>SKU / Code</Form.Label>
-              <Form.Control value={form.sku} onChange={e => updateField('sku', e.target.value)} placeholder="Unique item code" />
-            </Form.Group></Col>
-          </Row>
-          <Row>
-            <Col md={6}><Form.Group className="mb-3">
-              <Form.Label>Unit <span className="text-danger">*</span></Form.Label>
-              <Form.Select value={form.unit_id} onChange={e => updateField('unit_id', e.target.value)}>
-                <option value="">Select Unit</option>
-                {units.map(u => <option key={u.id} value={u.id}>{u.name} ({u.symbol})</option>)}
-              </Form.Select>
-            </Form.Group></Col>
-            <Col md={6}><Form.Group className="mb-3">
-              <Form.Label>Tax</Form.Label>
-              <Form.Select value={form.tax_id} onChange={e => updateField('tax_id', e.target.value)}>
-                <option value="">No Tax</option>
-                {taxes.map(t => <option key={t.id} value={t.id}>{t.name} - {t.percentage}%</option>)}
-              </Form.Select>
-            </Form.Group></Col>
-          </Row>
-          <Row>
-            <Col md={6}><Form.Group className="mb-3">
-              <Form.Label>Purchase Price (₹)</Form.Label>
-              <Form.Control type="number" step="0.01" value={form.purchase_price} onChange={e => updateField('purchase_price', e.target.value)} />
-            </Form.Group></Col>
-            <Col md={6}><Form.Group className="mb-3">
-              <Form.Label>Sale Price (₹)</Form.Label>
-              <Form.Control type="number" step="0.01" value={form.sale_price} onChange={e => updateField('sale_price', e.target.value)} />
-            </Form.Group></Col>
-          </Row>
-          {!editRow && (
-            <Row>
-              <Col md={6}><Form.Group className="mb-3">
-                <Form.Label>Opening Stock</Form.Label>
-                <Form.Control type="number" value={form.opening_stock} onChange={e => updateField('opening_stock', e.target.value)} />
-              </Form.Group></Col>
-              <Col md={6}><Form.Group className="mb-3">
-                <Form.Label>Minimum Stock Alert</Form.Label>
-                <Form.Control type="number" value={form.min_stock} onChange={e => updateField('min_stock', e.target.value)} />
-              </Form.Group></Col>
-            </Row>
-          )}
-        </Modal.Body>
-        <Modal.Footer>
-          <Button variant="secondary" onClick={() => setShow(false)}>Cancel</Button>
-          <Button variant="primary" onClick={save} disabled={saving}>
-            {saving && <span className="spinner-border spinner-border-sm me-2"></span>} Save
+            </Menu>
+          </Stack>
+          <Button
+            variant="outlined"
+            size="small"
+            onClick={() => setReloadKey(k => k + 1)}
+            disabled={loading}
+            startIcon={<i className="fas fa-sync-alt" aria-hidden="true" />}
+          >
+            Refresh
           </Button>
-        </Modal.Footer>
-      </Modal>
+        </Box>
+
+        {loading && <LinearProgress />}
+        <TableContainer sx={{ overflowX: 'auto' }}>
+          <Table sx={{ minWidth: 960 }} size="small">
+            <TableHead>
+              <TableRow sx={{ bgcolor: '#f8fafc' }}>
+                {columns.map((column) => (
+                  <TableCell
+                    key={column.key}
+                    align={column.align || 'left'}
+                    sx={{ ...headCellSx, minWidth: column.minWidth, width: column.width }}
+                  >
+                    {column.sortField ? (
+                      <TableSortLabel
+                        active={table.sortField === column.sortField}
+                        direction={table.sortField === column.sortField ? table.sortDir : 'asc'}
+                        onClick={() => handleSort(column.sortField)}
+                      >
+                        {column.label}
+                      </TableSortLabel>
+                    ) : column.label}
+                  </TableCell>
+                ))}
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {rows.length === 0 && !loading ? (
+                <TableRow>
+                  <TableCell colSpan={Math.max(columns.length, 1)} align="center" sx={{ py: 7 }}>
+                    <i className="fas fa-folder-open" style={{ color: '#637381', fontSize: 42, opacity: .4 }} aria-hidden="true" />
+                    <Typography variant="subtitle2" sx={{ color: 'text.secondary', mt: 1.5 }}>
+                      No data found
+                    </Typography>
+                    <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                      Try adjusting your filters or check back later
+                    </Typography>
+                  </TableCell>
+                </TableRow>
+              ) : rows.map((row) => (
+                <TableRow
+                  key={row.id}
+                  hover
+                  sx={{
+                    '&:hover': { bgcolor: 'rgba(6,40,73,.035)' },
+                    '&:last-child td': { borderBottom: 0 },
+                  }}
+                >
+                  {columns.map((column) => (
+                    <TableCell
+                      key={`${row.id}-${column.key}`}
+                      align={column.align || 'left'}
+                      sx={bodyCellSx}
+                    >
+                      {column.render(row)}
+                    </TableCell>
+                  ))}
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </TableContainer>
+
+        <TablePagination
+          component="div"
+          count={total}
+          page={Math.max(table.page - 1, 0)}
+          rowsPerPage={table.perPage}
+          rowsPerPageOptions={[10, 25, 50, 100]}
+          onPageChange={(event, page) => {
+            const nextPage = page + 1;
+            if (nextPage !== table.page) dispatch({ type: 'PAGE', page: nextPage });
+          }}
+          onRowsPerPageChange={(event) => {
+            const nextSize = Number(event.target.value);
+            if (nextSize !== table.perPage) dispatch({ type: 'PER_PAGE', perPage: nextSize });
+          }}
+          sx={{ borderTop: '1px solid', borderColor: 'divider' }}
+        />
+      </Card>
+
+      <Dialog
+        open={show}
+        onClose={handleDialogClose}
+        maxWidth="md"
+        fullWidth
+        slotProps={{ paper: { sx: dialogPaperSx } }}
+      >
+        <DialogTitle sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 2, py: 2 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25 }}>
+            <i className={`fas ${editRow ? 'fa-edit' : 'fa-plus'}`} style={{ color: '#062849', fontSize: 15 }} aria-hidden="true" />
+            <Typography variant="h6" sx={{ fontWeight: 700 }}>
+              {editRow ? "Edit Item" : "Add Item"}
+            </Typography>
+          </Box>
+          <IconButton size="small" onClick={() => setShow(false)} aria-label="Close">
+            <i className="fas fa-times" style={{ fontSize: 14 }} aria-hidden="true" />
+          </IconButton>
+        </DialogTitle>
+
+        <DialogContent dividers sx={{ p: 3 }}>
+          <Box sx={formGridSx}>
+            <TextField
+              size="small"
+              label="Item Name"
+              required
+              value={form.name}
+              onChange={e => updateField('name', e.target.value)}
+              fullWidth
+            />
+            <TextField
+              size="small"
+              label="SKU / Code"
+              placeholder="Unique item code"
+              value={form.sku}
+              onChange={e => updateField('sku', e.target.value)}
+              fullWidth
+            />
+            <FormControl size="small" fullWidth>
+              <InputLabel id="item-unit-label">Unit</InputLabel>
+              <Select
+                labelId="item-unit-label"
+                label="Unit"
+                value={strVal(form.unit_id)}
+                onChange={e => updateField('unit_id', e.target.value)}
+              >
+                <MenuItem value=""><em>Select Unit</em></MenuItem>
+                {units.map(u => <MenuItem key={u.id} value={String(u.id)}>{u.name} ({u.symbol})</MenuItem>)}
+              </Select>
+            </FormControl>
+            <FormControl size="small" fullWidth>
+              <InputLabel id="item-tax-label">Tax</InputLabel>
+              <Select
+                labelId="item-tax-label"
+                label="Tax"
+                value={strVal(form.tax_id)}
+                onChange={e => updateField('tax_id', e.target.value)}
+              >
+                <MenuItem value=""><em>No Tax</em></MenuItem>
+                {taxes.map(t => <MenuItem key={t.id} value={String(t.id)}>{t.name} - {t.percentage}%</MenuItem>)}
+              </Select>
+            </FormControl>
+            <TextField
+              size="small"
+              type="number"
+              label="Purchase Price (₹)"
+              value={form.purchase_price}
+              onChange={e => updateField('purchase_price', e.target.value)}
+              inputProps={{ step: "0.01" }}
+              fullWidth
+            />
+            <TextField
+              size="small"
+              type="number"
+              label="Sale Price (₹)"
+              value={form.sale_price}
+              onChange={e => updateField('sale_price', e.target.value)}
+              inputProps={{ step: "0.01" }}
+              fullWidth
+            />
+            {!editRow && (
+              <>
+                <TextField
+                  size="small"
+                  type="number"
+                  label="Opening Stock"
+                  value={form.opening_stock}
+                  onChange={e => updateField('opening_stock', e.target.value)}
+                  fullWidth
+                />
+                <TextField
+                  size="small"
+                  type="number"
+                  label="Minimum Stock Alert"
+                  value={form.min_stock}
+                  onChange={e => updateField('min_stock', e.target.value)}
+                  fullWidth
+                />
+              </>
+            )}
+          </Box>
+        </DialogContent>
+
+        <DialogActions sx={{ px: 3, py: 2 }}>
+          <Button variant="outlined" color="inherit" onClick={() => setShow(false)} disabled={saving}>
+            Cancel
+          </Button>
+          <Button
+            variant="contained"
+            onClick={save}
+            disabled={saving}
+            startIcon={saving ? <CircularProgress size={16} color="inherit" /> : null}
+          >
+            {saving ? "Saving..." : "Save"}
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       {/* Warehouse Stock Modal */}
-      <Modal show={showStockModal} onHide={() => setShowStockModal(false)} size="md">
-        <Modal.Header closeButton>
-          <Modal.Title>Warehouse-wise Stock - {selectedItem?.name}</Modal.Title>
-        </Modal.Header>
-        <Modal.Body>
+      <Dialog
+        open={showStockModal}
+        onClose={() => setShowStockModal(false)}
+        maxWidth="sm"
+        fullWidth
+        slotProps={{ paper: { sx: dialogPaperSx } }}
+      >
+        <DialogTitle sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 2, py: 2 }}>
+          <Typography variant="h6" sx={{ fontWeight: 700 }}>
+            Warehouse-wise Stock - {selectedItem?.name}
+          </Typography>
+          <IconButton size="small" onClick={() => setShowStockModal(false)} aria-label="Close">
+            <i className="fas fa-times" style={{ fontSize: 14 }} aria-hidden="true" />
+          </IconButton>
+        </DialogTitle>
+
+        <DialogContent dividers sx={{ p: 3 }}>
           {loadingStock ? (
-            <div className="text-center py-4">
-              <span className="spinner-border spinner-border-sm me-2"></span> Loading...
-            </div>
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1.5, py: 4, color: 'text.secondary' }}>
+              <CircularProgress size={20} />
+              <Typography variant="body2">Loading...</Typography>
+            </Box>
           ) : (
             <>
-              <div className="mb-3">
-                <strong>SKU:</strong> {selectedItem?.sku || '-'} | 
-                <strong> Total Stock:</strong> {selectedItem?.current_stock || 0}
-              </div>
-              <Table bordered size="sm">
-                <thead className="bg-light">
-                  <tr>
-                    <th>Warehouse (Godown)</th>
-                    <th className="text-end">Quantity</th>
-                    <th>Status</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {warehouses.map(wh => {
-                    const stock = itemWarehouseStocks.find(s => s.warehouse_id === wh.id);
-                    const qty = stock?.quantity || 0;
-                    return (
-                      <tr key={wh.id}>
-                        <td>
-                          {wh.name}
-                          {wh.is_primary && <Badge bg="primary" className="ms-2">Primary</Badge>}
-                        </td>
-                        <td className="text-end fw-bold">{qty}</td>
-                        <td>
-                          {qty > 0 ? (
-                            <Badge bg="success">In Stock</Badge>
-                          ) : (
-                            <Badge bg="danger">Out</Badge>
-                          )}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                  {warehouses.length === 0 && (
-                    <tr>
-                      <td colSpan="3" className="text-center text-muted">No warehouses configured</td>
-                    </tr>
-                  )}
-                </tbody>
-              </Table>
+              <Typography variant="body2" sx={{ mb: 2, color: 'text.secondary' }}>
+                <Box component="span" sx={{ fontWeight: 700, color: 'text.primary' }}>SKU:</Box> {selectedItem?.sku || '-'}
+                {' | '}
+                <Box component="span" sx={{ fontWeight: 700, color: 'text.primary' }}>Total Stock:</Box> {selectedItem?.current_stock || 0}
+              </Typography>
+              <TableContainer sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 2 }}>
+                <Table size="small">
+                  <TableHead>
+                    <TableRow sx={{ bgcolor: '#f8fafc' }}>
+                      <TableCell sx={headCellSx}>Warehouse (Godown)</TableCell>
+                      <TableCell align="right" sx={headCellSx}>Quantity</TableCell>
+                      <TableCell sx={headCellSx}>Status</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {warehouses.map(wh => {
+                      const stock = itemWarehouseStocks.find(s => s.warehouse_id === wh.id);
+                      const qty = stock?.quantity || 0;
+                      return (
+                        <TableRow key={wh.id} hover>
+                          <TableCell sx={bodyCellSx}>
+                            <Stack direction="row" spacing={1} alignItems="center">
+                              <Typography variant="body2">{wh.name}</Typography>
+                              {wh.is_primary && (
+                                <Chip label="Primary" size="small" sx={{ bgcolor: '#eaf0f6', color: '#062849', fontWeight: 700 }} />
+                              )}
+                            </Stack>
+                          </TableCell>
+                          <TableCell align="right" sx={{ ...bodyCellSx, fontWeight: 700 }}>{qty}</TableCell>
+                          <TableCell sx={bodyCellSx}>
+                            {qty > 0 ? (
+                              <Chip label="In Stock" size="small" sx={{ bgcolor: '#dbf5e9', color: '#118d57', fontWeight: 700 }} />
+                            ) : (
+                              <Chip label="Out" size="small" sx={{ bgcolor: '#ffe4de', color: '#b71d18', fontWeight: 700 }} />
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                    {warehouses.length === 0 && (
+                      <TableRow>
+                        <TableCell colSpan={3} align="center" sx={{ color: 'text.secondary', py: 4 }}>
+                          No warehouses configured
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </TableContainer>
             </>
           )}
-        </Modal.Body>
-        <Modal.Footer>
-          <Button variant="secondary" size="sm" onClick={() => setShowStockModal(false)}>Close</Button>
-        </Modal.Footer>
-      </Modal>
-    </div>
+        </DialogContent>
+
+        <DialogActions sx={{ px: 3, py: 2 }}>
+          <Button variant="outlined" color="inherit" onClick={() => setShowStockModal(false)}>
+            Close
+          </Button>
+        </DialogActions>
+      </Dialog>
+    </Box>
   );
 }

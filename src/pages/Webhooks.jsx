@@ -1,7 +1,38 @@
-import { useEffect, useMemo, useReducer, useState } from "react";
+import { useCallback, useEffect, useReducer, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import DataTable from "react-data-table-component";
-import { Modal, Button, Form, Badge } from "react-bootstrap";
+import {
+  Alert,
+  Box,
+  Button,
+  Card,
+  CardContent,
+  Checkbox,
+  Chip,
+  CircularProgress,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  FormControl,
+  IconButton,
+  InputAdornment,
+  InputLabel,
+  LinearProgress,
+  MenuItem,
+  Select,
+  Stack,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TablePagination,
+  TableRow,
+  TableSortLabel,
+  TextField,
+  Tooltip,
+  Typography,
+} from "@mui/material";
 import Swal from "sweetalert2";
 import { toast } from "react-toastify";
 import api from "../api";
@@ -22,6 +53,14 @@ const getNum = (v, fallback = 1) => {
   return isNaN(n) || n < 1 ? fallback : n;
 };
 
+const toArray = (value) => {
+  if (Array.isArray(value)) return value;
+  if (Array.isArray(value?.data)) return value.data;
+  if (Array.isArray(value?.data?.data)) return value.data.data;
+  if (Array.isArray(value?.items)) return value.items;
+  return [];
+};
+
 const EVENT_OPTIONS = [
   { value: "lead.created", label: "Lead Created" },
   { value: "lead.updated", label: "Lead Updated" },
@@ -30,6 +69,25 @@ const EVENT_OPTIONS = [
   { value: "follow-up.created", label: "Follow-up Created" },
   { value: "follow-up.completed", label: "Follow-up Completed" },
 ];
+
+const headCellSx = {
+  color: 'text.secondary',
+  fontSize: 12,
+  fontWeight: 700,
+  textTransform: 'uppercase',
+  letterSpacing: '.04em',
+  px: 2,
+  py: 1.5,
+  borderBottom: '1px solid',
+  borderColor: 'divider',
+};
+
+const bodyCellSx = { verticalAlign: 'middle', px: 2, py: 1.5, borderBottom: '1px solid #f1f5f9' };
+
+const dialogPaperSx = {
+  borderRadius: 3,
+  boxShadow: '0 8px 24px rgba(28,37,46,.12)',
+};
 
 export default function Webhooks() {
   const [params, setParams] = useSearchParams();
@@ -81,7 +139,7 @@ export default function Webhooks() {
     return () => clearTimeout(t);
   }, [searchInput, table.search]);
 
-  const load = async (signal) => {
+  const load = useCallback(async (signal) => {
     setLoading(true);
     try {
       const res = await api.get("/webhooks", {
@@ -94,21 +152,21 @@ export default function Webhooks() {
         },
         signal,
       });
-      setRows(res.data.data || []);
-      setTotal(res.data.total || 0);
+      setRows(toArray(res.data.data ?? res.data));
+      setTotal(Number(res.data.total ?? res.data?.data?.total) || 0);
     } catch {
       setRows([]);
       setTotal(0);
     } finally {
       setLoading(false);
     }
-  };
+  }, [table]);
 
   useEffect(() => {
     const controller = new AbortController();
     load(controller.signal);
     return () => controller.abort();
-  }, [table, reloadKey]);
+  }, [load, reloadKey]);
 
   const openAdd = () => {
     setEditingId(null);
@@ -200,274 +258,359 @@ export default function Webhooks() {
     }));
   };
 
-  const columns = useMemo(() => [
-    { name: "ID", selector: (r) => r.id, sortable: true, sortField: "id", width: "70px" },
-    { name: "Name", selector: (r) => r.name, sortable: true, sortField: "name" },
-    { name: "URL", cell: (row) => (
-      <span className="small text-muted text-truncate d-inline-block" style={{ maxWidth: 240 }} title={row.url}>
-        {row.url}
-      </span>
-    )},
-    { name: "Type", cell: (row) => (
-      <Badge bg={row.type === "push" ? "primary" : "info"} className="text-capitalize">
-        {row.type}
-      </Badge>
-    ), width: "80px" },
-    { name: "Events", cell: (row) => (
-      <div className="d-flex flex-wrap gap-1">
-        {(row.events || []).slice(0, 2).map((e) => (
-          <Badge key={e} bg="secondary" className="small">{e}</Badge>
-        ))}
-        {(row.events || []).length > 2 && (
-          <Badge bg="light" text="dark" className="small">+{(row.events || []).length - 2}</Badge>
-        )}
-      </div>
-    )},
-    { name: "Status", cell: (row) => (
-      <Badge bg={row.active ? "success" : "secondary"} className="small">
-        {row.active ? "Active" : "Inactive"}
-      </Badge>
-    ), width: "90px" },
-    {
-      name: "Action",
-      width: "160px",
-      cell: (row) => (
-        <div className="d-flex gap-1">
-          {canEditWebhook && (
-            <button className="btn btn-outline-primary btn-sm" onClick={() => openEdit(row)} title="Edit">
-              <i className="fas fa-edit"></i>
-            </button>
-          )}
-          <button
-            className="btn btn-outline-info btn-sm"
-            onClick={() => testWebhook(row)}
-            disabled={testLoading === row.id}
-            title="Test webhook"
-          >
-            {testLoading === row.id ? (
-              <span className="spinner-border spinner-border-sm"></span>
-            ) : (
-              <i className="fas fa-vial"></i>
-            )}
-          </button>
-          {canDeleteWebhook && (
-            <button className="btn btn-outline-danger btn-sm" onClick={() => deleteWebhook(row)} title="Delete">
-              <i className="fas fa-trash"></i>
-            </button>
-          )}
-        </div>
-      ),
-    },
-  ], [testLoading]);
+  const handleSort = (field) => {
+    const isAsc = table.sortField === field && table.sortDir === 'asc';
+    dispatch({ type: 'SORT', field, dir: isAsc ? 'desc' : 'asc' });
+  };
+
+  const handleDialogClose = (event, reason) => {
+    if (reason === 'backdropClick') return;
+    setShow(false);
+  };
 
   if (!canViewWebhooks) {
     return (
-      <div className="container-fluid py-4">
-        <div className="alert alert-warning">You do not have permission to view webhooks.</div>
-      </div>
+      <Alert severity="warning" sx={{ borderRadius: 3 }}>
+        You do not have permission to view webhooks.
+      </Alert>
     );
   }
 
   return (
-    <div className="container-fluid py-3">
-      <div className="card card-outline card-primary">
-        <div className="card-header" style={{ background: "#f8fafc", borderBottom: "1px solid #e2e8f0" }}>
-          <div className="d-flex justify-content-between align-items-center flex-wrap gap-2">
-            <div className="d-flex align-items-center gap-2">
-              <i className="fas fa-link text-primary small"></i>
-              <span className="fw-semibold" style={{ color: "#1e293b" }}>Webhooks</span>
-            </div>
-            <div className="d-flex gap-2 align-items-center">
-              <div className="input-group input-group-sm" style={{ maxWidth: 260 }}>
-                <span className="input-group-text bg-white" style={{ borderColor: "#cbd5e1" }}>
-                  <i className="fas fa-search text-muted" style={{ fontSize: 12 }}></i>
-                </span>
-                <input
-                  className="form-control bg-white"
-                  placeholder="Search webhooks..."
-                  value={searchInput}
-                  onChange={(e) => setSearchInput(e.target.value)}
-                  style={{ borderColor: "#cbd5e1", fontSize: "0.85rem" }}
-                />
-              </div>
+    <Box>
+      <Card sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 3, boxShadow: '0 8px 24px rgba(28,37,46,.05)' }}>
+        <CardContent sx={{ p: 3 }}>
+          <Box sx={{ display: 'flex', alignItems: { sm: 'center' }, justifyContent: 'space-between', flexDirection: { xs: 'column', sm: 'row' }, gap: 2 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25 }}>
+              <i className="fas fa-link" style={{ color: '#062849', fontSize: 15 }} aria-hidden="true" />
+              <Typography variant="h4" sx={{ color: 'text.primary', fontWeight: 700 }}>
+                Webhooks
+              </Typography>
+            </Box>
+            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} alignItems={{ sm: 'center' }}>
+              <TextField
+                size="small"
+                placeholder="Search webhooks..."
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
+                sx={{ minWidth: { xs: '100%', sm: 260 } }}
+                slotProps={{
+                  input: {
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <i className="fas fa-search" style={{ fontSize: 13 }} aria-hidden="true" />
+                      </InputAdornment>
+                    ),
+                  },
+                }}
+              />
               {canCreateWebhook && (
-                <button className="btn btn-primary btn-sm" onClick={openAdd} style={{ borderRadius: 6, fontWeight: 500, fontSize: "0.8rem" }}>
-                  <i className="fas fa-plus" style={{ fontSize: 11 }}></i> New Webhook
-                </button>
+                <Button variant="contained" onClick={openAdd} startIcon={<i className="fas fa-plus" aria-hidden="true" />}>
+                  New Webhook
+                </Button>
               )}
-            </div>
-          </div>
-        </div>
+            </Stack>
+          </Box>
+        </CardContent>
 
-        <div className="card-body p-0">
-          <DataTable
-            columns={columns}
-            data={rows}
-            progressPending={loading}
-            persistTableHead
-            className="modern-datatable"
-            pagination
-            paginationServer
-            paginationTotalRows={total}
-            paginationPerPage={table.perPage}
-            onChangePage={(p) => p !== table.page && dispatch({ type: "PAGE", page: p })}
-            onChangeRowsPerPage={(n) => n !== table.perPage && dispatch({ type: "PER_PAGE", perPage: n })}
-            sortServer
-            onSort={(col, dir) => col.sortField && dispatch({ type: "SORT", field: col.sortField, dir })}
-            progressComponent={
-              <div className="p-4 text-center">
-                <div className="spinner-border spinner-border-sm me-2 text-primary" role="status"></div>
-                <span className="text-muted small">Loading webhooks...</span>
-              </div>
-            }
-            noDataComponent={
-              <div className="p-5 text-center">
-                <i className="fas fa-folder-open text-muted mb-3" style={{ fontSize: 48, opacity: 0.4 }}></i>
-                <div className="fw-semibold text-secondary mb-1">No webhooks found</div>
-                <div className="small text-muted">Create a webhook to push or pull lead data</div>
-              </div>
-            }
-            striped
-            highlightOnHover
-            dense
-            keyField="id"
-            customStyles={{
-              rows: { style: { fontSize: "0.875rem", minHeight: "48px" } },
-              headCells: {
-                style: {
-                  fontWeight: "600",
-                  fontSize: "0.75rem",
-                  textTransform: "uppercase",
-                  letterSpacing: "0.5px",
-                  color: "#64748b",
-                  backgroundColor: "#f8fafc",
-                  borderBottom: "1px solid #e2e8f0",
-                },
-              },
-            }}
-          />
-        </div>
-      </div>
+        {loading && <LinearProgress />}
 
-      {/* Add/Edit Modal */}
-      <Modal show={show} onHide={() => setShow(false)} backdrop="static" size="lg">
-        <Modal.Header closeButton>
-          <Modal.Title>{editingId ? "Edit Webhook" : "New Webhook"}</Modal.Title>
-        </Modal.Header>
-        <Modal.Body>
-          <Form.Group className="mb-3">
-            <Form.Label className="small fw-semibold">Name <span className="text-danger">*</span></Form.Label>
-            <Form.Control
+        <TableContainer sx={{ overflowX: 'auto' }}>
+          <Table size="small" sx={{ minWidth: 900 }}>
+            <TableHead>
+              <TableRow sx={{ bgcolor: '#f8fafc' }}>
+                <TableCell sx={{ ...headCellSx, width: 70 }}>
+                  <TableSortLabel
+                    active={table.sortField === 'id'}
+                    direction={table.sortField === 'id' ? table.sortDir : 'asc'}
+                    onClick={() => handleSort('id')}
+                  >
+                    ID
+                  </TableSortLabel>
+                </TableCell>
+                <TableCell sx={headCellSx}>
+                  <TableSortLabel
+                    active={table.sortField === 'name'}
+                    direction={table.sortField === 'name' ? table.sortDir : 'asc'}
+                    onClick={() => handleSort('name')}
+                  >
+                    Name
+                  </TableSortLabel>
+                </TableCell>
+                <TableCell sx={headCellSx}>URL</TableCell>
+                <TableCell sx={{ ...headCellSx, width: 80 }}>Type</TableCell>
+                <TableCell sx={headCellSx}>Events</TableCell>
+                <TableCell sx={{ ...headCellSx, width: 90 }}>Status</TableCell>
+                <TableCell sx={{ ...headCellSx, width: 140 }} align="right">Action</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {rows.length === 0 && !loading ? (
+                <TableRow>
+                  <TableCell colSpan={7} align="center" sx={{ py: 7, borderBottom: 0 }}>
+                    <i className="fas fa-folder-open" style={{ color: '#637381', fontSize: 42, opacity: .4 }} aria-hidden="true" />
+                    <Typography variant="subtitle2" sx={{ color: 'text.secondary', mt: 1.5 }}>
+                      No webhooks found
+                    </Typography>
+                    <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                      Create a webhook to push or pull lead data
+                    </Typography>
+                  </TableCell>
+                </TableRow>
+              ) : rows.map((row) => (
+                <TableRow
+                  key={row.id}
+                  hover
+                  sx={{ '&:last-child td': { borderBottom: 0 } }}
+                >
+                  <TableCell sx={bodyCellSx}>{row.id}</TableCell>
+                  <TableCell sx={{ ...bodyCellSx, fontWeight: 600 }}>{row.name}</TableCell>
+                  <TableCell sx={bodyCellSx}>
+                    <Tooltip title={row.url || ''}>
+                      <Typography
+                        variant="body2"
+                        noWrap
+                        sx={{ color: 'text.secondary', maxWidth: 240 }}
+                      >
+                        {row.url}
+                      </Typography>
+                    </Tooltip>
+                  </TableCell>
+                  <TableCell sx={bodyCellSx}>
+                    <Chip
+                      label={row.type}
+                      size="small"
+                      sx={{
+                        fontWeight: 700,
+                        textTransform: 'capitalize',
+                        ...(row.type === "push"
+                          ? { bgcolor: '#eaf0f6', color: '#062849' }
+                          : { bgcolor: '#caf4ff', color: '#006c9c' }),
+                      }}
+                    />
+                  </TableCell>
+                  <TableCell sx={bodyCellSx}>
+                    <Stack direction="row" spacing={0.5} flexWrap="wrap" useFlexGap>
+                      {(row.events || []).slice(0, 2).map((e) => (
+                        <Chip key={e} label={e} size="small" variant="outlined" />
+                      ))}
+                      {(row.events || []).length > 2 && (
+                        <Chip label={`+${(row.events || []).length - 2}`} size="small" sx={{ bgcolor: '#f1f5f9', color: '#475569' }} />
+                      )}
+                    </Stack>
+                  </TableCell>
+                  <TableCell sx={bodyCellSx}>
+                    <Chip
+                      label={row.active ? "Active" : "Inactive"}
+                      size="small"
+                      sx={{
+                        fontWeight: 700,
+                        ...(row.active
+                          ? { bgcolor: '#dbf5e9', color: '#118d57' }
+                          : { bgcolor: '#f1f5f9', color: '#475569' }),
+                      }}
+                    />
+                  </TableCell>
+                  <TableCell sx={bodyCellSx} align="right">
+                    <Stack direction="row" spacing={0.5} justifyContent="flex-end">
+                      {canEditWebhook && (
+                        <Tooltip title="Edit">
+                          <IconButton size="small" onClick={() => openEdit(row)} aria-label="Edit webhook" sx={{ color: 'primary.main' }}>
+                            <i className="fas fa-edit" style={{ fontSize: 13 }} aria-hidden="true" />
+                          </IconButton>
+                        </Tooltip>
+                      )}
+                      <Tooltip title="Test webhook">
+                        <span>
+                          <IconButton
+                            size="small"
+                            onClick={() => testWebhook(row)}
+                            disabled={testLoading === row.id}
+                            aria-label="Test webhook"
+                            sx={{ color: 'info.main' }}
+                          >
+                            {testLoading === row.id ? (
+                              <CircularProgress size={14} color="inherit" />
+                            ) : (
+                              <i className="fas fa-vial" style={{ fontSize: 13 }} aria-hidden="true" />
+                            )}
+                          </IconButton>
+                        </span>
+                      </Tooltip>
+                      {canDeleteWebhook && (
+                        <Tooltip title="Delete">
+                          <IconButton size="small" onClick={() => deleteWebhook(row)} aria-label="Delete webhook" sx={{ color: 'error.main' }}>
+                            <i className="fas fa-trash" style={{ fontSize: 13 }} aria-hidden="true" />
+                          </IconButton>
+                        </Tooltip>
+                      )}
+                    </Stack>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </TableContainer>
+
+        <TablePagination
+          component="div"
+          count={total}
+          page={Math.max(table.page - 1, 0)}
+          rowsPerPage={table.perPage}
+          rowsPerPageOptions={[10, 20, 50, 100]}
+          onPageChange={(event, page) => {
+            const nextPage = page + 1;
+            if (nextPage !== table.page) dispatch({ type: 'PAGE', page: nextPage });
+          }}
+          onRowsPerPageChange={(event) => {
+            const nextSize = Number(event.target.value);
+            if (nextSize !== table.perPage) dispatch({ type: 'PER_PAGE', perPage: nextSize });
+          }}
+        />
+      </Card>
+
+      {/* Add/Edit Dialog */}
+      <Dialog
+        open={show}
+        onClose={handleDialogClose}
+        maxWidth="md"
+        fullWidth
+        scroll="paper"
+        slotProps={{ paper: { sx: dialogPaperSx } }}
+      >
+        <DialogTitle sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 2, py: 2 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25 }}>
+            <i className={`fas ${editingId ? 'fa-edit' : 'fa-plus'}`} style={{ color: '#062849', fontSize: 15 }} aria-hidden="true" />
+            <Typography variant="h6" sx={{ fontWeight: 700 }}>
+              {editingId ? "Edit Webhook" : "New Webhook"}
+            </Typography>
+          </Box>
+          <IconButton size="small" onClick={() => setShow(false)} aria-label="Close">
+            <i className="fas fa-times" style={{ fontSize: 14 }} aria-hidden="true" />
+          </IconButton>
+        </DialogTitle>
+
+        <DialogContent dividers sx={{ p: 3 }}>
+          <Box sx={{ display: 'grid', gap: 2.5 }}>
+            <TextField
+              size="small"
+              label="Name"
+              required
               value={form.name}
               onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
               placeholder="e.g., Slack Lead Notification"
+              fullWidth
             />
-          </Form.Group>
 
-          <Form.Group className="mb-3">
-            <Form.Label className="small fw-semibold">Webhook URL <span className="text-danger">*</span></Form.Label>
-            <Form.Control
+            <TextField
+              size="small"
+              label="Webhook URL"
+              required
               value={form.url}
               onChange={(e) => setForm((f) => ({ ...f, url: e.target.value }))}
               placeholder="https://hooks.example.com/lead-events"
+              helperText={form.type === "push" ? "We will POST lead data to this URL when events occur." : "We will periodically fetch leads from this URL."}
+              fullWidth
             />
-            <Form.Text className="text-muted small">
-              {form.type === "push" ? "We will POST lead data to this URL when events occur." : "We will periodically fetch leads from this URL."}
-            </Form.Text>
-          </Form.Group>
 
-          <div className="row g-3 mb-3">
-            <div className="col-md-6">
-              <Form.Group>
-                <Form.Label className="small fw-semibold">Type</Form.Label>
-                <Form.Select
+            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)' }, gap: 2 }}>
+              <FormControl size="small" fullWidth>
+                <InputLabel>Type</InputLabel>
+                <Select
+                  label="Type"
                   value={form.type}
                   onChange={(e) => setForm((f) => ({ ...f, type: e.target.value }))}
                 >
-                  <option value="push">Push (send data out)</option>
-                  <option value="pull">Pull (fetch data in)</option>
-                </Form.Select>
-              </Form.Group>
-            </div>
-            <div className="col-md-6">
-              <Form.Group>
-                <Form.Label className="small fw-semibold">Status</Form.Label>
-                <Form.Select
+                  <MenuItem value="push">Push (send data out)</MenuItem>
+                  <MenuItem value="pull">Pull (fetch data in)</MenuItem>
+                </Select>
+              </FormControl>
+              <FormControl size="small" fullWidth>
+                <InputLabel>Status</InputLabel>
+                <Select
+                  label="Status"
                   value={form.active ? "1" : "0"}
                   onChange={(e) => setForm((f) => ({ ...f, active: e.target.value === "1" }))}
                 >
-                  <option value="1">Active</option>
-                  <option value="0">Inactive</option>
-                </Form.Select>
-              </Form.Group>
-            </div>
-          </div>
+                  <MenuItem value="1">Active</MenuItem>
+                  <MenuItem value="0">Inactive</MenuItem>
+                </Select>
+              </FormControl>
+            </Box>
 
-          <Form.Group className="mb-3">
-            <Form.Label className="small fw-semibold">Secret Key (optional)</Form.Label>
-            <Form.Control
+            <TextField
+              size="small"
               type="password"
+              label="Secret Key (optional)"
               value={form.secret}
               onChange={(e) => setForm((f) => ({ ...f, secret: e.target.value }))}
               placeholder="For HMAC signature verification"
+              fullWidth
             />
-          </Form.Group>
 
-          <Form.Group className="mb-3">
-            <Form.Label className="small fw-semibold">Description (optional)</Form.Label>
-            <Form.Control
-              as="textarea"
+            <TextField
+              size="small"
+              label="Description (optional)"
+              multiline
               rows={2}
               value={form.description || ""}
               onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
               placeholder="e.g., Sends new leads to Slack #leads channel. Maintained by IT team."
-              style={{ resize: "vertical", fontSize: "0.9rem" }}
+              fullWidth
             />
-          </Form.Group>
 
-          <Form.Group>
-            <Form.Label className="small fw-semibold">Events <span className="text-danger">*</span></Form.Label>
-            <div className="row g-2">
-              {EVENT_OPTIONS.map((evt) => {
-                const checked = form.events.includes(evt.value);
-                return (
-                  <div key={evt.value} className="col-12 col-sm-6">
-                    <div
-                      className="d-flex align-items-center gap-2 p-2 rounded border"
-                      style={{
-                        cursor: "pointer",
-                        backgroundColor: checked ? "#eff6ff" : "#fff",
-                        borderColor: checked ? "#3b82f6" : "#e2e8f0",
-                        transition: "all 0.15s ease",
-                      }}
+            <Box>
+              <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 700, display: 'block', mb: 1 }}>
+                Events <Box component="span" sx={{ color: 'error.main' }}>*</Box>
+              </Typography>
+              <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)' }, gap: 1.5 }}>
+                {EVENT_OPTIONS.map((evt) => {
+                  const checked = form.events.includes(evt.value);
+                  return (
+                    <Box
+                      key={evt.value}
                       onClick={() => toggleEvent(evt.value)}
                       role="button"
+                      sx={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 1,
+                        p: 1,
+                        borderRadius: 2,
+                        border: '1px solid',
+                        cursor: 'pointer',
+                        bgcolor: checked ? 'rgba(101, 40, 232, 0.08)' : '#fff',
+                        borderColor: checked ? 'secondary.main' : 'divider',
+                        transition: 'all 0.15s ease',
+                        '&:hover': { borderColor: checked ? 'secondary.main' : '#919eab' },
+                      }}
                     >
-                      <div className="flex-shrink-0" style={{ width: 16, textAlign: "center" }}>
-                        {checked ? (
-                          <i className="fas fa-check-square text-primary" style={{ fontSize: 14 }}></i>
-                        ) : (
-                          <i className="far fa-square text-muted" style={{ fontSize: 14 }}></i>
-                        )}
-                      </div>
-                      <span className="small fw-medium" style={{ color: checked ? "#1e40af" : "#334155" }}>
+                      <Checkbox checked={checked} size="small" sx={{ p: 0, pointerEvents: 'none' }} />
+                      <Typography variant="body2" sx={{ fontWeight: 600, color: checked ? 'secondary.dark' : 'text.primary' }}>
                         {evt.label}
-                      </span>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </Form.Group>
-        </Modal.Body>
-        <Modal.Footer>
-          <Button variant="secondary" onClick={() => setShow(false)}>Cancel</Button>
-          <Button variant="primary" onClick={save} disabled={saving}>
-            {saving && <span className="spinner-border spinner-border-sm me-2"></span>}
+                      </Typography>
+                    </Box>
+                  );
+                })}
+              </Box>
+            </Box>
+          </Box>
+        </DialogContent>
+
+        <DialogActions sx={{ px: 3, py: 2 }}>
+          <Button variant="outlined" color="inherit" onClick={() => setShow(false)}>
+            Cancel
+          </Button>
+          <Button
+            variant="contained"
+            onClick={save}
+            disabled={saving}
+            startIcon={saving ? <CircularProgress size={16} color="inherit" /> : null}
+          >
             {editingId ? "Update Webhook" : "Save Webhook"}
           </Button>
-        </Modal.Footer>
-      </Modal>
-    </div>
+        </DialogActions>
+      </Dialog>
+    </Box>
   );
 }

@@ -1,23 +1,97 @@
 import { useEffect, useMemo, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { Badge, Button, Card, Col, Dropdown, Form, Row } from "react-bootstrap";
-import DataTable from "react-data-table-component";
+import {
+  Box,
+  Button,
+  Card,
+  CardContent,
+  Checkbox,
+  Chip,
+  Collapse,
+  Divider,
+  FormControl,
+  IconButton,
+  InputAdornment,
+  InputLabel,
+  LinearProgress,
+  ListItemText,
+  Menu,
+  MenuItem,
+  Select,
+  Stack,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TablePagination,
+  TableRow,
+  TableSortLabel,
+  TextField,
+  Tooltip,
+  Typography,
+} from "@mui/material";
 import { toast } from "react-toastify";
 import Swal from "sweetalert2";
 import api from "../api";
-import { canView, canCreate, canDelete, canEdit, getUserData } from "../utils/permissions";
+import { canView, canDelete, canEdit, getUserData } from "../utils/permissions";
 
- const getIndiamartQueryTypeBadge = (queryType) => {
-   const types = {
-     W: { label: "Direct", class: "bg-primary" },
-     B: { label: "Buy-Lead", class: "bg-success" },
-     P: { label: "PNS Call", class: "bg-warning text-dark" },
-     BIZ: { label: "Catalog View", class: "bg-info" },
-     WA: { label: "WhatsApp", class: "bg-success" },
-   };
+const getIndiamartQueryTypeBadge = (queryType) => {
+  const types = {
+    W: { label: "Direct", sx: { bgcolor: '#eaf0f6', color: '#062849' } },
+    B: { label: "Buy-Lead", sx: { bgcolor: '#dbf5e9', color: '#118d57' } },
+    P: { label: "PNS Call", sx: { bgcolor: '#fff4d6', color: '#b76e00' } },
+    BIZ: { label: "Catalog View", sx: { bgcolor: '#caf4ff', color: '#006c9c' } },
+    WA: { label: "WhatsApp", sx: { bgcolor: '#f1f5f9', color: '#475569' } },
+  };
 
-   return types[queryType] || { label: queryType || "Unknown", class: "bg-secondary" };
- };
+  return types[queryType] || { label: queryType || "Unknown", sx: { bgcolor: '#f1f5f9', color: '#475569' } };
+};
+
+const toArray = (value) => {
+  if (Array.isArray(value)) return value;
+  if (Array.isArray(value?.data)) return value.data;
+  if (Array.isArray(value?.data?.data)) return value.data.data;
+  if (Array.isArray(value?.items)) return value.items;
+  if (Array.isArray(value?.results)) return value.results;
+  return [];
+};
+
+const stageChipSx = (stage) => {
+  const s = (stage || "").toLowerCase();
+  if (s.includes("new")) return { bgcolor: '#caf4ff', color: '#006c9c' };
+  if (s.includes("warm")) return { bgcolor: '#fff4d6', color: '#b76e00' };
+  if (s.includes("hot")) return { bgcolor: '#ffe4de', color: '#b71d18' };
+  if (s.includes("won")) return { bgcolor: '#dbf5e9', color: '#118d57' };
+  if (s.includes("lost")) return { bgcolor: '#f1f5f9', color: '#475569' };
+  return { bgcolor: '#f1f5f9', color: '#475569' };
+};
+
+const cardSx = {
+  border: '1px solid',
+  borderColor: 'divider',
+  borderRadius: 3,
+  boxShadow: '0 8px 24px rgba(28,37,46,.05)',
+};
+
+const headCellSx = {
+  color: 'text.secondary',
+  fontSize: 12,
+  fontWeight: 700,
+  textTransform: 'uppercase',
+  letterSpacing: '.04em',
+  px: 2,
+  py: 1.5,
+  borderBottom: '1px solid',
+  borderColor: 'divider',
+};
+
+const bodyCellSx = {
+  verticalAlign: 'middle',
+  px: 2,
+  py: 1.5,
+  borderBottom: '1px solid #f1f5f9',
+};
 
 export default function FollowUps() {
   const navigate = useNavigate();
@@ -58,12 +132,14 @@ export default function FollowUps() {
   const [sortDir, setSortDir] = useState("desc");
   const [selectedRows, setSelectedRows] = useState([]);
   const [reloadKey, setReloadKey] = useState(0);
+  const [showFilters, setShowFilters] = useState(false);
+  const [columnAnchorEl, setColumnAnchorEl] = useState(null);
   const [visibleCols, setVisibleCols] = useState(() => {
     const saved = localStorage.getItem('followups-visible-cols');
     if (saved) {
       try {
         return JSON.parse(saved);
-      } catch {}
+      } catch { /* ignore */ }
     }
     return {
       id: true,
@@ -153,7 +229,7 @@ export default function FollowUps() {
       toast.success(`${selectedRows.length} leads deleted`);
       setSelectedRows([]);
       setReloadKey((k) => k + 1);
-    } catch (e) {
+    } catch {
       toast.error("Some leads could not be deleted");
     }
   };
@@ -183,13 +259,13 @@ export default function FollowUps() {
       // Fetch first page to get total
       const first = await api.get("/leads", { params: { ...baseParams, page: 1 } });
       const totalRecords = first.data?.total || 0;
-      let allRows = first.data?.data || [];
+      let allRows = toArray(first.data);
 
       // Fetch remaining pages if needed
       const totalPages = Math.ceil(totalRecords / 200);
       for (let p = 2; p <= totalPages; p++) {
         const res = await api.get("/leads", { params: { ...baseParams, page: p } });
-        allRows = allRows.concat(res.data?.data || []);
+        allRows = allRows.concat(toArray(res.data));
       }
 
       if (!allRows.length) {
@@ -231,33 +307,24 @@ export default function FollowUps() {
     setFilterCreatedTo("");
     setFilterActivityFrom("");
     setFilterActivityTo("");
+    setPage(1);
   };
 
-  const stageVariant = (stage) => {
-    const s = (stage || "").toLowerCase();
-    if (s.includes("new")) return { bg: "info", text: "white" };
-    if (s.includes("warm")) return { bg: "warning", text: "dark" };
-    if (s.includes("hot")) return { bg: "danger", text: "white" };
-    if (s.includes("won")) return { bg: "success", text: "white" };
-    if (s.includes("lost")) return { bg: "secondary", text: "white" };
-    return { bg: "light", text: "dark" };
-  };
-
-  const loadSummary = async () => {
+  const loadSummary = useCallback(async () => {
     try {
       setSummaryLoading(true);
       const res = await api.get("/leads/followup-summary", {
         params: { upcoming_days: upcomingDays },
       });
-      setSummary(res.data?.data || summary);
-    } catch (e) {
+      setSummary((prev) => res.data?.data || prev);
+    } catch {
       toast.error("Failed to load follow-up summary");
     } finally {
       setSummaryLoading(false);
     }
-  };
+  }, [upcomingDays]);
 
-  const load = async () => {
+  const load = useCallback(async () => {
     if (!canViewLeads) return;
     try {
       setLoading(true);
@@ -282,29 +349,33 @@ export default function FollowUps() {
       });
 
       const payload = res.data;
-      setRows(payload?.data || []);
+      setRows(toArray(payload));
       setTotal(payload?.total || 0);
-    } catch (e) {
+    } catch {
       toast.error("Failed to load leads");
     } finally {
       setLoading(false);
     }
-  };
+  }, [canViewLeads, page, perPage, search, filterStage, filterSource, filterAssignee, filterTags, bucket, upcomingDays, filterCreatedFrom, filterCreatedTo, filterActivityFrom, sortField, sortDir]);
 
   useEffect(() => {
     loadSummary();
-  }, [upcomingDays, reloadKey]);
+  }, [loadSummary, reloadKey]);
 
   useEffect(() => {
     load();
-  }, [bucket, upcomingDays, page, perPage, search, canViewLeads, filterStage, filterSource, filterAssignee, filterTags, filterCreatedFrom, filterCreatedTo, filterActivityFrom, filterActivityTo, sortField, sortDir, reloadKey]);
+  }, [load, reloadKey]);
 
   useEffect(() => {
     const t = setTimeout(() => {
-      setSearch(searchInput.trim());
+      const s = searchInput.trim();
+      if (s !== search) {
+        setSearch(s);
+        setPage(1);
+      }
     }, 400);
     return () => clearTimeout(t);
-  }, [searchInput]);
+  }, [searchInput, search]);
 
   useEffect(() => {
     const loadMasters = async () => {
@@ -318,16 +389,16 @@ export default function FollowUps() {
         ]);
 
         if (sourcesRes.status === "fulfilled") {
-          setLeadSources(sourcesRes.value.data?.data || sourcesRes.value.data || []);
+          setLeadSources(toArray(sourcesRes.value.data));
         }
         if (stagesRes.status === "fulfilled") {
-          setLeadStages(stagesRes.value.data?.data || stagesRes.value.data || []);
+          setLeadStages(toArray(stagesRes.value.data));
         }
         if (usersRes.status === "fulfilled") {
-          setUsers(usersRes.value.data?.data || usersRes.value.data || []);
+          setUsers(toArray(usersRes.value.data));
         }
         if (tagsRes.status === "fulfilled") {
-          setTags(tagsRes.value.data?.data || tagsRes.value.data || []);
+          setTags(toArray(tagsRes.value.data));
         }
       } catch {
         // ignore
@@ -337,135 +408,161 @@ export default function FollowUps() {
     loadMasters();
   }, [canViewLeads]);
 
-  useEffect(() => {
+  const applyBucket = (key) => {
+    setBucket(key);
     setPage(1);
-  }, [bucket, upcomingDays, search, perPage, filterStage, filterSource, filterAssignee, filterTags, filterCreatedFrom, filterCreatedTo, filterActivityFrom, filterActivityTo]);
+  };
+
+  const applyUpcomingDays = (days) => {
+    setUpcomingDays(days);
+    setPage(1);
+  };
+
+  const updateFilterStage = (v) => { setFilterStage(v); setPage(1); };
+  const updateFilterSource = (v) => { setFilterSource(v); setPage(1); };
+  const updateFilterAssignee = (v) => { setFilterAssignee(v); setPage(1); };
+  const updateFilterTags = (v) => { setFilterTags(v); setPage(1); };
+  const updateFilterCreatedFrom = (v) => { setFilterCreatedFrom(v); setPage(1); };
+  const updateFilterCreatedTo = (v) => { setFilterCreatedTo(v); setPage(1); };
+  const updateFilterActivityFrom = (v) => { setFilterActivityFrom(v); setPage(1); };
+  const updateFilterActivityTo = (v) => { setFilterActivityTo(v); setPage(1); };
+
+  const handleSort = (field) => {
+    const dir = sortField === field ? (sortDir === 'asc' ? 'desc' : 'asc') : 'asc';
+    setSortField(field);
+    setSortDir(dir);
+  };
+
+  const isRowSelected = (r) => selectedRows.some((s) => s.id === r.id);
+
+  const toggleRow = (r) => {
+    setSelectedRows((prev) =>
+      prev.some((s) => s.id === r.id)
+        ? prev.filter((s) => s.id !== r.id)
+        : [...prev, r]
+    );
+  };
+
+  const toggleAllRows = () => {
+    setSelectedRows((prev) => {
+      const allSelected = rows.length > 0 && rows.every((r) => prev.some((s) => s.id === r.id));
+      if (allSelected) {
+        return prev.filter((s) => !rows.some((r) => r.id === s.id));
+      }
+      const next = [...prev];
+      rows.forEach((r) => {
+        if (!next.some((s) => s.id === r.id)) next.push(r);
+      });
+      return next;
+    });
+  };
+
+  const allRowsSelected = rows.length > 0 && rows.every((r) => selectedRows.some((s) => s.id === r.id));
+  const someRowsSelected = rows.some((r) => selectedRows.some((s) => s.id === r.id)) && !allRowsSelected;
 
   const columns = useMemo(
     () => [
       visibleCols.id && {
-        name: "ID",
-        selector: (r) => r.id,
-        sortable: true,
-        sortField: "id",
-        width: "70px",
+        key: 'id', label: 'ID', sortField: 'id', width: 70,
+        render: (r) => <Typography variant="body2" sx={{ fontWeight: 700 }}>#{r.id}</Typography>,
       },
       visibleCols.name && {
-        name: "Name",
-        selector: (r) => r.name,
-        sortable: true,
-        sortField: "name",
-        wrap: true,
-        minWidth: "140px",
+        key: 'name', label: 'Name', sortField: 'name', minWidth: 140,
+        render: (r) => r.name,
       },
       visibleCols.phone && {
-        name: "Phone",
-        selector: (r) => r.phone || "-",
-        sortable: true,
-        sortField: "phone",
-        width: "140px",
+        key: 'phone', label: 'Phone', sortField: 'phone', width: 140,
+        render: (r) => r.phone || "-",
       },
       visibleCols.stage && {
-        name: "Stage",
-        cell: (r) => {
-          const v = stageVariant(r.stage);
-          return <Badge bg={v.bg}>{r.stage || "-"}</Badge>;
-        },
-        sortable: true,
-        sortField: "stage",
-        width: "120px",
+        key: 'stage', label: 'Stage', sortField: 'stage', width: 120,
+        render: (r) => (
+          <Chip label={r.stage || "-"} size="small" sx={{ ...stageChipSx(r.stage), fontWeight: 700 }} />
+        ),
       },
       visibleCols.source && {
-        name: "Source",
-        cell: (r) => {
+        key: 'source', label: 'Source', sortField: 'source', minWidth: 120,
+        render: (r) => {
           const showBadge = r.source_type === "indiamart" && r.query_type;
           const badge = showBadge ? getIndiamartQueryTypeBadge(r.query_type) : null;
-
           return (
-            <div>
-              <span className="text-secondary">{r.source || "-"}</span>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: .75, flexWrap: 'wrap' }}>
+              <Typography variant="body2" color="text.secondary">{r.source || "-"}</Typography>
               {showBadge && (
-                <span className={`badge ms-1 ${badge.class}`} style={{ fontSize: "0.7em" }}>
-                  {badge.label}
-                </span>
+                <Chip label={badge.label} size="small" sx={{ ...badge.sx, fontSize: 11, fontWeight: 700 }} />
               )}
-            </div>
+            </Box>
           );
         },
-        sortable: true,
-        sortField: "source",
-        minWidth: "120px",
       },
       visibleCols.tags && {
-        name: "Tags",
-        cell: (r) => (
-          <div className="d-flex flex-wrap gap-1">
-            {(r.tags || []).length === 0 && <span className="text-secondary">-</span>}
+        key: 'tags', label: 'Tags', minWidth: 140,
+        render: (r) => (
+          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: .5 }}>
+            {(r.tags || []).length === 0 && <Typography variant="body2" color="text.secondary">-</Typography>}
             {(r.tags || []).slice(0, 3).map((t) => (
-              <span key={t.id} className="badge bg-light text-dark border" style={{ fontSize: 11 }}>
-                {t.name}
-              </span>
+              <Chip key={t.id} label={t.name} size="small" variant="outlined" />
             ))}
             {(r.tags || []).length > 3 && (
-              <span className="badge bg-light text-dark border" style={{ fontSize: 11 }}>+{(r.tags || []).length - 3}</span>
+              <Chip label={`+${(r.tags || []).length - 3}`} size="small" variant="outlined" />
             )}
-          </div>
+          </Box>
         ),
-        minWidth: "140px",
       },
       visibleCols.last_activity && {
-        name: "Last Activity",
-        cell: (r) => {
+        key: 'last_activity', label: 'Last Activity', minWidth: 160,
+        render: (r) => {
           const last = r.activities?.[0];
           return (
-            <div>
-              <div className="small fw-semibold" style={{ color: "#0f172a" }}>
+            <Box>
+              <Typography variant="body2" sx={{ fontWeight: 700 }}>
                 {last?.type ? last.type.charAt(0).toUpperCase() + last.type.slice(1) : "-"}
-              </div>
-              <div className="small text-secondary">
+              </Typography>
+              <Typography variant="caption" color="text.secondary">
                 {last?.activity_at ? new Date(last.activity_at).toLocaleString() : ""}
-              </div>
-            </div>
+              </Typography>
+            </Box>
           );
         },
-        minWidth: "160px",
       },
       visibleCols.assignee && {
-        name: "Assignee",
-        selector: (r) => r.assignee?.name || "-",
-        sortable: false,
-        width: "160px",
+        key: 'assignee', label: 'Assignee', width: 160,
+        render: (r) => r.assignee?.name || "-",
       },
       visibleCols.next_follow_up && {
-        name: "Next Follow-up",
-        selector: (r) => (r.next_follow_up_date ? String(r.next_follow_up_date).slice(0, 10) : "-"),
-        sortable: true,
-        sortField: "next_follow_up_date",
-        width: "140px",
+        key: 'next_follow_up', label: 'Next Follow-up', sortField: 'next_follow_up_date', width: 140,
+        render: (r) => (r.next_follow_up_date ? String(r.next_follow_up_date).slice(0, 10) : "-"),
       },
       visibleCols.action && {
-        name: "Action",
-        cell: (r) => (
-          <div className="d-flex gap-1">
-            <button className="btn btn-outline-primary btn-sm" title="View" onClick={() => viewLead(r)}>
-              <i className="fas fa-eye"></i>
-            </button>
-            <button className="btn btn-outline-info btn-sm" title="Edit" onClick={() => editLead(r)}>
-              <i className="fas fa-edit"></i>
-            </button>
+        key: 'action', label: 'Action', width: 180,
+        render: (r) => (
+          <Stack direction="row" spacing={0.5}>
+            <Tooltip title="View">
+              <IconButton size="small" color="primary" onClick={() => viewLead(r)} sx={{ border: '1px solid', borderColor: 'divider' }} aria-label="View">
+                <i className="fas fa-eye" style={{ fontSize: 13 }} aria-hidden="true" />
+              </IconButton>
+            </Tooltip>
+            <Tooltip title="Edit">
+              <IconButton size="small" color="info" onClick={() => editLead(r)} sx={{ border: '1px solid', borderColor: 'divider' }} aria-label="Edit">
+                <i className="fas fa-edit" style={{ fontSize: 13 }} aria-hidden="true" />
+              </IconButton>
+            </Tooltip>
             {canEditLeads && (!r.assigned_to || currentUserId !== Number(r.assigned_to)) && (
-              <button className="btn btn-outline-success btn-sm" title="Claim" onClick={() => claimLead(r)}>
-                <i className="fas fa-user-check"></i>
-              </button>
+              <Tooltip title="Claim">
+                <IconButton size="small" color="success" onClick={() => claimLead(r)} sx={{ border: '1px solid', borderColor: 'divider' }} aria-label="Claim">
+                  <i className="fas fa-user-check" style={{ fontSize: 13 }} aria-hidden="true" />
+                </IconButton>
+              </Tooltip>
             )}
             {canDeleteLeads && (
-              <button className="btn btn-outline-danger btn-sm" title="Delete" onClick={() => deleteLead(r)}>
-                <i className="fas fa-trash"></i>
-              </button>
+              <Tooltip title="Delete">
+                <IconButton size="small" color="error" onClick={() => deleteLead(r)} sx={{ border: '1px solid', borderColor: 'divider' }} aria-label="Delete">
+                  <i className="fas fa-trash" style={{ fontSize: 13 }} aria-hidden="true" />
+                </IconButton>
+              </Tooltip>
             )}
-          </div>
+          </Stack>
         ),
-        width: "180px",
       },
     ].filter(Boolean),
     [visibleCols, canEditLeads, canDeleteLeads, currentUserId, viewLead, editLead, claimLead, deleteLead]
@@ -487,342 +584,392 @@ export default function FollowUps() {
     never_follow_up: "Never Follow-up",
   };
 
+  const columnOptions = [
+    ['id', 'ID'],
+    ['name', 'Name'],
+    ['phone', 'Phone'],
+    ['stage', 'Stage'],
+    ['source', 'Source'],
+    ['tags', 'Tags'],
+    ['last_activity', 'Last Activity'],
+    ['assignee', 'Assignee'],
+    ['next_follow_up', 'Next Follow-up'],
+    ['action', 'Action'],
+  ];
+
+  const totalColumnCount = columns.length + (canDeleteLeads ? 1 : 0);
+
   return (
-    <div className="container-fluid py-3">
-      <div className="d-flex justify-content-between align-items-center mb-3">
-        <div>
-          <h4 className="m-0 fw-bold" style={{ color: "#1e293b" }}>Follow-ups</h4>
-          <div className="small text-muted">Manage and track all your lead follow-ups</div>
-        </div>
-        <div className="d-flex align-items-center gap-2">
-          <Form.Select
-            size="sm"
-            value={upcomingDays}
-            style={{ width: 150, borderRadius: 8 }}
-            onChange={(e) => setUpcomingDays(parseInt(e.target.value || "7", 10))}
+    <Box>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: { md: 'center' }, flexDirection: { xs: 'column', md: 'row' }, gap: 2, mb: 3 }}>
+        <Box>
+          <Typography variant="h4" sx={{ color: 'text.primary', fontWeight: 700 }}>
+            Follow-ups
+          </Typography>
+          <Typography variant="body2" sx={{ color: 'text.secondary', mt: .5 }}>
+            Manage and track all your lead follow-ups
+          </Typography>
+        </Box>
+        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} alignItems={{ sm: 'center' }} useFlexGap sx={{ flexWrap: 'wrap' }}>
+          <FormControl size="small" sx={{ minWidth: 170 }}>
+            <Select
+              value={String(upcomingDays)}
+              onChange={(e) => applyUpcomingDays(parseInt(e.target.value || "7", 10))}
+            >
+              <MenuItem value="7">Upcoming: 7 days</MenuItem>
+              <MenuItem value="15">Upcoming: 15 days</MenuItem>
+              <MenuItem value="30">Upcoming: 30 days</MenuItem>
+            </Select>
+          </FormControl>
+          <Button
+            variant="outlined"
+            onClick={() => setReloadKey(k => k + 1)}
+            disabled={loading}
+            startIcon={<i className="fas fa-sync-alt" aria-hidden="true" />}
           >
-            <option value={7}>Upcoming: 7 days</option>
-            <option value={15}>Upcoming: 15 days</option>
-            <option value={30}>Upcoming: 30 days</option>
-          </Form.Select>
-          <Button variant="outline-secondary" size="sm" onClick={() => setReloadKey(k => k + 1)} disabled={loading} style={{ borderRadius: 8 }}>
-            <i className="fas fa-sync-alt me-1"></i> Refresh
+            Refresh
           </Button>
-          <Button variant="outline-secondary" size="sm" onClick={loadSummary} disabled={summaryLoading} style={{ borderRadius: 8 }}>
+          <Button
+            variant="outlined"
+            onClick={loadSummary}
+            disabled={summaryLoading}
+          >
             {summaryLoading ? "Loading..." : "Refresh Summary"}
           </Button>
-        </div>
-      </div>
+        </Stack>
+      </Box>
 
-      <Row className="g-2 mb-3">
+      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: 'repeat(2, 1fr)', sm: 'repeat(3, 1fr)', xl: 'repeat(5, 1fr)' }, gap: 2, mb: 3 }}>
         {bucketCards.map((c) => (
-          <Col key={c.key} md={2} sm={6}>
-            <Card
-              role="button"
-              onClick={() => setBucket(c.key)}
-              className={`border-0 shadow-sm ${bucket === c.key ? "ring-2" : ""}`}
-              style={{
-                background: c.bg,
-                border: bucket === c.key ? `2px solid ${c.color}` : "2px solid transparent",
-                transition: "all 0.2s ease",
-                cursor: "pointer",
-              }}
-            >
-              <Card.Body className="py-2 px-3">
-                <div className="d-flex justify-content-between align-items-center">
-                  <div>
-                    <div className="small text-muted mb-1" style={{ fontSize: 12 }}>{c.label}</div>
-                    <div className="fw-bold" style={{ fontSize: 20, color: c.color }}>{c.value}</div>
-                  </div>
-                  <div
-                    className="d-flex align-items-center justify-content-center rounded-circle"
-                    style={{
-                      width: 36,
-                      height: 36,
-                      background: c.color,
-                      color: "#fff",
-                      fontSize: 14,
-                    }}
-                  >
-                    <i className={`fas ${c.icon}`} />
-                  </div>
-                </div>
-              </Card.Body>
-            </Card>
-          </Col>
+          <Card
+            key={c.key}
+            role="button"
+            onClick={() => applyBucket(c.key)}
+            sx={{
+              bgcolor: c.bg,
+              border: '2px solid',
+              borderColor: bucket === c.key ? c.color : 'transparent',
+              borderRadius: 3,
+              boxShadow: '0 8px 24px rgba(28,37,46,.05)',
+              transition: 'all 0.2s ease',
+              cursor: 'pointer',
+            }}
+          >
+            <CardContent sx={{ px: 2, py: 1.5, '&:last-child': { pb: 1.5 } }}>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 1 }}>
+                <Box>
+                  <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mb: .5 }}>
+                    {c.label}
+                  </Typography>
+                  <Typography variant="h5" sx={{ fontWeight: 700, color: c.color }}>
+                    {c.value}
+                  </Typography>
+                </Box>
+                <Box
+                  sx={{
+                    width: 36,
+                    height: 36,
+                    borderRadius: '50%',
+                    bgcolor: c.color,
+                    color: '#fff',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: 14,
+                    flexShrink: 0,
+                  }}
+                >
+                  <i className={`fas ${c.icon}`} aria-hidden="true" />
+                </Box>
+              </Box>
+            </CardContent>
+          </Card>
         ))}
-      </Row>
+      </Box>
 
-      <div className="card card-outline card-primary">
-        <div className="card-header" style={{ background: "#f8fafc", borderBottom: "1px solid #e2e8f0" }}>
-          <div className="d-flex justify-content-between align-items-center flex-wrap gap-2">
-            <div className="d-flex align-items-center gap-2">
-              <i className="fas fa-list-ul text-primary small"></i>
-              <span className="fw-semibold" style={{ color: "#1e293b" }}>{titleByBucket[bucket] || "Follow-ups"}</span>
-            </div>
-            <div className="d-flex gap-2 align-items-center">
-              <div className="input-group input-group-sm" style={{ maxWidth: 260 }}>
-                <span className="input-group-text bg-white" style={{ borderColor: "#cbd5e1" }}>
-                  <i className="fas fa-search text-muted" style={{ fontSize: 12 }}></i>
-                </span>
-                <input
-                  className="form-control bg-white"
-                  placeholder="Search name, phone, email..."
-                  value={searchInput}
-                  onChange={(e) => setSearchInput(e.target.value)}
-                  style={{ borderColor: "#cbd5e1", fontSize: "0.85rem" }}
-                />
-              </div>
+      <Card sx={cardSx}>
+        <Box sx={{ px: 3, py: 2, bgcolor: '#f8fafc', borderBottom: '1px solid', borderColor: 'divider', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 2 }}>
+          <Stack direction="row" spacing={1} alignItems="center">
+            <i className="fas fa-list-ul" style={{ color: '#062849', fontSize: 13 }} aria-hidden="true" />
+            <Typography variant="subtitle2" sx={{ color: 'text.primary', fontWeight: 700 }}>
+              {titleByBucket[bucket] || "Follow-ups"}
+            </Typography>
+          </Stack>
+          <Stack direction="row" spacing={1.5} alignItems="center" useFlexGap sx={{ flexWrap: 'wrap' }}>
+            <TextField
+              size="small"
+              placeholder="Search name, phone, email..."
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
+              sx={{ minWidth: { xs: '100%', sm: 260 } }}
+              slotProps={{
+                input: {
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <i className="fas fa-search" style={{ fontSize: 12, color: '#637381' }} aria-hidden="true" />
+                    </InputAdornment>
+                  ),
+                },
+              }}
+            />
 
-              <Button variant="success" size="sm" onClick={exportToCSV} disabled={exporting} className="d-flex align-items-center gap-1" style={{ borderRadius: 6, fontWeight: 500, fontSize: "0.8rem" }}>
-                {exporting ? <><i className="fas fa-spinner fa-spin" style={{ fontSize: 12 }}></i><span>Exporting...</span></> : <><i className="fas fa-file-csv" style={{ fontSize: 12 }}></i><span>Export All</span></>}
-              </Button>
+            <Button
+              variant="contained"
+              color="success"
+              onClick={exportToCSV}
+              disabled={exporting}
+              startIcon={<i className={`fas ${exporting ? 'fa-spinner fa-spin' : 'fa-file-csv'}`} style={{ fontSize: 12 }} aria-hidden="true" />}
+            >
+              {exporting ? "Exporting..." : "Export All"}
+            </Button>
 
-              <Dropdown>
-                <Dropdown.Toggle variant="outline-secondary btn-sm" id="followups-columns-toggle" style={{ borderRadius: 6, fontSize: "0.8rem" }}>
-                  <i className="fas fa-columns" style={{ fontSize: 12 }}></i>
-                  <span className="ms-1">Columns</span>
-                </Dropdown.Toggle>
-                <Dropdown.Menu>
-                  <Dropdown.Item active={visibleCols.id} onClick={() => setVisibleCols(v => ({ ...v, id: !v.id }))}>
-                    <i className={`fas ${visibleCols.id ? 'fa-check-square text-primary' : 'fa-square'} me-2`}></i> ID
-                  </Dropdown.Item>
-                  <Dropdown.Item active={visibleCols.name} onClick={() => setVisibleCols(v => ({ ...v, name: !v.name }))}>
-                    <i className={`fas ${visibleCols.name ? 'fa-check-square text-primary' : 'fa-square'} me-2`}></i> Name
-                  </Dropdown.Item>
-                  <Dropdown.Item active={visibleCols.phone} onClick={() => setVisibleCols(v => ({ ...v, phone: !v.phone }))}>
-                    <i className={`fas ${visibleCols.phone ? 'fa-check-square text-primary' : 'fa-square'} me-2`}></i> Phone
-                  </Dropdown.Item>
-                  <Dropdown.Item active={visibleCols.stage} onClick={() => setVisibleCols(v => ({ ...v, stage: !v.stage }))}>
-                    <i className={`fas ${visibleCols.stage ? 'fa-check-square text-primary' : 'fa-square'} me-2`}></i> Stage
-                  </Dropdown.Item>
-                  <Dropdown.Item active={visibleCols.source} onClick={() => setVisibleCols(v => ({ ...v, source: !v.source }))}>
-                    <i className={`fas ${visibleCols.source ? 'fa-check-square text-primary' : 'fa-square'} me-2`}></i> Source
-                  </Dropdown.Item>
-                  <Dropdown.Item active={visibleCols.tags} onClick={() => setVisibleCols(v => ({ ...v, tags: !v.tags }))}>
-                    <i className={`fas ${visibleCols.tags ? 'fa-check-square text-primary' : 'fa-square'} me-2`}></i> Tags
-                  </Dropdown.Item>
-                  <Dropdown.Item active={visibleCols.last_activity} onClick={() => setVisibleCols(v => ({ ...v, last_activity: !v.last_activity }))}>
-                    <i className={`fas ${visibleCols.last_activity ? 'fa-check-square text-primary' : 'fa-square'} me-2`}></i> Last Activity
-                  </Dropdown.Item>
-                  <Dropdown.Item active={visibleCols.assignee} onClick={() => setVisibleCols(v => ({ ...v, assignee: !v.assignee }))}>
-                    <i className={`fas ${visibleCols.assignee ? 'fa-check-square text-primary' : 'fa-square'} me-2`}></i> Assignee
-                  </Dropdown.Item>
-                  <Dropdown.Item active={visibleCols.next_follow_up} onClick={() => setVisibleCols(v => ({ ...v, next_follow_up: !v.next_follow_up }))}>
-                    <i className={`fas ${visibleCols.next_follow_up ? 'fa-check-square text-primary' : 'fa-square'} me-2`}></i> Next Follow-up
-                  </Dropdown.Item>
-                  <Dropdown.Item active={visibleCols.action} onClick={() => setVisibleCols(v => ({ ...v, action: !v.action }))}>
-                    <i className={`fas ${visibleCols.action ? 'fa-check-square text-primary' : 'fa-square'} me-2`}></i> Action
-                  </Dropdown.Item>
-                </Dropdown.Menu>
-              </Dropdown>
+            <Button
+              variant="outlined"
+              onClick={(event) => setColumnAnchorEl(event.currentTarget)}
+              startIcon={<i className="fas fa-columns" style={{ fontSize: 12 }} aria-hidden="true" />}
+              sx={{ whiteSpace: 'nowrap' }}
+            >
+              Columns
+            </Button>
+            <Menu anchorEl={columnAnchorEl} open={Boolean(columnAnchorEl)} onClose={() => setColumnAnchorEl(null)}>
+              {columnOptions.map(([key, label]) => (
+                <MenuItem key={key} onClick={() => setVisibleCols(v => ({ ...v, [key]: !v[key] }))}>
+                  <Checkbox checked={Boolean(visibleCols[key])} size="small" />
+                  <ListItemText primary={label} />
+                </MenuItem>
+              ))}
+            </Menu>
 
-              <Dropdown>
-                <Dropdown.Toggle variant="outline-secondary btn-sm" id="followups-filter-toggle" style={{ borderRadius: 6, fontSize: "0.8rem" }}>
-                  <i className="fas fa-filter" style={{ fontSize: 12 }}></i>
-                  <span className="ms-1">Filters</span>
-                  {hasActiveFilters && <span className="badge bg-primary ms-1" style={{ fontSize: 8, width: 8, height: 8, padding: 0, borderRadius: "50%" }}> </span>}
-                </Dropdown.Toggle>
-                <Dropdown.Menu style={{ minWidth: 280 }}>
-                  <div className="px-3 py-2">
-                    <div className="mb-2">
-                      <label className="small fw-semibold text-muted">Stage</label>
-                      <Form.Select size="sm" value={filterStage} onChange={(e) => setFilterStage(e.target.value)}>
-                        <option value="">All Stages</option>
-                        {leadStages.map((s) => (
-                          <option key={s.id ?? s.name} value={s.name}>
-                            {s.name}
-                          </option>
-                        ))}
-                      </Form.Select>
-                    </div>
+            <Button
+              variant="outlined"
+              onClick={() => setShowFilters(open => !open)}
+              startIcon={<i className="fas fa-filter" style={{ fontSize: 12 }} aria-hidden="true" />}
+              endIcon={hasActiveFilters ? <Box component="span" sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: 'secondary.main' }} /> : null}
+              sx={{ whiteSpace: 'nowrap' }}
+            >
+              Filters
+            </Button>
+          </Stack>
+        </Box>
 
-                    <div className="mb-2">
-                      <label className="small fw-semibold text-muted">Source</label>
-                      <Form.Select size="sm" value={filterSource} onChange={(e) => setFilterSource(e.target.value)}>
-                        <option value="">All Sources</option>
-                        {leadSources.map((s) => (
-                          <option key={s.id ?? s.name} value={s.name}>
-                            {s.name}
-                          </option>
-                        ))}
-                      </Form.Select>
-                    </div>
+        <Collapse in={showFilters} unmountOnExit>
+          <Divider />
+          <Box sx={{ px: 3, py: 2.5, bgcolor: '#f8fafc' }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 2, mb: 2.5 }}>
+              <Box>
+                <Typography variant="subtitle2" sx={{ color: 'text.primary', fontWeight: 700 }}>
+                  Filters
+                </Typography>
+                <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                  Refine the leads shown in the table
+                </Typography>
+              </Box>
+              {hasActiveFilters ? (
+                <Button variant="text" size="small" onClick={clearFilters} startIcon={<i className="fas fa-times" aria-hidden="true" />}>
+                  Clear
+                </Button>
+              ) : null}
+            </Box>
 
-                    <div className="mb-2">
-                      <label className="small fw-semibold text-muted">Assignee</label>
-                      <Form.Select size="sm" value={filterAssignee} onChange={(e) => setFilterAssignee(e.target.value)}>
-                        <option value="">All Assignees</option>
-                        {users.map((u) => (
-                          <option key={u.id} value={u.id}>
-                            {u.name}
-                          </option>
-                        ))}
-                      </Form.Select>
-                    </div>
+            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', xl: 'repeat(4, 1fr)' }, gap: 2 }}>
+              <FormControl size="small" fullWidth>
+                <InputLabel>Stage</InputLabel>
+                <Select label="Stage" value={filterStage} onChange={(e) => updateFilterStage(e.target.value)}>
+                  <MenuItem value=""><em>All Stages</em></MenuItem>
+                  {leadStages.map((s) => (
+                    <MenuItem key={s.id ?? s.name} value={s.name}>
+                      {s.name}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
 
-                    <div className="mb-2">
-                      <label className="small fw-semibold text-muted">Tags</label>
-                      <Form.Select
-                        size="sm"
-                        multiple
-                        style={{ minHeight: 60 }}
-                        value={filterTags}
-                        onChange={(e) => {
-                          const selected = Array.from(e.target.selectedOptions, (o) => o.value);
-                          setFilterTags(selected);
-                        }}
+              <FormControl size="small" fullWidth>
+                <InputLabel>Source</InputLabel>
+                <Select label="Source" value={filterSource} onChange={(e) => updateFilterSource(e.target.value)}>
+                  <MenuItem value=""><em>All Sources</em></MenuItem>
+                  {leadSources.map((s) => (
+                    <MenuItem key={s.id ?? s.name} value={s.name}>
+                      {s.name}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+
+              <FormControl size="small" fullWidth>
+                <InputLabel>Assignee</InputLabel>
+                <Select label="Assignee" value={String(filterAssignee)} onChange={(e) => updateFilterAssignee(e.target.value)}>
+                  <MenuItem value=""><em>All Assignees</em></MenuItem>
+                  {users.map((u) => (
+                    <MenuItem key={u.id} value={String(u.id)}>
+                      {u.name}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+
+              <FormControl size="small" fullWidth>
+                <InputLabel>Tags</InputLabel>
+                <Select
+                  multiple
+                  label="Tags"
+                  value={filterTags.map(String)}
+                  onChange={(e) => updateFilterTags(e.target.value)}
+                  renderValue={(selected) => (selected.length ? `${selected.length} selected` : 'All tags')}
+                >
+                  {tags.map((t) => (
+                    <MenuItem key={t.id} value={String(t.id)}>
+                      <Checkbox checked={filterTags.map(String).includes(String(t.id))} size="small" />
+                      <ListItemText primary={t.name} />
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Box>
+
+            <Box sx={{ mt: 2, display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(2, 1fr)' }, gap: 2 }}>
+              <Box>
+                <Typography variant="caption" sx={{ display: 'block', color: 'text.secondary', fontWeight: 700, mb: .75 }}>
+                  Created Date
+                </Typography>
+                <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 1.5 }}>
+                  <TextField size="small" type="date" label="From" value={filterCreatedFrom} onChange={(e) => updateFilterCreatedFrom(e.target.value)} slotProps={{ inputLabel: { shrink: true } }} fullWidth />
+                  <TextField size="small" type="date" label="To" value={filterCreatedTo} onChange={(e) => updateFilterCreatedTo(e.target.value)} slotProps={{ inputLabel: { shrink: true } }} fullWidth />
+                </Box>
+              </Box>
+              <Box>
+                <Typography variant="caption" sx={{ display: 'block', color: 'text.secondary', fontWeight: 700, mb: .75 }}>
+                  Last Activity Date
+                </Typography>
+                <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 1.5 }}>
+                  <TextField size="small" type="date" label="From" value={filterActivityFrom} onChange={(e) => updateFilterActivityFrom(e.target.value)} slotProps={{ inputLabel: { shrink: true } }} fullWidth />
+                  <TextField size="small" type="date" label="To" value={filterActivityTo} onChange={(e) => updateFilterActivityTo(e.target.value)} slotProps={{ inputLabel: { shrink: true } }} fullWidth />
+                </Box>
+              </Box>
+            </Box>
+          </Box>
+        </Collapse>
+
+        {selectedRows.length > 0 && canDeleteLeads && (
+          <Box
+            sx={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              p: 2,
+              mx: 3,
+              mt: 2,
+              mb: 2,
+              bgcolor: '#fef2f2',
+              border: '1px solid #fecaca',
+              borderRadius: 2,
+            }}
+          >
+            <Stack direction="row" spacing={1} alignItems="center">
+              <i className="fas fa-check-circle" style={{ color: '#22c55e', fontSize: 13 }} aria-hidden="true" />
+              <Typography variant="body2" sx={{ fontWeight: 700, color: 'text.primary' }}>
+                {selectedRows.length} selected
+              </Typography>
+            </Stack>
+            <Button variant="outlined" color="error" size="small" onClick={bulkDelete} startIcon={<i className="fas fa-trash-alt" style={{ fontSize: 11 }} aria-hidden="true" />}>
+              Delete
+            </Button>
+          </Box>
+        )}
+
+        {loading && <LinearProgress />}
+        <TableContainer sx={{ overflowX: 'auto' }}>
+          <Table sx={{ minWidth: 1100 }} size="small">
+            <TableHead>
+              <TableRow sx={{ bgcolor: '#f8fafc' }}>
+                {canDeleteLeads && (
+                  <TableCell padding="checkbox" sx={{ ...headCellSx, px: 1 }}>
+                    <Checkbox
+                      size="small"
+                      checked={allRowsSelected}
+                      indeterminate={someRowsSelected}
+                      onChange={toggleAllRows}
+                    />
+                  </TableCell>
+                )}
+                {columns.map((column) => (
+                  <TableCell
+                    key={column.key}
+                    align={column.align || 'left'}
+                    sx={{ ...headCellSx, minWidth: column.minWidth, width: column.width }}
+                  >
+                    {column.sortField ? (
+                      <TableSortLabel
+                        active={sortField === column.sortField}
+                        direction={sortField === column.sortField ? sortDir : 'asc'}
+                        onClick={() => handleSort(column.sortField)}
                       >
-                        {tags.map((t) => (
-                          <option key={t.id} value={t.id}>
-                            {t.name}
-                          </option>
-                        ))}
-                      </Form.Select>
-                      <small className="text-muted">Hold Ctrl to select multiple</small>
-                    </div>
+                        {column.label}
+                      </TableSortLabel>
+                    ) : column.label}
+                  </TableCell>
+                ))}
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {rows.length === 0 && !loading ? (
+                <TableRow>
+                  <TableCell colSpan={Math.max(totalColumnCount, 1)} align="center" sx={{ py: 7 }}>
+                    <i className="fas fa-folder-open" style={{ color: '#637381', fontSize: 42, opacity: .4 }} aria-hidden="true" />
+                    <Typography variant="subtitle2" sx={{ color: 'text.secondary', mt: 1.5 }}>
+                      No leads found
+                    </Typography>
+                    <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                      Try adjusting your filters or check back later
+                    </Typography>
+                  </TableCell>
+                </TableRow>
+              ) : rows.map((row) => (
+                <TableRow
+                  key={row.id}
+                  hover
+                  selected={isRowSelected(row)}
+                  sx={{ '&:last-child td': { borderBottom: 0 } }}
+                >
+                  {canDeleteLeads && (
+                    <TableCell padding="checkbox" sx={{ ...bodyCellSx, px: 1 }}>
+                      <Checkbox
+                        size="small"
+                        checked={isRowSelected(row)}
+                        onChange={() => toggleRow(row)}
+                      />
+                    </TableCell>
+                  )}
+                  {columns.map((column) => (
+                    <TableCell
+                      key={`${row.id}-${column.key}`}
+                      align={column.align || 'left'}
+                      sx={bodyCellSx}
+                    >
+                      {column.render(row)}
+                    </TableCell>
+                  ))}
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </TableContainer>
 
-                    <div className="mb-2">
-                      <label className="small fw-semibold text-muted">Created Date</label>
-                      <div className="d-flex gap-1">
-                        <Form.Control
-                          type="date"
-                          size="sm"
-                          placeholder="From"
-                          value={filterCreatedFrom}
-                          onChange={(e) => setFilterCreatedFrom(e.target.value)}
-                        />
-                        <Form.Control
-                          type="date"
-                          size="sm"
-                          placeholder="To"
-                          value={filterCreatedTo}
-                          onChange={(e) => setFilterCreatedTo(e.target.value)}
-                        />
-                      </div>
-                    </div>
-
-                    <div className="mb-2">
-                      <label className="small fw-semibold text-muted">Last Activity Date</label>
-                      <div className="d-flex gap-1">
-                        <Form.Control
-                          type="date"
-                          size="sm"
-                          placeholder="From"
-                          value={filterActivityFrom}
-                          onChange={(e) => setFilterActivityFrom(e.target.value)}
-                        />
-                        <Form.Control
-                          type="date"
-                          size="sm"
-                          placeholder="To"
-                          value={filterActivityTo}
-                          onChange={(e) => setFilterActivityTo(e.target.value)}
-                        />
-                      </div>
-                    </div>
-
-                    {hasActiveFilters && (
-                      <div className="d-flex justify-content-end mt-2">
-                        <button className="btn btn-outline-secondary btn-sm" onClick={clearFilters}>
-                          <i className="fas fa-times me-1"></i> Clear
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                </Dropdown.Menu>
-              </Dropdown>
-            </div>
-          </div>
-        </div>
-        <div className="card-body p-0">
-          {selectedRows.length > 0 && canDeleteLeads && (
-            <div className="d-flex justify-content-between align-items-center p-2 mx-3 mt-2 mb-2" style={{ background: "#fef2f2", border: "1px solid #fecaca", borderRadius: 8 }}>
-              <div className="d-flex align-items-center gap-2">
-                <i className="fas fa-check-circle text-success small"></i>
-                <span className="small fw-semibold" style={{ color: "#1e293b" }}>{selectedRows.length} selected</span>
-              </div>
-              <Button variant="outline-danger" size="sm" onClick={bulkDelete} style={{ borderRadius: 6, fontSize: "0.8rem" }}>
-                <i className="fas fa-trash-alt me-1" style={{ fontSize: 11 }}></i> Delete
-              </Button>
-            </div>
-          )}
-          <DataTable
-            columns={columns}
-            data={rows}
-            progressPending={loading}
-            pagination
-            paginationServer
-            paginationTotalRows={total}
-            paginationPerPage={perPage}
-            paginationDefaultPage={page}
-            paginationRowsPerPageOptions={[10, 25, 50, 100]}
-            onChangePage={(p) => setPage(p)}
-            onChangeRowsPerPage={(n) => setPerPage(n)}
-            sortServer
-            onSort={(col, dir) => {
-              if (col.sortField) {
-                setSortField(col.sortField);
-                setSortDir(dir);
-              }
-            }}
-            className="modern-datatable"
-            selectableRows={canDeleteLeads}
-            onSelectedRowsChange={({ selectedRows }) => setSelectedRows(selectedRows)}
-            clearSelectedRows={selectedRows.length === 0}
-            highlightOnHover
-            dense
-            persistTableHead
-            striped
-            pointerOnHover
-            responsive
-            progressComponent={
-              <div className="p-4 text-center">
-                <div className="spinner-border spinner-border-sm me-2 text-primary" role="status"></div>
-                <span className="text-muted small">Loading follow-ups...</span>
-              </div>
-            }
-            noDataComponent={
-              <div className="p-5 text-center">
-                <i className="fas fa-folder-open text-muted mb-3" style={{ fontSize: 48, opacity: 0.4 }}></i>
-                <div className="fw-semibold text-secondary mb-1">No leads found</div>
-                <div className="small text-muted">Try adjusting your filters or check back later</div>
-              </div>
-            }
-            customStyles={{
-              rows: {
-                style: {
-                  fontSize: '0.875rem',
-                  minHeight: '48px',
-                },
-              },
-              headCells: {
-                style: {
-                  fontWeight: '600',
-                  fontSize: '0.75rem',
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.5px',
-                  color: '#64748b',
-                  backgroundColor: '#f8fafc',
-                  borderBottom: '1px solid #e2e8f0',
-                },
-              },
-              cells: {
-                style: {
-                  paddingLeft: '16px',
-                  paddingRight: '16px',
-                },
-              },
-              pagination: {
-                style: {
-                  borderTop: '1px solid #e2e8f0',
-                  backgroundColor: '#f8fafc',
-                },
-              },
-            }}
-          />
-        </div>
-      </div>
-    </div>
+        <TablePagination
+          component="div"
+          count={total}
+          page={Math.max(page - 1, 0)}
+          rowsPerPage={perPage}
+          rowsPerPageOptions={[10, 25, 50, 100]}
+          onPageChange={(event, p) => setPage(p + 1)}
+          onRowsPerPageChange={(event) => {
+            const nextSize = Number(event.target.value);
+            setPerPage(nextSize);
+            setPage(1);
+          }}
+          sx={{ borderTop: '1px solid', borderColor: 'divider' }}
+        />
+      </Card>
+    </Box>
   );
 }
