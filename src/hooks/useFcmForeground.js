@@ -22,8 +22,8 @@ export default function useFcmForeground() {
         navigator.serviceWorker.ready.then((registration) => {
           registration.showNotification(title || 'CRM Notification', {
             body: body || '',
-            icon: '/pwa-192x192.svg',
-            badge: '/pwa-192x192.svg',
+            icon: '/pwa-192x192.png',
+            badge: '/pwa-192x192.png',
             tag: data.lead_id ? `lead-${data.lead_id}` : 'crm-notification',
             data,
           });

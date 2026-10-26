@@ -25,8 +25,8 @@ onBackgroundMessage(messaging, (payload) => {
 
   self.registration.showNotification(title || 'Follow-up Reminder', {
     body: body || '',
-    icon: '/pwa-192x192.svg',
-    badge: '/pwa-192x192.svg',
+    icon: '/pwa-192x192.png',
+    badge: '/pwa-192x192.png',
     data,
     tag: data.lead_id ? `lead-${data.lead_id}` : 'crm-notification',
   });
