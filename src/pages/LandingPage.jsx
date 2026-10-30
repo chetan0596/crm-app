@@ -3,11 +3,11 @@ import { Link } from "react-router-dom";
 import "../styles/landing.css";
 
 const NAV_LINKS = [
-  { label: "Features", href: "#features" },
-  { label: "Modules", href: "#modules" },
-  { label: "Workflow", href: "#workflow" },
-  { label: "Pricing", href: "#pricing" },
-  { label: "Reviews", href: "#testimonials" },
+  { label: "Features", href: "#features", icon: "fa-solid fa-grip" },
+  { label: "Modules", href: "#modules", icon: "fa-solid fa-cubes" },
+  { label: "Workflow", href: "#workflow", icon: "fa-solid fa-diagram-project" },
+  { label: "Pricing", href: "#pricing", icon: "fa-solid fa-tag" },
+  { label: "Reviews", href: "#testimonials", icon: "fa-solid fa-star" },
 ];
 
 const FEATURES = [
@@ -169,6 +169,17 @@ export default function LandingPage() {
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
+  // Close mobile menu on Escape + lock body scroll while open
+  useEffect(() => {
+    const onKey = (e) => e.key === "Escape" && setMenuOpen(false);
+    window.addEventListener("keydown", onKey);
+    document.body.style.overflow = menuOpen ? "hidden" : "";
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      document.body.style.overflow = "";
+    };
+  }, [menuOpen]);
+
   // ---------- SEO (landing route only; cleaned up on unmount) ----------
   useEffect(() => {
     const origin = window.location.origin;
@@ -286,16 +297,10 @@ export default function LandingPage() {
             <img src="/sarth-logo.png" alt="Sarth — Grow Business" />
           </Link>
 
-          <nav className={`nav-links ${menuOpen ? "is-open" : ""}`}>
+          <nav className="nav-links">
             {NAV_LINKS.map((l) => (
-              <a key={l.href} href={l.href} onClick={() => setMenuOpen(false)}>
-                {l.label}
-              </a>
+              <a key={l.href} href={l.href}>{l.label}</a>
             ))}
-            <div className="nav-actions-mobile">
-              <Link to="/login" className="btn btn-ghost">Login</Link>
-              <Link to="/register" className="btn btn-primary">Get Started</Link>
-            </div>
           </nav>
 
           <div className="nav-actions">
@@ -308,12 +313,52 @@ export default function LandingPage() {
           <button
             className="nav-toggle"
             aria-label="Toggle menu"
+            aria-expanded={menuOpen}
+            aria-controls="landing-menu"
             onClick={() => setMenuOpen((v) => !v)}
           >
             <i className={menuOpen ? "fa-solid fa-xmark" : "fa-solid fa-bars"}></i>
           </button>
         </div>
       </header>
+
+      {menuOpen && (
+        <div
+          className="nav-backdrop"
+          onClick={() => setMenuOpen(false)}
+          aria-hidden="true"
+        ></div>
+      )}
+
+      {/* ---------- Mobile drawer ---------- */}
+      <nav
+        id="landing-menu"
+        className={`mobile-drawer ${menuOpen ? "is-open" : ""}`}
+        aria-hidden={!menuOpen}
+      >
+        <div className="drawer-links">
+          {NAV_LINKS.map((l) => (
+            <a key={l.href} href={l.href} onClick={() => setMenuOpen(false)}>
+              <i className={l.icon}></i>
+              <span>{l.label}</span>
+              <i className="fa-solid fa-angle-right drawer-chev"></i>
+            </a>
+          ))}
+        </div>
+
+        <div className="drawer-promo">
+          <i className="fa-solid fa-rocket"></i>
+          <strong>Ready to grow faster?</strong>
+          <span>Join 500+ businesses running on Sarth.</span>
+        </div>
+
+        <div className="drawer-actions">
+          <Link to="/register" className="btn btn-primary">
+            Get Started <i className="fa-solid fa-arrow-right"></i>
+          </Link>
+          <Link to="/login" className="btn btn-outline">Login</Link>
+        </div>
+      </nav>
 
       <main>
       {/* ================= HERO ================= */}
