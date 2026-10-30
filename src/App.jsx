@@ -1,5 +1,6 @@
 import { Routes, Route } from "react-router-dom";
 import { lazy, Suspense, useEffect } from "react";
+import { Box, CircularProgress } from "@mui/material";
 import { refreshPermissions } from "./utils/permissions";
 import useFcmToken from "./hooks/useFcmToken";
 import useFcmForeground from "./hooks/useFcmForeground";
@@ -13,6 +14,7 @@ import AdminLayout from "./layouts/AdminLayout";
 const LeadCategory = lazy(() => import("./pages/LeadCategory"));
 const LeadSubcategoryPage = lazy(() => import("./pages/LeadSubcategoryPage"));
 const LeadSubcategory = lazy(() => import("./pages/LeadSubcategory"));
+const LandingPage = lazy(() => import("./pages/LandingPage"));
 const Login = lazy(() => import("./pages/Login"));
 const Register = lazy(() => import("./pages/Register"));
 const LeadCategoryActivity = lazy(() => import("./pages/LeadCategoryActivity"));
@@ -67,11 +69,9 @@ const QuotationTemplate = lazy(() => import("./pages/QuotationTemplate"));
 
 // Loading component
 const LoadingSpinner = () => (
-  <div className="d-flex justify-content-center align-items-center" style={{ height: '200px' }}>
-    <div className="spinner-border text-primary" role="status">
-      <span className="sr-only">Loading...</span>
-    </div>
-  </div>
+  <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: 200 }}>
+    <CircularProgress size={32} />
+  </Box>
 );
 
 export default function App() {
@@ -90,6 +90,13 @@ export default function App() {
 
         {/* ---------- PUBLIC ---------- */}
 
+        <Route path="/" element={
+          <PublicRoute>
+            <Suspense fallback={<LoadingSpinner />}>
+              <LandingPage />
+            </Suspense>
+          </PublicRoute>
+        } />
         <Route path="/login" element={
         <PublicRoute>
           <Suspense fallback={<LoadingSpinner />}>
@@ -111,7 +118,7 @@ export default function App() {
         </PrivateRoute>
       }>
 
-        <Route path="/" element={
+        <Route path="/dashboard" element={
           <Suspense fallback={<LoadingSpinner />}>
             <Dashboard />
           </Suspense>

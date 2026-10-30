@@ -1,249 +1,427 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { Link as RouterLink } from "react-router-dom";
 import {
   Alert,
   AlertTitle,
   Box,
+  Button,
   Card,
-  CardContent,
-  Chip,
+  CardHeader,
   CircularProgress,
-  Divider,
   FormControl,
   InputLabel,
+  LinearProgress,
   MenuItem,
+  useMediaQuery,
   Select,
+  Skeleton,
   Stack,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
   TextField,
   Typography,
 } from "@mui/material";
-import {
-  LineChart,
-  Line,
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  Legend,
-  ResponsiveContainer,
-  Cell,
-} from "recharts";
+import { useTheme } from "@mui/material/styles";
 import api from "../api";
-import { canView } from "../utils/permissions";
+import { canView, getUserData } from "../utils/permissions";
+import { varAlpha } from "../theme/utils";
+import { Iconify } from "../components/iconify";
+import { Label } from "../components/label";
+import { Chart, useChart } from "../components/chart";
+import { StatTile } from "../components/stat-tile";
+import { DataList } from "../components/data-list";
+import { DataTable } from "../components/data-table";
 
 const formatMoney = (v) => {
   const n = Number(v || 0);
-  return n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return n.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 };
 
-const cardSx = {
-  height: '100%',
-  border: '1px solid',
-  borderColor: 'divider',
-  borderRadius: 3,
-  boxShadow: '0 8px 24px rgba(28,37,46,.05)',
+const formatShortMoney = (value) => {
+  const n = Number(value) || 0;
+  if (Math.abs(n) >= 100000) return `₹${(n / 100000).toFixed(1)}L`;
+  if (Math.abs(n) >= 1000) return `₹${(n / 1000).toFixed(0)}K`;
+  return `₹${n}`;
 };
 
-const iconBoxSx = (background, color, size = 48) => ({
-  width: size,
-  height: size,
-  borderRadius: 2,
-  display: 'grid',
-  placeItems: 'center',
-  bgcolor: background,
-  color,
-  flexShrink: 0,
-});
+// Percent change between the first and second half of a daily series.
+const seriesDelta = (values) => {
+  const nums = (values || []).map((v) => Number(v) || 0);
+  if (nums.length < 4) return null;
+  const mid = Math.floor(nums.length / 2);
+  const first = nums.slice(0, mid).reduce((a, b) => a + b, 0);
+  const last = nums.slice(mid).reduce((a, b) => a + b, 0);
+  if (!first) return null;
+  return Math.round(((last - first) / first) * 1000) / 10;
+};
 
-function MetricCard({ label, value, icon, color, background }) {
-  return (
-    <Card sx={cardSx}>
-      <CardContent sx={{ p: 3 }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-          <Box sx={iconBoxSx(background, color)}>
-            <i className={icon} style={{ fontSize: 20 }} aria-hidden="true" />
-          </Box>
-          <Box sx={{ minWidth: 0 }}>
-            <Typography variant="body2" sx={{ color: 'text.secondary', mb: .5 }}>
-              {label}
-            </Typography>
-            <Typography variant="h5" sx={{ color, fontWeight: 700 }}>
-              {value}
-            </Typography>
-          </Box>
-        </Box>
-      </CardContent>
-    </Card>
-  );
-}
+// ----------------------------------------------------------------------
+// Minimal "analytics widget summary" card: title, total, % delta, sparkline.
+// ----------------------------------------------------------------------
 
-function SectionCard({ title, subtitle, icon, iconColor, iconBackground, action, children, contentSx }) {
+function WidgetSummary({ title, total, icon, color = 'primary', series = [], percent = null, caption, loading }) {
+  const theme = useTheme();
+  const pal = theme.vars ? theme.vars.palette : theme.palette;
+
+  const chartOptions = useChart({
+    colors: [pal[color].main],
+    chart: { sparkline: { enabled: true } },
+    plotOptions: { bar: { columnWidth: '64%', borderRadius: 2 } },
+    xaxis: { labels: { show: false }, axisBorder: { show: false }, axisTicks: { show: false } },
+    yaxis: { show: false },
+    grid: { show: false, padding: { top: 0, right: 0, bottom: 0, left: 0 } },
+    legend: { show: false },
+    tooltip: { enabled: true, y: { formatter: (v) => `₹${formatMoney(v)}` }, marker: { show: false } },
+  });
+
   return (
-    <Card sx={cardSx}>
-      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 2, px: 3, py: 2.5 }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, minWidth: 0 }}>
-          <Box sx={iconBoxSx(iconBackground, iconColor, 40)}>
-            <i className={icon} style={{ fontSize: 16 }} aria-hidden="true" />
-          </Box>
-          <Box sx={{ minWidth: 0 }}>
-            <Typography variant="subtitle1" sx={{ color: 'text.primary', fontWeight: 700 }}>
-              {title}
+    <Card sx={{ display: 'flex', alignItems: 'center', p: 3, height: '100%' }}>
+      <Box sx={{ flexGrow: 1, minWidth: 0 }}>
+        <Typography variant="subtitle2" sx={{ color: 'text.secondary' }}>
+          {title}
+        </Typography>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, mt: 1, flexWrap: 'wrap', minHeight: 24 }}>
+          {!loading && percent !== null && (
+            <Label
+              variant="soft"
+              color={percent >= 0 ? 'success' : 'error'}
+              startIcon={
+                <Iconify width={14} icon={percent >= 0 ? 'eva:trending-up-fill' : 'eva:trending-down-fill'} />
+              }
+            >
+              {percent >= 0 ? '+' : ''}{percent}%
+            </Label>
+          )}
+          {caption && (
+            <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+              {caption}
             </Typography>
-            {subtitle && (
-              <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-                {subtitle}
-              </Typography>
-            )}
-          </Box>
+          )}
         </Box>
-        {action}
+        {loading ? (
+          <Skeleton width="72%" height={40} sx={{ mt: 1 }} />
+        ) : (
+          <Typography
+            variant="h3"
+            title={total}
+            sx={{ mt: 1, fontSize: { xs: '1.4rem', sm: '1.5rem' }, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+          >
+            {total}
+          </Typography>
+        )}
       </Box>
-      <Divider />
-      <CardContent sx={{ p: 3, '&:last-child': { pb: 3 }, ...contentSx }}>
-        {children}
-      </CardContent>
+
+      <Box sx={{ flexShrink: 0, textAlign: 'center' }}>
+        <Box
+          sx={{
+            width: 48,
+            height: 48,
+            mx: 'auto',
+            mb: 1,
+            borderRadius: 1.5,
+            display: 'grid',
+            placeItems: 'center',
+            color: `${color}.main`,
+            bgcolor: varAlpha(pal[color].mainChannel, 0.12),
+            boxShadow: `inset 0 0 0 1px ${varAlpha(pal[color].mainChannel, 0.16)}`,
+          }}
+        >
+          <Iconify icon={icon} width={26} />
+        </Box>
+        {series.length > 1 && (
+          <Chart type="bar" height={40} width={72} series={[{ name: title, data: series }]} options={chartOptions} />
+        )}
+      </Box>
     </Card>
   );
 }
 
-function DashboardTable({ columns, rows, renderRow, emptyMessage }) {
+// ----------------------------------------------------------------------
+// Dark navy welcome banner (Minimal "App welcome" style)
+// ----------------------------------------------------------------------
+
+function WelcomeBanner() {
+  const name = getUserData()?.name?.split(' ')[0] || 'there';
+
   return (
-    <TableContainer>
-      <Table size="small">
-        <TableHead>
-          <TableRow sx={{ bgcolor: '#f8fafc' }}>
-            {columns.map((column) => (
-              <TableCell
-                key={column.label}
-                align={column.align || 'left'}
-                sx={{ color: 'text.secondary', fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.04em', py: 1.5 }}
-              >
-                {column.label}
-              </TableCell>
-            ))}
-          </TableRow>
-        </TableHead>
-        <TableBody>
-          {rows.length === 0 ? (
-            <TableRow>
-              <TableCell colSpan={columns.length} align="center" sx={{ color: 'text.secondary', py: 4 }}>
-                {emptyMessage}
-              </TableCell>
-            </TableRow>
-          ) : rows.map(renderRow)}
-        </TableBody>
-      </Table>
-    </TableContainer>
+    <Card
+      sx={[
+        (theme) => ({
+          height: '100%',
+          minHeight: 200,
+          display: 'flex',
+          alignItems: 'center',
+          p: { xs: 3, md: 4 },
+          color: 'common.white',
+          position: 'relative',
+          overflow: 'hidden',
+          background: `linear-gradient(120deg, ${theme.vars.palette.primary.dark} 0%, ${theme.vars.palette.primary.main} 100%)`,
+          boxShadow: `0 12px 24px -14px ${varAlpha(theme.vars.palette.primary.mainChannel, 0.4)}`,
+          '&::before': {
+            content: '""',
+            position: 'absolute',
+            inset: 0,
+            backgroundImage: 'radial-gradient(circle, rgba(255,255,255,0.14) 1.25px, transparent 1.25px)',
+            backgroundSize: '22px 22px',
+            opacity: 0.22,
+          },
+        }),
+      ]}
+    >
+      <Box sx={{ position: 'relative', zIndex: 1, display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 1.5, maxWidth: { sm: '62%' } }}>
+        <Box>
+          <Typography variant="h4" sx={{ mb: 0.5 }}>
+            Welcome back 👋
+          </Typography>
+          <Typography variant="h4">{name}</Typography>
+        </Box>
+        <Typography variant="body2" sx={{ opacity: 0.72 }}>
+          Track sales, purchases, inventory and leads — all in one place.
+        </Typography>
+        <Button
+          component={RouterLink}
+          to="/reports/sales"
+          variant="contained"
+          startIcon={<Iconify icon="solar:chart-square-bold-duotone" width={18} />}
+          sx={{
+            mt: 0.5,
+            bgcolor: 'common.white',
+            color: 'primary.dark',
+            '&:hover': { bgcolor: 'grey.200' },
+          }}
+        >
+          View sales report
+        </Button>
+      </Box>
+
+      <Box
+        sx={{
+          position: 'absolute',
+          top: '50%',
+          right: { sm: 8, md: 40 },
+          transform: 'translateY(-50%)',
+          display: { xs: 'none', sm: 'block' },
+          zIndex: 0,
+        }}
+      >
+        <Iconify
+          icon="solar:graph-new-up-bold-duotone"
+          width={160}
+          sx={{ color: 'rgba(255,255,255,0.18)', transform: 'rotate(-8deg)' }}
+        />
+      </Box>
+    </Card>
   );
 }
 
-const chartTooltipSx = {
-  backgroundColor: '#fff',
-  border: '1px solid rgba(145,158,171,.24)',
-  borderRadius: '8px',
-  boxShadow: '0 8px 24px rgba(28,37,46,.12)',
-};
+// ----------------------------------------------------------------------
+// Soft tinted stat card — lightweight alternative to the heavy gradient style
+// ----------------------------------------------------------------------
+
+function GradientStat({ label, value, icon, color = 'primary', loading }) {
+  return (
+    <Card
+      sx={[
+        (theme) => ({
+          flex: 1,
+          display: 'flex',
+          alignItems: 'center',
+          gap: 2,
+          p: 2.5,
+          minHeight: 96,
+          position: 'relative',
+          overflow: 'hidden',
+          bgcolor: varAlpha(theme.vars.palette[color].mainChannel, 0.08),
+          boxShadow: 'none',
+          border: `dashed 1px ${varAlpha(theme.vars.palette[color].mainChannel, 0.2)}`,
+        }),
+      ]}
+    >
+      <Box
+        sx={[
+          (theme) => ({
+            width: 44,
+            height: 44,
+            borderRadius: '50%',
+            flexShrink: 0,
+            display: 'grid',
+            placeItems: 'center',
+            color: `${color}.dark`,
+            bgcolor: varAlpha(theme.vars.palette[color].mainChannel, 0.16),
+          }),
+        ]}
+      >
+        <Iconify icon={icon} width={22} />
+      </Box>
+      <Box sx={{ minWidth: 0 }}>
+        <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600, letterSpacing: 0.6 }}>
+          {label.toUpperCase()}
+        </Typography>
+        {loading ? (
+          <Skeleton width={100} height={30} />
+        ) : (
+          <Typography variant="h5" sx={{ fontWeight: 700, color: `${color}.dark` }} noWrap title={value}>
+            {value}
+          </Typography>
+        )}
+      </Box>
+    </Card>
+  );
+}
+
+// ----------------------------------------------------------------------
 
 const TrendChart = ({ data, loading }) => {
-  const formatDate = (dateStr) => {
-    const date = new Date(dateStr);
-    return date.toLocaleDateString("en-IN", { day: "numeric", month: "short" });
-  };
+  const downMd = useMediaQuery((theme) => theme.breakpoints.down('md'));
+  const categories = useMemo(
+    () => (data || []).map((d) => new Date(d.date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })),
+    [data]
+  );
 
-  const chartData = useMemo(() => {
-    return (data || []).map((d) => ({
-      ...d,
-      displayDate: formatDate(d.date),
-    }));
-  }, [data]);
+  const chartOptions = useChart({
+    legend: { show: true, position: 'top', horizontalAlign: 'right' },
+    xaxis: { categories, labels: { hideOverlappingLabels: true }, tickPlacement: 'on' },
+    yaxis: { labels: { formatter: formatShortMoney } },
+    tooltip: { y: { formatter: (v) => `₹${formatMoney(v)}` } },
+    stroke: { curve: 'smooth', width: [3, 3] },
+    markers: { size: 0, strokeWidth: 0, hover: { size: 6 } },
+    fill: { type: 'gradient', gradient: { opacityFrom: 0.24, opacityTo: 0.02 } },
+  });
 
   if (loading) {
     return (
-      <Box sx={{ height: 350, display: 'grid', placeItems: 'center', color: 'text.secondary' }}>
+      <Box sx={{ height: downMd ? 260 : 350, display: 'grid', placeItems: 'center', color: 'text.secondary' }}>
         <CircularProgress size={28} />
       </Box>
     );
   }
 
-  if (!chartData.length) {
+  if (!categories.length) {
     return (
-      <Box sx={{ height: 350, display: 'grid', placeItems: 'center', color: 'text.secondary' }}>
+      <Box sx={{ height: downMd ? 260 : 350, display: 'grid', placeItems: 'center', color: 'text.secondary' }}>
         No data available
       </Box>
     );
   }
 
   return (
-    <ResponsiveContainer width="100%" height={350}>
-      <LineChart data={chartData} margin={{ top: 20, right: 24, left: 8, bottom: 10 }}>
-        <CartesianGrid strokeDasharray="3 3" stroke="rgba(145,158,171,.22)" vertical={false} />
-        <XAxis dataKey="displayDate" tick={{ fontSize: 12, fill: '#637381' }} tickMargin={10} axisLine={false} tickLine={false} />
-        <YAxis tick={{ fontSize: 12, fill: '#637381' }} axisLine={false} tickLine={false} tickFormatter={(value) => `₹${(value / 1000).toFixed(0)}K`} />
-        <Tooltip formatter={(value, name) => [`₹${formatMoney(value)}`, name]} labelStyle={{ color: '#637381' }} contentStyle={chartTooltipSx} />
-        <Legend wrapperStyle={{ paddingTop: 16 }} />
-        <Line type="monotone" dataKey="sales" name="Sales" stroke="#062849" strokeWidth={3} dot={{ fill: '#062849', strokeWidth: 2, r: 4 }} activeDot={{ r: 6, strokeWidth: 0 }} />
-        <Line type="monotone" dataKey="purchases" name="Purchases" stroke="#6528e8" strokeWidth={3} dot={{ fill: '#6528e8', strokeWidth: 2, r: 4 }} activeDot={{ r: 6, strokeWidth: 0 }} />
-      </LineChart>
-    </ResponsiveContainer>
-  );
-};
-
-const MonthlySalesChart = ({ data }) => {
-  const chartData = useMemo(() => data || [], [data]);
-
-  if (!chartData.length) {
-    return <Box sx={{ height: 280, display: 'grid', placeItems: 'center', color: 'text.secondary' }}>No data available</Box>;
-  }
-
-  return (
-    <ResponsiveContainer width="100%" height={280}>
-      <BarChart data={chartData} margin={{ top: 16, right: 16, left: 0, bottom: 8 }}>
-        <CartesianGrid strokeDasharray="3 3" stroke="rgba(145,158,171,.22)" vertical={false} />
-        <XAxis dataKey="month" tick={{ fontSize: 11, fill: '#637381' }} tickMargin={10} axisLine={false} tickLine={false} />
-        <YAxis tick={{ fontSize: 11, fill: '#637381' }} axisLine={false} tickLine={false} tickFormatter={(value) => `₹${(value / 1000).toFixed(0)}K`} />
-        <Tooltip formatter={(value) => [`₹${formatMoney(value)}`, "Sales"]} contentStyle={chartTooltipSx} />
-        <Bar dataKey="sales" name="Sales" radius={[6, 6, 0, 0]}>
-          {chartData.map((entry, index) => (
-            <Cell key={`cell-${index}`} fill={index === chartData.length - 1 ? '#062849' : '#7b6bd8'} />
-          ))}
-        </Bar>
-      </BarChart>
-    </ResponsiveContainer>
+    <Chart
+      type="area"
+      height={downMd ? 260 : 350}
+      series={[
+        { name: 'Sales', data: (data || []).map((d) => Number(d.sales) || 0) },
+        { name: 'Purchases', data: (data || []).map((d) => Number(d.purchases) || 0) },
+      ]}
+      options={chartOptions}
+    />
   );
 };
 
 const TopCustomersChart = ({ data }) => {
+  const theme = useTheme();
+  const pal = theme.vars ? theme.vars.palette : theme.palette;
+  const sliceColors = [pal.primary.main, pal.warning.main, pal.info.main, pal.error.main, pal.success.main];
+
   const chartData = useMemo(() => (data || []).slice(0, 5), [data]);
+  const total = chartData.reduce((sum, d) => sum + (Number(d.sales) || 0), 0);
+
+  const chartOptions = useChart({
+    colors: sliceColors,
+    labels: chartData.map((d) => d.name),
+    legend: { show: false },
+    stroke: { width: 0 },
+    dataLabels: { enabled: false },
+    tooltip: { y: { formatter: (v) => `₹${formatMoney(v)}` } },
+    plotOptions: {
+      pie: {
+        donut: {
+          size: '72%',
+          labels: {
+            show: true,
+            name: { fontSize: '12px' },
+            value: { fontSize: '18px', fontWeight: 700, formatter: (v) => `₹${formatMoney(v)}` },
+            total: {
+              show: true,
+              label: 'Top 5 total',
+              fontSize: '12px',
+              formatter: () => `₹${formatMoney(total)}`,
+            },
+          },
+        },
+      },
+    },
+  });
 
   if (!chartData.length) {
-    return <Box sx={{ height: 280, display: 'grid', placeItems: 'center', color: 'text.secondary' }}>No data available</Box>;
+    return <Box sx={{ height: 300, display: 'grid', placeItems: 'center', color: 'text.secondary' }}>No data available</Box>;
   }
 
-  const colors = ['#062849', '#244f78', '#4d6e96', '#7a91b5', '#a7b8cf'];
-
   return (
-    <ResponsiveContainer width="100%" height={280}>
-      <BarChart data={chartData} margin={{ top: 16, right: 16, left: 0, bottom: 8 }} layout="vertical">
-        <CartesianGrid strokeDasharray="3 3" stroke="rgba(145,158,171,.22)" horizontal={false} />
-        <XAxis type="number" tick={{ fontSize: 11, fill: '#637381' }} axisLine={false} tickLine={false} tickFormatter={(value) => `₹${(value / 1000).toFixed(0)}K`} />
-        <YAxis type="category" dataKey="name" tick={{ fontSize: 11, fill: '#637381' }} axisLine={false} tickLine={false} width={110} interval={0} />
-        <Tooltip formatter={(value) => [`₹${formatMoney(value)}`, "Total Sales"]} contentStyle={chartTooltipSx} />
-        <Bar dataKey="sales" name="Sales" radius={[0, 6, 6, 0]}>
-          {chartData.map((entry, index) => (
-            <Cell key={`cell-${index}`} fill={colors[index % colors.length]} />
-          ))}
-        </Bar>
-      </BarChart>
-    </ResponsiveContainer>
+    <Box>
+      <Chart
+        type="donut"
+        height={232}
+        series={chartData.map((d) => Number(d.sales) || 0)}
+        options={chartOptions}
+      />
+      <Stack spacing={1.25} sx={{ px: 3, pb: 2.5 }}>
+        {chartData.map((d, index) => (
+          <Box key={d.name || index} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <Box sx={{ width: 12, height: 12, borderRadius: '50%', flexShrink: 0, bgcolor: sliceColors[index % sliceColors.length] }} />
+            <Typography variant="body2" noWrap sx={{ flexGrow: 1, minWidth: 0 }}>
+              {d.name}
+            </Typography>
+            <Typography variant="subtitle2">₹{formatShortMoney(d.sales)}</Typography>
+          </Box>
+        ))}
+      </Stack>
+    </Box>
   );
 };
+
+const MonthlySalesChart = ({ data }) => {
+  const downMd = useMediaQuery((theme) => theme.breakpoints.down('md'));
+  const chartData = useMemo(() => data || [], [data]);
+
+  const chartOptions = useChart({
+    colors: chartData.map((_, index) => (index === chartData.length - 1 ? '#062849' : '#8b5cf6')),
+    plotOptions: { bar: { borderRadius: 6, columnWidth: '52%', distributed: true } },
+    legend: { show: false },
+    xaxis: { categories: chartData.map((d) => d.month) },
+    yaxis: { labels: { formatter: formatShortMoney } },
+    tooltip: { y: { formatter: (v) => `₹${formatMoney(v)}` } },
+  });
+
+  if (!chartData.length) {
+    return <Box sx={{ height: downMd ? 240 : 300, display: 'grid', placeItems: 'center', color: 'text.secondary' }}>No data available</Box>;
+  }
+
+  return (
+    <Chart
+      type="bar"
+      height={downMd ? 240 : 300}
+      series={[{ name: 'Sales', data: chartData.map((d) => Number(d.sales) || 0) }]}
+      options={chartOptions}
+    />
+  );
+};
+
+// ----------------------------------------------------------------------
+
+function ViewAllButton({ to }) {
+  return (
+    <Button
+      component={RouterLink}
+      to={to}
+      size="small"
+      color="inherit"
+      endIcon={<Iconify icon="eva:arrow-ios-forward-fill" width={16} />}
+      sx={{ color: 'text.secondary' }}
+    >
+      View all
+    </Button>
+  );
+}
+
+// ----------------------------------------------------------------------
 
 export default function Dashboard() {
   const [rangeMode, setRangeMode] = useState("last");
@@ -329,40 +507,61 @@ export default function Dashboard() {
     );
   }
 
-  const profitPositive = Number(kpi.profitMonth || 0) >= 0;
   const trendLabel = rangeMode === "custom"
     ? "Custom range"
     : days === 1
       ? "Today"
       : `Last ${days} days`;
 
-  const primaryMetrics = [
-    { label: 'Sales Today', value: `₹${formatMoney(kpi.salesToday)}`, icon: 'fas fa-calendar-day', color: '#062849', background: '#eaf0f6' },
-    { label: 'Sales This Month', value: `₹${formatMoney(kpi.salesMonth)}`, icon: 'fas fa-chart-line', color: '#6528e8', background: '#f1ebfd' },
-    { label: 'Purchases This Month', value: `₹${formatMoney(kpi.purchasesMonth)}`, icon: 'fas fa-cart-shopping', color: '#b76e00', background: '#fff4d6' },
-    { label: 'Profit This Month', value: `₹${formatMoney(kpi.profitMonth)}`, icon: 'fas fa-coins', color: profitPositive ? '#118d57' : '#b71d18', background: profitPositive ? '#dbf5e9' : '#ffe4de' },
+  const salesSeries = trend.map((d) => Number(d.sales) || 0);
+  const purchasesSeries = trend.map((d) => Number(d.purchases) || 0);
+  const profitSeries = trend.map((d) => (Number(d.sales) || 0) - (Number(d.purchases) || 0));
+
+  const periodCaption = rangeMode === "custom" ? 'in range' : days === 1 ? 'today' : `last ${days} days`;
+
+  const widgets = [
+    {
+      title: 'Sales this month',
+      total: `₹${formatMoney(kpi.salesMonth)}`,
+      icon: 'solar:graph-up-bold-duotone',
+      color: 'secondary',
+      series: salesSeries,
+      percent: seriesDelta(salesSeries),
+      caption: periodCaption,
+    },
+    {
+      title: 'Purchases this month',
+      total: `₹${formatMoney(kpi.purchasesMonth)}`,
+      icon: 'solar:bag-4-bold-duotone',
+      color: 'warning',
+      series: purchasesSeries,
+      percent: seriesDelta(purchasesSeries),
+      caption: periodCaption,
+    },
+    {
+      title: 'Profit this month',
+      total: `₹${formatMoney(kpi.profitMonth)}`,
+      icon: 'solar:wallet-money-bold-duotone',
+      color: Number(kpi.profitMonth || 0) >= 0 ? 'success' : 'error',
+      series: profitSeries,
+      percent: seriesDelta(profitSeries),
+      caption: periodCaption,
+    },
   ];
 
-  const secondaryMetrics = [
-    { label: 'Customers', value: kpi.customersCount || 0, icon: 'fas fa-users', color: '#006c9c', background: '#caf4ff' },
-    { label: 'Vendors', value: kpi.vendorsCount || 0, icon: 'fas fa-truck', color: '#003768', background: '#d7e9ff' },
-    { label: 'Low Stock Items', value: kpi.lowStockCount || 0, icon: 'fas fa-triangle-exclamation', color: '#b76e00', background: '#fff4d6' },
-    { label: 'Out of Stock', value: kpi.outOfStockCount || 0, icon: 'fas fa-ban', color: '#b71d18', background: '#ffe4de' },
+  const stats = [
+    { label: 'Customers', value: kpi.customersCount || 0, icon: 'solar:users-group-two-rounded-bold-duotone', color: 'info' },
+    { label: 'Vendors', value: kpi.vendorsCount || 0, icon: 'solar:shop-2-bold-duotone', color: 'primary' },
+    { label: 'Low stock items', value: kpi.lowStockCount || 0, icon: 'solar:danger-triangle-bold-duotone', color: 'warning' },
+    { label: 'Out of stock', value: kpi.outOfStockCount || 0, icon: 'solar:forbidden-circle-bold-duotone', color: 'error' },
   ];
 
   return (
     <Box>
-      <Box sx={{ display: 'flex', alignItems: { md: 'center' }, justifyContent: 'space-between', flexDirection: { xs: 'column', md: 'row' }, gap: 3, mb: 3 }}>
-        <Box>
-          <Typography variant="h4" sx={{ color: 'text.primary', fontWeight: 700, mb: .5 }}>
-            Hi, Welcome back
-          </Typography>
-          <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-            Overview of sales, purchases, inventory, customers, and leads.
-          </Typography>
-        </Box>
-        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} alignItems={{ sm: 'center' }}>
-          <FormControl size="small" sx={{ minWidth: 180 }}>
+      {/* Range controls */}
+      <Box sx={{ display: 'flex', justifyContent: { xs: 'stretch', sm: 'flex-end' }, mb: 3 }}>
+        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} alignItems={{ sm: 'center' }} sx={{ width: { xs: '100%', sm: 'auto' } }}>
+          <FormControl size="small" sx={{ minWidth: 180, width: { xs: '100%', sm: 'auto' } }}>
             <InputLabel id="dashboard-range-label">Range</InputLabel>
             <Select
               labelId="dashboard-range-label"
@@ -394,7 +593,8 @@ export default function Dashboard() {
                 label="From"
                 value={customFrom}
                 onChange={(event) => setCustomFrom(event.target.value)}
-                InputLabelProps={{ shrink: true }}
+                slotProps={{ inputLabel: { shrink: true } }}
+                sx={{ width: { xs: '100%', sm: 'auto' } }}
               />
               <TextField
                 type="date"
@@ -402,94 +602,179 @@ export default function Dashboard() {
                 label="To"
                 value={customTo}
                 onChange={(event) => setCustomTo(event.target.value)}
-                InputLabelProps={{ shrink: true }}
+                slotProps={{ inputLabel: { shrink: true } }}
+                sx={{ width: { xs: '100%', sm: 'auto' } }}
               />
             </>
           )}
         </Stack>
       </Box>
 
-      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', xl: 'repeat(4, 1fr)' }, gap: 2.5, mb: 2.5 }}>
-        {primaryMetrics.map((metric) => <MetricCard key={metric.label} {...metric} />)}
-      </Box>
-
-      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', xl: 'repeat(4, 1fr)' }, gap: 2.5, mb: 2.5 }}>
-        {secondaryMetrics.map((metric) => <MetricCard key={metric.label} {...metric} />)}
-      </Box>
-
-      <Box sx={{ mb: 2.5 }}>
-        <SectionCard
-          title="Sales vs purchases"
-          subtitle={trendLabel}
-          icon="fas fa-chart-area"
-          iconColor="#062849"
-          iconBackground="#eaf0f6"
-          action={loading ? <CircularProgress size={20} /> : null}
-        >
-          <TrendChart data={trend} loading={loading} />
-        </SectionCard>
-      </Box>
-
-      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: 'repeat(2, 1fr)' }, gap: 2.5, mb: 2.5 }}>
-        <SectionCard title="Monthly sales" subtitle="Last 6 months" icon="fas fa-chart-column" iconColor="#6528e8" iconBackground="#f1ebfd">
-          <MonthlySalesChart data={monthlySales} />
-        </SectionCard>
-        <SectionCard title="Top customers" subtitle="Top 5 by sales" icon="fas fa-user-group" iconColor="#006c9c" iconBackground="#caf4ff">
-          <TopCustomersChart data={topCustomers} />
-        </SectionCard>
-      </Box>
-
-      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: 'repeat(2, 1fr)' }, gap: 2.5, mb: 2.5 }}>
-        <SectionCard title="Recent sales" icon="fas fa-file-invoice" iconColor="#118d57" iconBackground="#dbf5e9" contentSx={{ p: 0 }}>
-          <DashboardTable
-            columns={[{ label: 'ID' }, { label: 'Invoice' }, { label: 'Customer' }, { label: 'Amount', align: 'right' }]}
-            rows={recentSales}
-            emptyMessage="No data"
-            renderRow={(row) => (
-              <TableRow key={row.id} hover>
-                <TableCell sx={{ fontWeight: 700 }}>#{row.id}</TableCell>
-                <TableCell><Chip label={row.invoice_number} size="small" variant="outlined" /></TableCell>
-                <TableCell>{row.customer?.name || '-'}</TableCell>
-                <TableCell align="right" sx={{ color: 'success.main', fontWeight: 700 }}>₹{formatMoney(row.grand_total)}</TableCell>
-              </TableRow>
-            )}
+      {/* Welcome banner + gradient stats */}
+      <Box sx={{ display: 'grid', gap: 3, mb: 3, gridTemplateColumns: { xs: 'minmax(0, 1fr)', lg: 'repeat(12, minmax(0, 1fr))' }, '& > *': { minWidth: 0 } }}>
+        <Box sx={{ gridColumn: { lg: 'span 8' } }}>
+          <WelcomeBanner />
+        </Box>
+        <Stack spacing={3} sx={{ gridColumn: { lg: 'span 4' } }}>
+          <GradientStat
+            label="Sales today"
+            value={`₹${formatMoney(kpi.salesToday)}`}
+            icon="solar:calendar-bold-duotone"
+            color="primary"
+            loading={loading}
           />
-        </SectionCard>
-
-        <SectionCard title="Recent purchases" icon="fas fa-cart-shopping" iconColor="#b76e00" iconBackground="#fff4d6" contentSx={{ p: 0 }}>
-          <DashboardTable
-            columns={[{ label: 'ID' }, { label: 'Bill' }, { label: 'Vendor' }, { label: 'Amount', align: 'right' }]}
-            rows={recentPurchases}
-            emptyMessage="No data"
-            renderRow={(row) => (
-              <TableRow key={row.id} hover>
-                <TableCell sx={{ fontWeight: 700 }}>#{row.id}</TableCell>
-                <TableCell><Chip label={row.bill_number} size="small" variant="outlined" /></TableCell>
-                <TableCell>{row.vendor?.name || '-'}</TableCell>
-                <TableCell align="right" sx={{ color: 'warning.main', fontWeight: 700 }}>₹{formatMoney(row.grand_total)}</TableCell>
-              </TableRow>
-            )}
+          <GradientStat
+            label="Purchases today"
+            value={`₹${formatMoney(kpi.purchasesToday)}`}
+            icon="solar:bag-4-bold-duotone"
+            color="secondary"
+            loading={loading}
           />
-        </SectionCard>
+        </Stack>
       </Box>
 
-      <SectionCard title="Low stock items" icon="fas fa-boxes-stacked" iconColor="#b76e00" iconBackground="#fff4d6" contentSx={{ p: 0 }}>
-        <DashboardTable
-          columns={[{ label: 'ID' }, { label: 'SKU' }, { label: 'Name' }, { label: 'Current stock', align: 'center' }, { label: 'Min stock', align: 'center' }, { label: 'Status', align: 'center' }]}
-          rows={lowStockItems}
-          emptyMessage="No low stock items"
-          renderRow={(item) => (
-            <TableRow key={item.id} hover>
-              <TableCell sx={{ fontWeight: 700 }}>#{item.id}</TableCell>
-              <TableCell><Chip label={item.sku} size="small" variant="outlined" /></TableCell>
-              <TableCell>{item.name}</TableCell>
-              <TableCell align="center" sx={{ color: 'warning.main', fontWeight: 700 }}>{item.current_stock}</TableCell>
-              <TableCell align="center" sx={{ color: 'text.secondary' }}>{item.min_stock}</TableCell>
-              <TableCell align="center"><Chip label="Low stock" size="small" color="warning" variant="outlined" /></TableCell>
-            </TableRow>
-          )}
+      {/* Widget summary cards */}
+      <Box sx={{ display: 'grid', gap: 3, mb: 3, gridTemplateColumns: { xs: 'minmax(0, 1fr)', sm: 'repeat(2, minmax(0, 1fr))', lg: 'repeat(3, minmax(0, 1fr))' }, '& > *': { minWidth: 0 } }}>
+        {widgets.map((w) => <WidgetSummary key={w.title} loading={loading} {...w} />)}
+      </Box>
+
+      {/* Secondary stats */}
+      <Box sx={{ display: 'grid', gap: 3, mb: 3, gridTemplateColumns: { xs: 'minmax(0, 1fr)', sm: 'repeat(2, minmax(0, 1fr))', xl: 'repeat(4, minmax(0, 1fr))' }, '& > *': { minWidth: 0 } }}>
+        {stats.map((s) => (
+          <StatTile
+            key={s.label}
+            title={s.label}
+            value={s.value}
+            icon={s.icon}
+            color={s.color}
+            loading={loading}
+          />
+        ))}
+      </Box>
+
+      {/* Trend + top customers */}
+      <Box sx={{ display: 'grid', gap: 3, mb: 3, gridTemplateColumns: { xs: 'minmax(0, 1fr)', lg: 'repeat(12, minmax(0, 1fr))' }, '& > *': { minWidth: 0 } }}>
+        <Card sx={{ gridColumn: { lg: 'span 8' } }}>
+          <CardHeader
+            title="Sales vs purchases"
+            subheader={trendLabel}
+            action={loading ? <CircularProgress size={20} /> : null}
+          />
+          <Box sx={{ px: 2, pb: 2 }}>
+            <TrendChart data={trend} loading={loading} />
+          </Box>
+        </Card>
+        <Card sx={{ gridColumn: { lg: 'span 4' } }}>
+          <CardHeader title="Top customers" subheader="Top 5 share by sales" />
+          <Box sx={{ px: 2, pb: 2 }}>
+            <TopCustomersChart data={topCustomers} />
+          </Box>
+        </Card>
+      </Box>
+
+      {/* Monthly sales + recent sales */}
+      <Box sx={{ display: 'grid', gap: 3, mb: 3, gridTemplateColumns: { xs: 'minmax(0, 1fr)', lg: 'repeat(12, minmax(0, 1fr))' }, '& > *': { minWidth: 0 } }}>
+        <Card sx={{ gridColumn: { lg: 'span 4' } }}>
+          <CardHeader title="Monthly sales" subheader="Last 6 months" />
+          <Box sx={{ px: 2, pb: 2 }}>
+            <MonthlySalesChart data={monthlySales} />
+          </Box>
+        </Card>
+        <Box sx={{ gridColumn: { lg: 'span 8' } }}>
+          <DataList
+            title="Recent sales"
+            summary={recentSales.length ? `₹${formatShortMoney(recentSales.reduce((sum, r) => sum + (Number(r.grand_total) || 0), 0))}` : null}
+            actionLabel="View all"
+            actionTo="/inventory/sales"
+            loading={loading}
+            emptyMessage="No recent sales"
+            items={recentSales.map((row) => ({
+              id: row.id,
+              icon: 'solar:receipt-bold-duotone',
+              color: 'success',
+              primary: row.customer?.name || `Invoice ${row.invoice_number}`,
+              secondary: `#${row.id} · ${row.invoice_number}`,
+              amount: `₹${formatMoney(row.grand_total)}`,
+              amountColor: 'success.dark',
+            }))}
+          />
+        </Box>
+      </Box>
+
+      {/* Recent purchases + low stock */}
+      <Box sx={{ display: 'grid', gap: 3, gridTemplateColumns: { xs: 'minmax(0, 1fr)', lg: 'repeat(2, minmax(0, 1fr))' }, '& > *': { minWidth: 0 } }}>
+        <DataList
+          title="Recent purchases"
+          summary={recentPurchases.length ? `₹${formatShortMoney(recentPurchases.reduce((sum, r) => sum + (Number(r.grand_total) || 0), 0))}` : null}
+          actionLabel="View all"
+          actionTo="/inventory/purchases"
+          loading={loading}
+          emptyMessage="No recent purchases"
+          items={recentPurchases.map((row) => ({
+            id: row.id,
+            icon: 'solar:bag-4-bold-duotone',
+            color: 'warning',
+            primary: row.vendor?.name || `Bill ${row.bill_number}`,
+            secondary: `#${row.id} · ${row.bill_number}`,
+            amount: `₹${formatMoney(row.grand_total)}`,
+            amountColor: 'warning.dark',
+          }))}
         />
-      </SectionCard>
+        <Card>
+          <CardHeader title="Low stock items" action={<ViewAllButton to="/inventory/items" />} />
+          <DataTable
+            loading={loading}
+            minWidth={560}
+            maxHeight={330}
+            rows={lowStockItems}
+            emptyMessage="Inventory looks healthy"
+            columns={[
+              {
+                id: 'name',
+                label: 'Item',
+                sortable: true,
+                render: (item) => <Typography variant="body2" sx={{ fontWeight: 600 }}>{item.name}</Typography>,
+              },
+              { id: 'sku', label: 'SKU', render: (item) => <Label variant="soft">{item.sku}</Label> },
+              {
+                id: 'current_stock',
+                label: 'Stock',
+                align: 'center',
+                sortable: true,
+                sortValue: (item) => Number(item.current_stock) || 0,
+                render: (item) => {
+                  const current = Number(item.current_stock) || 0;
+                  const min = Number(item.min_stock) || 0;
+                  const pct = min > 0 ? Math.min(100, Math.round((current / min) * 100)) : 100;
+                  const stockColor = current <= 0 ? 'error' : 'warning';
+                  return (
+                    <Stack spacing={0.5} alignItems="center" sx={{ minWidth: 88 }}>
+                      <Typography variant="body2" sx={{ fontWeight: 700, color: `${stockColor}.main` }}>
+                        {item.current_stock}
+                      </Typography>
+                      <LinearProgress variant="determinate" value={pct} color={stockColor} sx={{ width: 56, height: 6 }} />
+                    </Stack>
+                  );
+                },
+              },
+              { id: 'min_stock', label: 'Min', align: 'center' },
+              {
+                id: 'status',
+                label: 'Status',
+                align: 'center',
+                render: (item) => {
+                  const current = Number(item.current_stock) || 0;
+                  return (
+                    <Label variant="soft" color={current <= 0 ? 'error' : 'warning'}>
+                      {current <= 0 ? 'Out of stock' : 'Low stock'}
+                    </Label>
+                  );
+                },
+              },
+            ]}
+          />
+        </Card>
+      </Box>
     </Box>
   );
 }

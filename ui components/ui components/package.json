@@ -1,0 +1,58 @@
+{
+  "name": "@heaven/ui-components",
+  "version": "1.0.0",
+  "description": "Heaven UI Component Library - Reusable React components based on Material UI",
+  "main": "dist/index.js",
+  "module": "dist/index.esm.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist",
+    "src"
+  ],
+  "scripts": {
+    "build": "rollup -c",
+    "build:watch": "rollup -c -w",
+    "dev": "vite",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src --ext .ts,.tsx",
+    "clean": "rm -rf dist"
+  },
+  "peerDependencies": {
+    "react": "^18.0.0",
+    "react-dom": "^18.0.0",
+    "@mui/material": "^5.0.0",
+    "@mui/styles": "^5.0.0",
+    "@emotion/react": "^11.0.0",
+    "@emotion/styled": "^11.0.0"
+  },
+  "dependencies": {
+    "@iconify/react": "^4.1.0",
+    "simplebar-react": "^3.2.0",
+    "zod": "^3.22.0",
+    "@base-ui/react/number-field": "^1.0.0",
+    "minimal-shared": "^1.0.0",
+    "es-toolkit": "^1.0.0"
+  },
+  "devDependencies": {
+    "@types/react": "^18.0.0",
+    "@types/react-dom": "^18.0.0",
+    "typescript": "^5.0.0",
+    "rollup": "^3.0.0",
+    "@rollup/plugin-node-resolve": "^15.0.0",
+    "@rollup/plugin-commonjs": "^25.0.0",
+    "@rollup/plugin-typescript": "^11.0.0",
+    "rollup-plugin-peer-deps-external": "^2.2.4",
+    "rollup-plugin-postcss": "^4.0.0",
+    "vite": "^5.0.0",
+    "@vitejs/plugin-react": "^4.0.0"
+  },
+  "keywords": [
+    "react",
+    "material-ui",
+    "components",
+    "ui-library",
+    "typescript"
+  ],
+  "author": "Heaven",
+  "license": "MIT"
+}

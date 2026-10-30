@@ -1,0 +1,10 @@
+User-agent: *
+Allow: /
+Disallow: /dashboard
+Disallow: /leads
+Disallow: /reports
+Disallow: /inventory
+Disallow: /settings
+Disallow: /users
+
+Sitemap: https://sarth.app/sitemap.xml
