@@ -11,7 +11,7 @@ export const Logo = forwardRef(function Logo(
       ref={ref}
       component="img"
       alt="Sarth"
-      src={symbol ? '/sarth-logo-symbol-web.webp' : '/sarth-logo-web.webp'}
+      src={symbol ? '/sarth-logo-symbol.png' : '/sarth-logo.png'}
       sx={{
         display: 'block',
         width: height === 'auto' ? width : 'auto',

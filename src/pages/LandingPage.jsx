@@ -207,7 +207,7 @@ export default function LandingPage() {
   useEffect(() => {
     const origin = window.location.origin;
     const prevTitle = document.title;
-    document.title = "Sarth CRM — All-in-One CRM | Leads, Sales, Inventory & Solar";
+    document.title = "Sarth CRM — CRM for Solar Companies | Leads, Sales & Inventory";
 
     const upsert = (selector, tag, attrs) => {
       let el = document.head.querySelector(selector);
@@ -222,20 +222,20 @@ export default function LandingPage() {
       upsert(`meta[${attr}="${key}"]`, "meta", { [attr]: key, content });
 
     const desc =
-      "Sarth is an all-in-one CRM for growing businesses — leads, follow-ups, quotations, payments & inventory, with solar CRM workflows for EPCs, dealers & installers.";
+      "Sarth is the solar CRM for solar EPCs, dealers & installers — capture solar leads from WhatsApp, Google Sheets & webhooks, manage follow-ups, quotations, payments and multi-warehouse inventory in one workspace.";
 
     meta("name", "description", desc);
     meta("name", "keywords",
-      "CRM software, all-in-one CRM, small business CRM, lead management software, sales CRM, inventory management software, quotation software, follow-up management, solar CRM, CRM for solar companies, solar lead management, solar EPC software, solar dealer management, solar business software, CRM India");
+      "solar CRM, CRM for solar companies, solar lead management, solar sales CRM, solar EPC software, rooftop solar CRM, solar dealer management, solar business software, solar CRM India, solar lead capture, solar quotation software, solar inventory management, lead management CRM, follow-up management");
     meta("name", "robots", "index, follow");
     meta("property", "og:type", "website");
     meta("property", "og:site_name", "Sarth CRM");
-    meta("property", "og:title", "Sarth CRM — Turn leads into revenue");
+    meta("property", "og:title", "Sarth CRM — Turn solar leads into revenue");
     meta("property", "og:description", desc);
     meta("property", "og:url", origin + "/");
     meta("property", "og:image", origin + "/sarth-logo.png");
     meta("name", "twitter:card", "summary_large_image");
-    meta("name", "twitter:title", "Sarth CRM — Turn leads into revenue");
+    meta("name", "twitter:title", "Sarth Solar CRM — Turn solar leads into revenue");
     meta("name", "twitter:description", desc);
     meta("name", "twitter:image", origin + "/sarth-logo.png");
     upsert('link[rel="canonical"]', "link", { rel: "canonical", href: origin + "/" });
@@ -252,7 +252,7 @@ export default function LandingPage() {
       {
         "@context": "https://schema.org",
         "@type": "SoftwareApplication",
-        name: "Sarth CRM",
+        name: "Sarth Solar CRM",
         applicationCategory: "BusinessApplication",
         operatingSystem: "Web",
         description: desc,
@@ -319,7 +319,7 @@ export default function LandingPage() {
       <header className={`landing-nav ${scrolled ? "is-scrolled" : ""}`}>
         <div className="landing-container nav-inner">
           <Link to="/" className="nav-brand">
-            <img src="/sarth-logo-web.webp" alt="Sarth — Grow Business" width="145" height="46" />
+            <img src="/sarth-logo.png" alt="Sarth — Grow Business" />
           </Link>
 
           <nav className="nav-links">
@@ -395,17 +395,18 @@ export default function LandingPage() {
         <div className="landing-container hero-inner">
           <div className="hero-copy">
             <span className="hero-badge">
-              <i className="fa-solid fa-sparkles"></i> All-in-one CRM & Inventory
+              <i className="fa-solid fa-sparkles"></i> All-in-one Solar CRM & Inventory
             </span>
             <h1>
-              Turn leads into revenue.
+              Turn solar leads into revenue.
               <br />
               <span className="grad-text">Grow Business</span> — faster.
             </h1>
             <p>
-              Sarth brings your leads, follow-ups, quotations, payments and
-              inventory into one clean workspace — built for every business, with
-              solar-ready workflows for EPCs, dealers and installers.
+              Sarth is the solar CRM that brings your leads, follow-ups,
+              quotations, payments and inventory into one clean workspace — built
+              for solar EPCs, dealers and installers, so your team spends less
+              time managing tools and more time closing deals.
             </p>
             <div className="hero-cta">
               <Link to="/register" className="btn btn-primary btn-lg">
@@ -423,7 +424,7 @@ export default function LandingPage() {
 
           <div className="hero-visual" aria-hidden="true" role="presentation">
             <div className="hero-logo-orb">
-              <img src="/sarth-logo-symbol-web.webp" alt="" width="120" height="120" />
+              <img src="/sarth-logo-symbol.png" alt="" />
             </div>
 
             <div className="float-card card-lead">
@@ -727,7 +728,7 @@ export default function LandingPage() {
       <footer className="landing-footer">
         <div className="landing-container footer-grid">
           <div className="footer-brand">
-            <img src="/sarth-logo-web.webp" alt="Sarth" width="140" height="44" />
+            <img src="/sarth-logo.png" alt="Sarth" />
             <p>CRM &amp; inventory management for growing businesses.</p>
             <div className="footer-social">
               <a href="https://wa.me/" target="_blank" rel="noreferrer" aria-label="WhatsApp"><i className="fa-brands fa-whatsapp"></i></a>
