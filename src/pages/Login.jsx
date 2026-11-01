@@ -147,7 +147,7 @@ export default function Login() {
             ))}
           </svg>
           <div className="login-network-hub">
-            <img src={`${import.meta.env.BASE_URL}sarth-logo-symbol.png`} alt="Sarth" />
+            <img src={`${import.meta.env.BASE_URL}sarth-logo-symbol-web.webp`} alt="Sarth" />
           </div>
           {loginFeatures.map((feature, index) => (
             <div
@@ -185,7 +185,7 @@ export default function Login() {
           <Box sx={{ textAlign: 'center', mb: { xs: 4, sm: 5 } }}>
             <Box
               component="img"
-              src={`${import.meta.env.BASE_URL}sarth-logo.png`}
+              src={`${import.meta.env.BASE_URL}sarth-logo-web.webp`}
               alt="Sarth — Grow Business"
               sx={{ width: { xs: 170, sm: 220 }, maxWidth: '100%', height: 'auto' }}
             />

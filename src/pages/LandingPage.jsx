@@ -319,7 +319,7 @@ export default function LandingPage() {
       <header className={`landing-nav ${scrolled ? "is-scrolled" : ""}`}>
         <div className="landing-container nav-inner">
           <Link to="/" className="nav-brand">
-            <img src="/sarth-logo.png" alt="Sarth — Grow Business" />
+            <img src="/sarth-logo-web.webp" alt="Sarth — Grow Business" width="145" height="46" />
           </Link>
 
           <nav className="nav-links">
@@ -423,7 +423,7 @@ export default function LandingPage() {
 
           <div className="hero-visual" aria-hidden="true" role="presentation">
             <div className="hero-logo-orb">
-              <img src="/sarth-logo-symbol.png" alt="" />
+              <img src="/sarth-logo-symbol-web.webp" alt="" width="120" height="120" />
             </div>
 
             <div className="float-card card-lead">
@@ -727,7 +727,7 @@ export default function LandingPage() {
       <footer className="landing-footer">
         <div className="landing-container footer-grid">
           <div className="footer-brand">
-            <img src="/sarth-logo.png" alt="Sarth" />
+            <img src="/sarth-logo-web.webp" alt="Sarth" width="140" height="44" />
             <p>CRM &amp; inventory management for growing businesses.</p>
             <div className="footer-social">
               <a href="https://wa.me/" target="_blank" rel="noreferrer" aria-label="WhatsApp"><i className="fa-brands fa-whatsapp"></i></a>

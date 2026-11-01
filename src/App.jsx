@@ -8,7 +8,7 @@ import useFcmForeground from "./hooks/useFcmForeground";
 import PrivateRoute from "./routes/PrivateRoute";
 import PublicRoute from "./routes/PublicRoute";
 import PermissionRoute from "./routes/PermissionRoute";
-import AdminLayout from "./layouts/AdminLayout";
+const AdminLayout = lazy(() => import("./layouts/AdminLayout"));
 
 // Lazy loaded components
 const LeadCategory = lazy(() => import("./pages/LeadCategory"));
@@ -122,7 +122,9 @@ export default function App() {
       {/* ---------- PROTECTED ---------- */}
       <Route element={
         <PrivateRoute>
-          <AdminLayout />
+          <Suspense fallback={<LoadingSpinner />}>
+            <AdminLayout />
+          </Suspense>
         </PrivateRoute>
       }>
 
