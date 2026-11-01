@@ -15,18 +15,13 @@ import {
   MenuItem,
   Select,
   Stack,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
   TextField,
   Typography,
 } from "@mui/material";
 import api from "../../api";
 import { canView } from "../../utils/permissions";
 import { Iconify } from "../../components/iconify";
+import { DataTable } from "../../components/data-table";
 
 const formatMoney = (v) => {
   const n = Number(v || 0);
@@ -47,16 +42,6 @@ const cardSx = {
   borderColor: 'divider',
   borderRadius: 3,
   boxShadow: '0 8px 24px rgba(28,37,46,.05)',
-};
-
-const headCellSx = {
-  color: 'text.secondary',
-  fontSize: 12,
-  fontWeight: 700,
-  textTransform: 'uppercase',
-  letterSpacing: '.04em',
-  px: 2,
-  py: 1.5,
 };
 
 const initialDates = () => {
@@ -200,6 +185,65 @@ export default function VendorReport() {
     );
   }
 
+  const columns = [
+    {
+      key: 'vendor_name', label: 'Vendor', sortable: true, accessor: (v) => v.vendor_name ?? '', minWidth: 180,
+      render: (vendor) => (
+        <Stack direction="row" spacing={1.5} alignItems="center">
+          <Avatar sx={{ width: 32, height: 32, bgcolor: '#dbf5e9', color: '#118d57', fontSize: 12, fontWeight: 700 }}>
+            {(vendor.vendor_name || '?').charAt(0).toUpperCase()}
+          </Avatar>
+          <Box sx={{ minWidth: 0 }}>
+            <Typography variant="body2" sx={{ fontWeight: 700 }}>{vendor.vendor_name}</Typography>
+            <Typography variant="caption" color="text.secondary">#{vendor.vendor_id}</Typography>
+          </Box>
+        </Stack>
+      ),
+    },
+    {
+      key: 'contact', label: 'Contact', sortable: true, accessor: (v) => v.vendor_phone ?? v.vendor_email ?? '', minWidth: 140,
+      render: (vendor) => (
+        <Box>
+          <Typography variant="body2">{vendor.vendor_phone || '-'}</Typography>
+          <Typography variant="caption" color="text.secondary">{vendor.vendor_email || '-'}</Typography>
+        </Box>
+      ),
+    },
+    {
+      key: 'transaction_count', label: 'Transactions', align: 'center', sortable: true, accessor: (v) => Number(v.transaction_count) || 0,
+      render: (vendor) => <Chip label={vendor.transaction_count} size="small" color="info" sx={{ fontWeight: 700 }} />,
+    },
+    {
+      key: 'total_purchases', label: 'Total Purchases', align: 'right', sortable: true, accessor: (v) => Number(v.total_purchases) || 0,
+      render: (vendor) => <Typography variant="body2" sx={{ color: 'success.main', fontWeight: 700 }}>₹{formatMoney(vendor.total_purchases)}</Typography>,
+    },
+    {
+      key: 'avg_order_value', label: 'Avg Order', align: 'right', sortable: true, accessor: (v) => Number(v.avg_order_value) || 0,
+      render: (vendor) => `₹${formatMoney(vendor.avg_order_value)}`,
+    },
+    {
+      key: 'last_purchase_date', label: 'Last Purchase', sortable: true, accessor: (v) => v.last_purchase_date ?? '',
+      render: (vendor) => (vendor.last_purchase_date ? (
+        <Chip label={vendor.last_purchase_date} size="small" variant="outlined" />
+      ) : (
+        <Typography variant="body2" color="text.secondary">-</Typography>
+      )),
+    },
+    {
+      key: 'top_item', label: 'Top Item', sortable: true, accessor: (v) => v.top_item?.name ?? '', minWidth: 140,
+      render: (vendor) => (vendor.top_item ? (
+        <Box>
+          <Typography variant="body2" sx={{ fontWeight: 600 }}>{vendor.top_item.name}</Typography>
+          <Typography variant="caption" color="text.secondary">
+            {vendor.top_item.quantity.toFixed(0)} qty | ₹{formatMoney(vendor.top_item.amount)}
+          </Typography>
+        </Box>
+      ) : (
+        <Typography variant="body2" color="text.secondary">-</Typography>
+      )),
+    },
+  ];
+
   return (
     <Box>
       <Box sx={{ mb: 2.5 }}>
@@ -293,76 +337,17 @@ export default function VendorReport() {
         </Box>
         <Divider />
         {loading && <LinearProgress />}
-        <TableContainer sx={{ overflowX: 'auto' }}>
-          <Table size="small" sx={{ minWidth: 900 }}>
-            <TableHead>
-              <TableRow sx={{ bgcolor: 'background.neutral' }}>
-                <TableCell sx={headCellSx}>Vendor</TableCell>
-                <TableCell sx={headCellSx}>Contact</TableCell>
-                <TableCell align="center" sx={headCellSx}>Transactions</TableCell>
-                <TableCell align="right" sx={headCellSx}>Total Purchases</TableCell>
-                <TableCell align="right" sx={headCellSx}>Avg Order</TableCell>
-                <TableCell sx={headCellSx}>Last Purchase</TableCell>
-                <TableCell sx={headCellSx}>Top Item</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {loading ? (
-                <TableRow>
-                  <TableCell colSpan={7} align="center" sx={{ color: 'text.secondary', py: 4 }}>Loading...</TableCell>
-                </TableRow>
-              ) : data.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={7} align="center" sx={{ color: 'text.secondary', py: 4 }}>No vendors found</TableCell>
-                </TableRow>
-              ) : (
-                data.map((vendor) => (
-                  <TableRow key={vendor.vendor_id} hover>
-                    <TableCell sx={{ px: 2 }}>
-                      <Stack direction="row" spacing={1.5} alignItems="center">
-                        <Avatar sx={{ width: 32, height: 32, bgcolor: '#dbf5e9', color: '#118d57', fontSize: 12, fontWeight: 700 }}>
-                          {(vendor.vendor_name || '?').charAt(0).toUpperCase()}
-                        </Avatar>
-                        <Box sx={{ minWidth: 0 }}>
-                          <Typography variant="body2" sx={{ fontWeight: 700 }}>{vendor.vendor_name}</Typography>
-                          <Typography variant="caption" color="text.secondary">#{vendor.vendor_id}</Typography>
-                        </Box>
-                      </Stack>
-                    </TableCell>
-                    <TableCell sx={{ px: 2 }}>
-                      <Typography variant="body2">{vendor.vendor_phone || '-'}</Typography>
-                      <Typography variant="caption" color="text.secondary">{vendor.vendor_email || '-'}</Typography>
-                    </TableCell>
-                    <TableCell align="center" sx={{ px: 2 }}>
-                      <Chip label={vendor.transaction_count} size="small" color="info" sx={{ fontWeight: 700 }} />
-                    </TableCell>
-                    <TableCell align="right" sx={{ px: 2, color: 'success.main', fontWeight: 700 }}>₹{formatMoney(vendor.total_purchases)}</TableCell>
-                    <TableCell align="right" sx={{ px: 2 }}>₹{formatMoney(vendor.avg_order_value)}</TableCell>
-                    <TableCell sx={{ px: 2 }}>
-                      {vendor.last_purchase_date ? (
-                        <Chip label={vendor.last_purchase_date} size="small" variant="outlined" />
-                      ) : (
-                        <Typography variant="body2" color="text.secondary">-</Typography>
-                      )}
-                    </TableCell>
-                    <TableCell sx={{ px: 2 }}>
-                      {vendor.top_item ? (
-                        <Box>
-                          <Typography variant="body2" sx={{ fontWeight: 600 }}>{vendor.top_item.name}</Typography>
-                          <Typography variant="caption" color="text.secondary">
-                            {vendor.top_item.quantity.toFixed(0)} qty | ₹{formatMoney(vendor.top_item.amount)}
-                          </Typography>
-                        </Box>
-                      ) : (
-                        <Typography variant="body2" color="text.secondary">-</Typography>
-                      )}
-                    </TableCell>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </TableContainer>
+        <DataTable
+          columns={columns}
+          rows={data}
+          rowKey="vendor_id"
+          loading={loading}
+          emptyMessage="No vendors found"
+          emptyHint="Try adjusting the report filters"
+          minWidth={900}
+          defaultPageSize={25}
+          rowsPerPageOptions={[10, 25, 50, 100]}
+        />
       </Card>
     </Box>
   );

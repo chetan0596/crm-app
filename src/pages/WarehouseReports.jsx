@@ -11,19 +11,13 @@ import {
   MenuItem,
   Select,
   Tab,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  TableSortLabel,
   Tabs,
   TextField,
   Typography,
 } from "@mui/material";
 import api from "../api";
 import { Iconify } from "../components/iconify";
+import { DataTable } from "../components/data-table";
 
 const toArray = (value) => {
   if (Array.isArray(value)) return value;
@@ -43,45 +37,12 @@ const cardSx = {
   boxShadow: '0 8px 24px rgba(28,37,46,.05)',
 };
 
-const headCellSx = {
-  color: 'text.secondary',
-  fontSize: 12,
-  fontWeight: 700,
-  textTransform: 'uppercase',
-  letterSpacing: '.04em',
-  px: 2,
-  py: 1.5,
-  borderBottom: '1px solid',
-  borderColor: 'divider',
-};
-
-const bodyCellSx = {
-  verticalAlign: 'middle',
-  px: 2,
-  py: 1.5,
-  borderBottom: '1px solid #f1f5f9',
-};
-
 const successChipSx = { bgcolor: '#dbf5e9', color: '#118d57', fontWeight: 700 };
 const warningChipSx = { bgcolor: '#fff4d6', color: '#b76e00', fontWeight: 700 };
 const errorChipSx = { bgcolor: '#ffe4de', color: '#b71d18', fontWeight: 700 };
 const infoChipSx = { bgcolor: '#caf4ff', color: '#006c9c', fontWeight: 700 };
 const neutralChipSx = { bgcolor: '#f1f5f9', color: '#475569', fontWeight: 700 };
 const primaryChipSx = { bgcolor: '#eaf0f6', color: '#062849', fontWeight: 700 };
-
-const sortRows = (data, sortField, sortDir) => {
-  if (!sortField) return data;
-  const dir = sortDir === 'asc' ? 1 : -1;
-  return [...data].sort((a, b) => {
-    const av = a?.[sortField];
-    const bv = b?.[sortField];
-    if (av == null && bv == null) return 0;
-    if (av == null) return 1;
-    if (bv == null) return -1;
-    if (typeof av === 'number' && typeof bv === 'number') return (av - bv) * dir;
-    return String(av).localeCompare(String(bv)) * dir;
-  });
-};
 
 const ledgerTypeChipSx = (type) => {
   if (type === 'Transfer In') return successChipSx;
@@ -151,67 +112,17 @@ const lowStockColumns = [
   ) },
 ];
 
-function ReportTable({ columns, data, sortField, sortDir, onSort }) {
+function ReportTable({ columns, data }) {
   return (
-    <TableContainer sx={{ overflowX: 'auto' }}>
-      <Table sx={{ minWidth: 860 }} size="small">
-        <TableHead>
-          <TableRow sx={{ bgcolor: 'background.neutral' }}>
-            {columns.map((column) => (
-              <TableCell
-                key={column.key}
-                align={column.align || 'left'}
-                sx={{ ...headCellSx, minWidth: column.minWidth, width: column.width }}
-              >
-                {column.sortField ? (
-                  <TableSortLabel
-                    active={sortField === column.sortField}
-                    direction={sortField === column.sortField ? sortDir : 'asc'}
-                    onClick={() => onSort(column.sortField)}
-                  >
-                    {column.label}
-                  </TableSortLabel>
-                ) : column.label}
-              </TableCell>
-            ))}
-          </TableRow>
-        </TableHead>
-        <TableBody>
-          {data.length === 0 ? (
-            <TableRow>
-              <TableCell colSpan={columns.length} align="center" sx={{ py: 7 }}>
-                <Iconify icon="fa6-solid:folder-open" width={42} />
-                <Typography variant="subtitle2" sx={{ color: 'text.secondary', mt: 1.5 }}>
-                  No data found
-                </Typography>
-                <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-                  Try adjusting your filters or check back later
-                </Typography>
-              </TableCell>
-            </TableRow>
-          ) : data.map((row, index) => (
-            <TableRow
-              key={row.id ?? index}
-              hover
-              sx={{
-                '&:hover': { bgcolor: 'rgba(6,40,73,.035)' },
-                '&:last-child td': { borderBottom: 0 },
-              }}
-            >
-              {columns.map((column) => (
-                <TableCell
-                  key={`${row.id ?? index}-${column.key}`}
-                  align={column.align || 'left'}
-                  sx={bodyCellSx}
-                >
-                  {column.render(row)}
-                </TableCell>
-              ))}
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-    </TableContainer>
+    <DataTable
+      columns={columns}
+      rows={data}
+      emptyMessage="No data found"
+      emptyHint="Try adjusting your filters or check back later"
+      minWidth={860}
+      defaultPageSize={10}
+      rowsPerPageOptions={[10, 25, 50, 100]}
+    />
   );
 }
 
@@ -220,8 +131,6 @@ export default function WarehouseReports() {
   const [warehouses, setWarehouses] = useState([]);
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [sortField, setSortField] = useState("");
-  const [sortDir, setSortDir] = useState("asc");
 
   // Filters
   const [selectedWarehouse, setSelectedWarehouse] = useState("");
@@ -352,19 +261,8 @@ export default function WarehouseReports() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab]);
 
-  const handleSort = (field) => {
-    if (sortField === field) {
-      setSortDir(d => (d === 'asc' ? 'desc' : 'asc'));
-    } else {
-      setSortField(field);
-      setSortDir('asc');
-    }
-  };
-
   const handleTabChange = (event, value) => {
     setActiveTab(value);
-    setSortField("");
-    setSortDir("asc");
   };
 
   return (
@@ -422,7 +320,7 @@ export default function WarehouseReports() {
           </Box>
           <Divider />
           {loading && <LinearProgress />}
-          <ReportTable columns={stockColumns} data={sortRows(stockData, sortField, sortDir)} sortField={sortField} sortDir={sortDir} onSort={handleSort} />
+          <ReportTable columns={stockColumns} data={stockData} />
         </Card>
       )}
 
@@ -438,7 +336,7 @@ export default function WarehouseReports() {
           </Box>
           <Divider />
           {loading && <LinearProgress />}
-          <ReportTable columns={summaryColumns} data={sortRows(summaryData, sortField, sortDir)} sortField={sortField} sortDir={sortDir} onSort={handleSort} />
+          <ReportTable columns={summaryColumns} data={summaryData} />
         </Card>
       )}
 
@@ -477,7 +375,7 @@ export default function WarehouseReports() {
           </Box>
           <Divider />
           {loading && <LinearProgress />}
-          <ReportTable columns={ledgerColumns} data={sortRows(ledgerData, sortField, sortDir)} sortField={sortField} sortDir={sortDir} onSort={handleSort} />
+          <ReportTable columns={ledgerColumns} data={ledgerData} />
         </Card>
       )}
 
@@ -522,7 +420,7 @@ export default function WarehouseReports() {
           </Box>
           <Divider />
           {loading && <LinearProgress />}
-          <ReportTable columns={transferColumns} data={sortRows(transferData, sortField, sortDir)} sortField={sortField} sortDir={sortDir} onSort={handleSort} />
+          <ReportTable columns={transferColumns} data={transferData} />
         </Card>
       )}
 
@@ -538,7 +436,7 @@ export default function WarehouseReports() {
           </Box>
           <Divider />
           {loading && <LinearProgress />}
-          <ReportTable columns={lowStockColumns} data={sortRows(lowStockData, sortField, sortDir)} sortField={sortField} sortDir={sortDir} onSort={handleSort} />
+          <ReportTable columns={lowStockColumns} data={lowStockData} />
         </Card>
       )}
     </Box>

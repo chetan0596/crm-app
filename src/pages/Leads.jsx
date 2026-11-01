@@ -679,6 +679,24 @@ export default function Leads() {
 
   const hasActiveFilters = filterStage || filterSource || filterProductName || filterTags.length || filterAssignee || filterCreatedBy || filterCreatedFrom || filterCreatedTo || filterActivityFrom || filterActivityTo;
 
+  const userNameById = (id) => users.find((u) => String(u.id) === String(id))?.name || id;
+  const tagNameById = (id) => tags.find((t) => String(t.id) === String(id))?.name || id;
+
+  const filterChips = [
+    filterStage && { key: 'stage', label: `Stage: ${filterStage}`, clear: () => setFilterStage('') },
+    filterSource && { key: 'source', label: `Source: ${filterSource}`, clear: () => setFilterSource('') },
+    filterProductName && { key: 'product', label: `Product: ${filterProductName}`, clear: () => setFilterProductName('') },
+    filterAssignee && { key: 'assignee', label: `Assignee: ${userNameById(filterAssignee)}`, clear: () => setFilterAssignee('') },
+    filterCreatedBy && { key: 'createdBy', label: `Created by: ${userNameById(filterCreatedBy)}`, clear: () => setFilterCreatedBy('') },
+    filterTags.length > 0 && { key: 'tags', label: `Tags: ${filterTags.map(tagNameById).join(', ')}`, clear: () => setFilterTags([]) },
+    filterCreatedFrom && { key: 'createdFrom', label: `Created from ${filterCreatedFrom}`, clear: () => setFilterCreatedFrom('') },
+    filterCreatedTo && { key: 'createdTo', label: `Created to ${filterCreatedTo}`, clear: () => setFilterCreatedTo('') },
+    filterActivityFrom && { key: 'activityFrom', label: `Activity from ${filterActivityFrom}`, clear: () => setFilterActivityFrom('') },
+    filterActivityTo && { key: 'activityTo', label: `Activity to ${filterActivityTo}`, clear: () => setFilterActivityTo('') },
+  ].filter(Boolean);
+
+  const activeFilterCount = filterChips.length;
+
   // ================= TABLE =================
 
   const columns = useMemo(() => [
@@ -950,22 +968,27 @@ export default function Leads() {
           <Divider />
           <Box sx={{ px: 3, py: 2.5, bgcolor: 'background.neutral' }}>
             <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 2, mb: 2.5 }}>
-              <Box>
-                <Typography variant="subtitle2" sx={{ color: 'text.primary', fontWeight: 700 }}>
-                  Filters
-                </Typography>
-                <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-                  Refine the leads shown in the table
-                </Typography>
-              </Box>
+              <Stack direction="row" spacing={1.25} alignItems="center">
+                <Box>
+                  <Typography variant="subtitle2" sx={{ color: 'text.primary', fontWeight: 700 }}>
+                    Filters
+                  </Typography>
+                  <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                    Refine the leads shown in the table
+                  </Typography>
+                </Box>
+                {activeFilterCount > 0 && (
+                  <Chip size="small" label={`${activeFilterCount} active`} sx={{ bgcolor: 'rgba(6,40,73,.08)', color: '#062849', fontWeight: 700, height: 22 }} />
+                )}
+              </Stack>
               {hasActiveFilters && (
-                <Button variant="text" size="small" onClick={clearFilters} startIcon={<Iconify icon="fa6-solid:xmark" width={16} />}>
+                <Button variant="text" color="error" size="small" onClick={clearFilters} startIcon={<Iconify icon="fa6-solid:xmark" width={16} />}>
                   Clear filters
                 </Button>
               )}
             </Box>
 
-            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', xl: 'repeat(4, 1fr)' }, gap: 2 }}>
+            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', xl: 'repeat(4, 1fr)' }, gap: 1.5 }}>
               <FormControl size="small" fullWidth>
                 <InputLabel>Stage</InputLabel>
                 <Select label="Stage" value={filterStage} onChange={(e) => setFilterStage(e.target.value)}>
@@ -996,11 +1019,12 @@ export default function Leads() {
                 </Select>
               </FormControl>
               <FormControl size="small" fullWidth>
-                <InputLabel>Tags</InputLabel>
+                <InputLabel shrink>Tags</InputLabel>
                 <Select
                   multiple
                   displayEmpty
                   label="Tags"
+                  notched
                   value={filterTags.map(String)}
                   onChange={(e) => setFilterTags(e.target.value)}
                   renderValue={(selected) => selected.length ? `${selected.length} selected` : 'All tags'}
@@ -1015,7 +1039,7 @@ export default function Leads() {
               </FormControl>
             </Box>
 
-            <Box sx={{ mt: 2, display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(2, 1fr)' }, gap: 2 }}>
+            <Box sx={{ mt: 1.5, display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(2, 1fr)' }, gap: 1.5 }}>
               <Box>
                 <Typography variant="caption" sx={{ display: 'block', color: 'text.secondary', fontWeight: 700, mb: .75 }}>
                   Created date
@@ -1035,6 +1059,20 @@ export default function Leads() {
                 </Box>
               </Box>
             </Box>
+
+            {activeFilterCount > 0 && (
+              <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap" sx={{ mt: 2, pt: 2, borderTop: '1px dashed', borderColor: 'divider' }}>
+                {filterChips.map((chip) => (
+                  <Chip
+                    key={chip.key}
+                    size="small"
+                    label={chip.label}
+                    onDelete={chip.clear}
+                    sx={{ fontWeight: 600, bgcolor: 'rgba(6,40,73,.06)', color: 'text.primary', '& .MuiChip-deleteIcon': { color: 'text.secondary' } }}
+                  />
+                ))}
+              </Stack>
+            )}
           </Box>
         </Collapse>
 

@@ -14,18 +14,13 @@ import {
   MenuItem,
   Select,
   Stack,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
   TextField,
   Typography,
 } from "@mui/material";
 import api from "../../api";
 import { canView } from "../../utils/permissions";
 import { Iconify } from "../../components/iconify";
+import { DataTable } from "../../components/data-table";
 
 const formatMoney = (v) => {
   const n = Number(v || 0);
@@ -92,16 +87,6 @@ const cardSx = {
   borderColor: 'divider',
   borderRadius: 3,
   boxShadow: '0 8px 24px rgba(28,37,46,.05)',
-};
-
-const headCellSx = {
-  color: 'text.secondary',
-  fontSize: 12,
-  fontWeight: 700,
-  textTransform: 'uppercase',
-  letterSpacing: '.04em',
-  px: 2,
-  py: 1.5,
 };
 
 const initialDates = () => {
@@ -231,6 +216,39 @@ export default function PaymentsReport() {
     );
   }
 
+  const columns = [
+    { key: 'payment_date', label: 'Date', sortable: true, accessor: (r) => r.payment_date ?? '' },
+    {
+      key: 'type', label: 'Type', sortable: true, accessor: (r) => r.type ?? '',
+      render: (r) => (
+        <Chip
+          label={r.type === "sale" ? "Received" : "Paid"}
+          size="small"
+          color={r.type === "sale" ? "success" : "warning"}
+          sx={{ fontWeight: 700 }}
+        />
+      ),
+    },
+    { key: 'invoice_number', label: 'Invoice/Bill', sortable: true, accessor: (r) => r.invoice_number ?? '' },
+    { key: 'party_name', label: 'Party', sortable: true, accessor: (r) => r.party_name ?? '' },
+    {
+      key: 'payment_method', label: 'Method', sortable: true, accessor: (r) => r.payment_method ?? '',
+      render: (r) => <Box component="span" sx={{ textTransform: 'capitalize' }}>{r.payment_method}</Box>,
+    },
+    {
+      key: 'reference_number', label: 'Reference', sortable: true, accessor: (r) => r.reference_number ?? '',
+      render: (r) => r.reference_number || "-",
+    },
+    {
+      key: 'amount', label: 'Amount', align: 'right', sortable: true, accessor: (r) => Number(r.amount) || 0,
+      render: (r) => <Typography variant="body2" sx={{ fontWeight: 700 }}>₹{formatMoney(r.amount)}</Typography>,
+    },
+    {
+      key: 'notes', label: 'Notes', accessor: (r) => r.notes ?? '',
+      render: (r) => <Typography variant="caption" color="text.secondary">{r.notes || ""}</Typography>,
+    },
+  ];
+
   return (
     <Box>
       <Box sx={{ mb: 2.5 }}>
@@ -338,55 +356,16 @@ export default function PaymentsReport() {
         </Box>
         <Divider />
         {loading && <LinearProgress />}
-        <TableContainer sx={{ overflowX: 'auto' }}>
-          <Table size="small" sx={{ minWidth: 900 }}>
-            <TableHead>
-              <TableRow sx={{ bgcolor: 'background.neutral' }}>
-                <TableCell sx={headCellSx}>Date</TableCell>
-                <TableCell sx={headCellSx}>Type</TableCell>
-                <TableCell sx={headCellSx}>Invoice/Bill</TableCell>
-                <TableCell sx={headCellSx}>Party</TableCell>
-                <TableCell sx={headCellSx}>Method</TableCell>
-                <TableCell sx={headCellSx}>Reference</TableCell>
-                <TableCell align="right" sx={headCellSx}>Amount</TableCell>
-                <TableCell sx={headCellSx}>Notes</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {loading ? (
-                <TableRow>
-                  <TableCell colSpan={8} align="center" sx={{ color: 'text.secondary', py: 4 }}>Loading...</TableCell>
-                </TableRow>
-              ) : data.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={8} align="center" sx={{ color: 'text.secondary', py: 4 }}>No data</TableCell>
-                </TableRow>
-              ) : (
-                data.map((r) => (
-                  <TableRow key={r.id} hover>
-                    <TableCell sx={{ px: 2 }}>{r.payment_date}</TableCell>
-                    <TableCell sx={{ px: 2 }}>
-                      <Chip
-                        label={r.type === "sale" ? "Received" : "Paid"}
-                        size="small"
-                        color={r.type === "sale" ? "success" : "warning"}
-                        sx={{ fontWeight: 700 }}
-                      />
-                    </TableCell>
-                    <TableCell sx={{ px: 2 }}>{r.invoice_number}</TableCell>
-                    <TableCell sx={{ px: 2 }}>{r.party_name}</TableCell>
-                    <TableCell sx={{ px: 2, textTransform: 'capitalize' }}>{r.payment_method}</TableCell>
-                    <TableCell sx={{ px: 2 }}>{r.reference_number || "-"}</TableCell>
-                    <TableCell align="right" sx={{ px: 2, fontWeight: 700 }}>₹{formatMoney(r.amount)}</TableCell>
-                    <TableCell sx={{ px: 2, color: 'text.secondary' }}>
-                      <Typography variant="caption" color="text.secondary">{r.notes || ""}</Typography>
-                    </TableCell>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </TableContainer>
+        <DataTable
+          columns={columns}
+          rows={data}
+          loading={loading}
+          emptyMessage="No data found"
+          emptyHint="Try adjusting the report filters"
+          minWidth={900}
+          defaultPageSize={25}
+          rowsPerPageOptions={[10, 25, 50, 100]}
+        />
       </Card>
     </Box>
   );

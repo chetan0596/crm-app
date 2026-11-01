@@ -22,12 +22,6 @@ import {
   Select,
   Stack,
   Switch,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
   TextField,
   Tooltip,
   Typography,
@@ -36,6 +30,7 @@ import { toast } from "react-toastify";
 import api from "../api";
 import { canEdit } from "../utils/permissions";
 import { Iconify } from "../components/iconify";
+import { DataTable } from "../components/data-table";
 
 const SOURCES = [
   { key: "indiamart", name: "IndiaMART", color: "primary", icon: "fa6-solid:globe" },
@@ -84,20 +79,6 @@ const cardHeaderSx = {
   borderColor: 'divider',
   bgcolor: 'background.neutral',
 };
-
-const headCellSx = {
-  color: 'text.secondary',
-  fontSize: 12,
-  fontWeight: 700,
-  textTransform: 'uppercase',
-  letterSpacing: '.04em',
-  px: 2,
-  py: 1.5,
-  borderBottom: '1px solid',
-  borderColor: 'divider',
-};
-
-const bodyCellSx = { verticalAlign: 'middle', px: 2, py: 1.5, borderBottom: '1px solid #f1f5f9' };
 
 const dialogPaperSx = {
   borderRadius: 3,
@@ -967,85 +948,86 @@ function crm_capture_wpforms_lead($fields, $entry, $form_id, $form_data) {
           )}
 
           {metaSelectedPageId && (
-            <TableContainer sx={{ overflowX: 'auto', border: '1px solid', borderColor: 'divider', borderRadius: 2 }}>
-              <Table size="small" sx={{ minWidth: 720 }}>
-                <TableHead>
-                  <TableRow sx={{ bgcolor: 'background.neutral' }}>
-                    <TableCell sx={{ ...headCellSx, width: 70 }}>Enabled</TableCell>
-                    <TableCell sx={headCellSx}>Form</TableCell>
-                    <TableCell sx={{ ...headCellSx, width: 220 }}>Assigned Users (Round Robin)</TableCell>
-                    <TableCell sx={{ ...headCellSx, width: 120 }}>Status</TableCell>
-                    <TableCell sx={{ ...headCellSx, width: 150 }}>Last Sync</TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {metaForms.length === 0 && (
-                    <TableRow>
-                      <TableCell colSpan={5} sx={{ ...bodyCellSx, color: 'text.secondary', borderBottom: 0 }}>
-                        No forms found.
-                      </TableCell>
-                    </TableRow>
-                  )}
-                  {metaForms.map((f) => {
-                    const assignedCount = (f.users || []).filter((u) => u.is_active).length;
-                    return (
-                      <TableRow key={f.form_id} hover sx={{ '&:last-child td': { borderBottom: 0 } }}>
-                        <TableCell sx={bodyCellSx}>
-                          <Switch
-                            size="small"
-                            checked={!!f.is_enabled}
-                            onChange={(e) => setMetaFormEnabled(f.form_id, e.target.checked)}
-                            disabled={!canEditIntegrations}
-                          />
-                        </TableCell>
-                        <TableCell sx={bodyCellSx}>
-                          <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                            {f.form_name || "(Unnamed Form)"}
+            <Box sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 2, overflow: 'hidden' }}>
+              <DataTable
+                columns={[
+                  {
+                    key: 'is_enabled', label: 'Enabled', width: 70,
+                    render: (f) => (
+                      <Switch
+                        size="small"
+                        checked={!!f.is_enabled}
+                        onChange={(e) => setMetaFormEnabled(f.form_id, e.target.checked)}
+                        disabled={!canEditIntegrations}
+                      />
+                    ),
+                  },
+                  {
+                    key: 'form', label: 'Form', accessor: (f) => f.form_name || f.form_id,
+                    render: (f) => (
+                      <>
+                        <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                          {f.form_name || "(Unnamed Form)"}
+                        </Typography>
+                        <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                          {f.form_id}
+                        </Typography>
+                        {!f.is_enabled && (
+                          <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block' }}>
+                            Enable to start syncing
                           </Typography>
-                          <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-                            {f.form_id}
-                          </Typography>
-                          {!f.is_enabled && (
-                            <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block' }}>
-                              Enable to start syncing
-                            </Typography>
-                          )}
-                        </TableCell>
-                        <TableCell sx={bodyCellSx}>
-                          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1 }}>
-                            <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-                              {assignedCount} users
-                            </Typography>
-                            <Button
-                              size="small"
-                              variant="outlined"
-                              onClick={() => openMetaUsersModal(f)}
-                              disabled={!canEditIntegrations}
-                            >
-                              Configure
-                            </Button>
-                          </Box>
-                        </TableCell>
-                        <TableCell sx={bodyCellSx}>
-                          <Chip
-                            label={(f.status || "-").toUpperCase()}
-                            size="small"
-                            sx={f.status === "active"
-                              ? { bgcolor: '#dbf5e9', color: '#118d57', fontWeight: 700 }
-                              : { bgcolor: '#ffe4de', color: '#b71d18', fontWeight: 700 }}
-                          />
-                        </TableCell>
-                        <TableCell sx={{ ...bodyCellSx, color: 'text.secondary' }}>
-                          <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-                            {f.last_sync_at ? new Date(f.last_sync_at).toLocaleString() : "-"}
-                          </Typography>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
-            </TableContainer>
+                        )}
+                      </>
+                    ),
+                  },
+                  {
+                    key: 'assigned_users', label: 'Assigned Users (Round Robin)', width: 220,
+                    render: (f) => (
+                      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1 }}>
+                        <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+                          {(f.users || []).filter((u) => u.is_active).length} users
+                        </Typography>
+                        <Button
+                          size="small"
+                          variant="outlined"
+                          onClick={() => openMetaUsersModal(f)}
+                          disabled={!canEditIntegrations}
+                        >
+                          Configure
+                        </Button>
+                      </Box>
+                    ),
+                  },
+                  {
+                    key: 'status', label: 'Status', width: 120,
+                    render: (f) => (
+                      <Chip
+                        label={(f.status || "-").toUpperCase()}
+                        size="small"
+                        sx={f.status === "active"
+                          ? { bgcolor: '#dbf5e9', color: '#118d57', fontWeight: 700 }
+                          : { bgcolor: '#ffe4de', color: '#b71d18', fontWeight: 700 }}
+                      />
+                    ),
+                  },
+                  {
+                    key: 'last_sync_at', label: 'Last Sync', width: 150,
+                    render: (f) => (
+                      <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+                        {f.last_sync_at ? new Date(f.last_sync_at).toLocaleString() : "-"}
+                      </Typography>
+                    ),
+                  },
+                ]}
+                rows={metaForms}
+                loading={metaLoading}
+                emptyMessage="No forms found."
+                rowKey="form_id"
+                minWidth={720}
+                defaultPageSize={10}
+                rowsPerPageOptions={[10, 25, 50]}
+              />
+            </Box>
           )}
         </CardContent>
       </Card>

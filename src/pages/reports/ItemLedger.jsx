@@ -14,18 +14,13 @@ import {
   MenuItem,
   Select,
   Stack,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
   TextField,
   Typography,
 } from "@mui/material";
 import api from "../../api";
 import { canView } from "../../utils/permissions";
 import { Iconify } from "../../components/iconify";
+import { DataTable } from "../../components/data-table";
 
 const formatMoney = (v) => {
   const n = Number(v || 0);
@@ -46,16 +41,6 @@ const cardSx = {
   borderColor: 'divider',
   borderRadius: 3,
   boxShadow: '0 8px 24px rgba(28,37,46,.05)',
-};
-
-const headCellSx = {
-  color: 'text.secondary',
-  fontSize: 12,
-  fontWeight: 700,
-  textTransform: 'uppercase',
-  letterSpacing: '.04em',
-  px: 2,
-  py: 1.5,
 };
 
 const EMPTY_SUMMARY = { total_in: 0, total_out: 0, closing_balance: 0 };
@@ -185,80 +170,118 @@ export default function ItemLedger() {
   const selectedItemData = items.find((i) => String(i.id) === String(selectedItem));
   const netMovement = Number(summary.total_in || 0) - Number(summary.total_out || 0);
 
-  const renderTransactionRows = () => {
+  // Flatten transactions into DataTable rows: a synthetic opening-balance row,
+  // interleaved daily-summary rows, and transaction rows with a running balance.
+  const ledgerRows = (() => {
     const rows = [];
     const firstSummary = transactions.find(t => t.type === 'summary');
-    const runningBalance = { value: Number(firstSummary?.opening_stock || 0) };
+    let running = Number(firstSummary?.opening_stock || 0);
 
-    rows.push(
-      <TableRow key="opening" sx={{ bgcolor: 'background.neutral' }}>
-        <TableCell sx={{ px: 2, fontWeight: 700 }}>{firstSummary?.date || '-'}</TableCell>
-        <TableCell sx={{ px: 2 }}>
-          <Chip label="Opening Balance" size="small" sx={{ bgcolor: '#f1f5f9', color: '#475569', fontWeight: 700 }} />
-        </TableCell>
-        <TableCell colSpan={selectedItem ? 3 : 4} sx={{ px: 2, color: 'text.secondary' }}>-</TableCell>
-        <TableCell align="right" sx={{ px: 2, color: 'text.secondary' }}>-</TableCell>
-        <TableCell align="right" sx={{ px: 2, color: 'text.secondary' }}>-</TableCell>
-        <TableCell align="right" sx={{ px: 2, color: 'text.secondary' }}>-</TableCell>
-        <TableCell align="right" sx={{ px: 2, color: 'text.secondary' }}>-</TableCell>
-        <TableCell align="right" sx={{ px: 2, color: 'info.main', fontWeight: 700 }}>{runningBalance.value.toFixed(3)}</TableCell>
-      </TableRow>
-    );
+    if (transactions.length === 0) return rows;
+
+    rows.push({
+      __key: 'opening',
+      __kind: 'opening',
+      date: firstSummary?.date || '-',
+      balance: running,
+    });
 
     transactions.forEach((t, index) => {
       if (t.type === 'summary') {
-        rows.push(
-          <TableRow key={`summary-${index}`} sx={{ bgcolor: '#f1f5f9' }}>
-            <TableCell sx={{ px: 2, fontWeight: 700 }}>{t.date}</TableCell>
-            <TableCell sx={{ px: 2 }}>
-              <Chip label="Daily Summary" size="small" color="primary" sx={{ fontWeight: 700 }} />
-            </TableCell>
-            <TableCell colSpan={selectedItem ? 3 : 4} sx={{ px: 2, fontWeight: 700 }}>
-              Opening: {Number(t.opening_stock || 0).toFixed(3)} | Closing: {Number(t.closing_stock || 0).toFixed(3)}
-            </TableCell>
-            <TableCell align="right" sx={{ px: 2, color: 'text.secondary' }}>-</TableCell>
-            <TableCell align="right" sx={{ px: 2, color: 'text.secondary' }}>-</TableCell>
-            <TableCell align="right" sx={{ px: 2, color: 'text.secondary' }}>-</TableCell>
-            <TableCell align="right" sx={{ px: 2, color: 'text.secondary' }}>-</TableCell>
-            <TableCell align="right" sx={{ px: 2, color: 'info.main', fontWeight: 700 }}>{Number(t.closing_stock || 0).toFixed(3)}</TableCell>
-          </TableRow>
-        );
+        rows.push({
+          __key: `summary-${index}`,
+          __kind: 'summary',
+          date: t.date,
+          opening_stock: Number(t.opening_stock || 0),
+          closing_stock: Number(t.closing_stock || 0),
+          balance: Number(t.closing_stock || 0),
+        });
       } else {
         const qtyIn = Number(t.quantity_in || 0);
         const qtyOut = Number(t.quantity_out || 0);
-        if (qtyIn > 0) runningBalance.value += qtyIn;
-        if (qtyOut > 0) runningBalance.value -= qtyOut;
+        if (qtyIn > 0) running += qtyIn;
+        if (qtyOut > 0) running -= qtyOut;
 
-        rows.push(
-          <TableRow key={`trans-${index}`} hover>
-            <TableCell sx={{ px: 2 }}>{t.date}</TableCell>
-            <TableCell sx={{ px: 2 }}>
-              <Chip label={t.type} size="small" color={typeChipColor(t.type)} sx={{ fontWeight: 700 }} />
-            </TableCell>
-            <TableCell sx={{ px: 2 }}>{t.reference}</TableCell>
-            <TableCell sx={{ px: 2 }}>{t.party}</TableCell>
-            {!selectedItem && (
-              <TableCell sx={{ px: 2 }}>
-                <Typography variant="body2">{t.item_name}</Typography>
-                <Typography variant="caption" color="text.secondary">{t.item_sku}</Typography>
-              </TableCell>
-            )}
-            <TableCell align="right" sx={{ px: 2, color: 'success.main', fontWeight: 600 }}>
-              {qtyIn > 0 ? qtyIn.toFixed(3) : "-"}
-            </TableCell>
-            <TableCell align="right" sx={{ px: 2, color: 'error.main', fontWeight: 600 }}>
-              {qtyOut > 0 ? qtyOut.toFixed(3) : "-"}
-            </TableCell>
-            <TableCell align="right" sx={{ px: 2 }}>₹{formatMoney(t.rate)}</TableCell>
-            <TableCell align="right" sx={{ px: 2, fontWeight: 600 }}>₹{formatMoney(t.value)}</TableCell>
-            <TableCell align="right" sx={{ px: 2, color: 'info.main', fontWeight: 700 }}>{runningBalance.value.toFixed(3)}</TableCell>
-          </TableRow>
-        );
+        rows.push({ ...t, __key: `trans-${index}`, __kind: 'txn', qtyIn, qtyOut, balance: running });
       }
     });
 
     return rows;
-  };
+  })();
+
+  const columns = [
+    {
+      key: 'date', label: 'Date',
+      render: (r) => (r.__kind === 'txn'
+        ? r.date
+        : <Box component="span" sx={{ fontWeight: 700 }}>{r.date}</Box>),
+    },
+    {
+      key: 'type', label: 'Type',
+      render: (r) => {
+        if (r.__kind === 'opening') {
+          return <Chip label="Opening Balance" size="small" sx={{ bgcolor: '#f1f5f9', color: '#475569', fontWeight: 700 }} />;
+        }
+        if (r.__kind === 'summary') {
+          return <Chip label="Daily Summary" size="small" color="primary" sx={{ fontWeight: 700 }} />;
+        }
+        return <Chip label={r.type} size="small" color={typeChipColor(r.type)} sx={{ fontWeight: 700 }} />;
+      },
+    },
+    {
+      key: 'reference', label: 'Reference',
+      render: (r) => {
+        if (r.__kind === 'opening') return <Box component="span" sx={{ color: 'text.secondary' }}>-</Box>;
+        if (r.__kind === 'summary') {
+          return (
+            <Box component="span" sx={{ fontWeight: 700 }}>
+              Opening: {r.opening_stock.toFixed(3)} | Closing: {r.closing_stock.toFixed(3)}
+            </Box>
+          );
+        }
+        return r.reference;
+      },
+    },
+    {
+      key: 'party', label: 'Party',
+      render: (r) => (r.__kind === 'txn' ? r.party : '-'),
+    },
+    !selectedItem && {
+      key: 'item', label: 'Item', minWidth: 140,
+      render: (r) => (r.__kind === 'txn' ? (
+        <Box>
+          <Typography variant="body2">{r.item_name}</Typography>
+          <Typography variant="caption" color="text.secondary">{r.item_sku}</Typography>
+        </Box>
+      ) : '-'),
+    },
+    {
+      key: 'quantity_in', label: 'Qty In', align: 'right',
+      render: (r) => (r.__kind === 'txn' && r.qtyIn > 0
+        ? <Box component="span" sx={{ color: 'success.main', fontWeight: 600 }}>{r.qtyIn.toFixed(3)}</Box>
+        : '-'),
+    },
+    {
+      key: 'quantity_out', label: 'Qty Out', align: 'right',
+      render: (r) => (r.__kind === 'txn' && r.qtyOut > 0
+        ? <Box component="span" sx={{ color: 'error.main', fontWeight: 600 }}>{r.qtyOut.toFixed(3)}</Box>
+        : '-'),
+    },
+    {
+      key: 'rate', label: 'Rate', align: 'right',
+      render: (r) => (r.__kind === 'txn' ? `₹${formatMoney(r.rate)}` : '-'),
+    },
+    {
+      key: 'value', label: 'Value', align: 'right',
+      render: (r) => (r.__kind === 'txn'
+        ? <Box component="span" sx={{ fontWeight: 600 }}>₹{formatMoney(r.value)}</Box>
+        : '-'),
+    },
+    {
+      key: 'balance', label: 'Balance', align: 'right',
+      render: (r) => <Box component="span" sx={{ color: 'info.main', fontWeight: 700 }}>{r.balance.toFixed(3)}</Box>,
+    },
+  ].filter(Boolean);
 
   return (
     <Box>
@@ -366,39 +389,17 @@ export default function ItemLedger() {
         </Box>
         <Divider />
         {loading && <LinearProgress />}
-        <TableContainer sx={{ overflowX: 'auto' }}>
-          <Table size="small" sx={{ minWidth: 1000 }}>
-            <TableHead>
-              <TableRow sx={{ bgcolor: 'background.neutral' }}>
-                <TableCell sx={headCellSx}>Date</TableCell>
-                <TableCell sx={headCellSx}>Type</TableCell>
-                <TableCell sx={headCellSx}>Reference</TableCell>
-                <TableCell sx={headCellSx}>Party</TableCell>
-                {!selectedItem && (
-                  <TableCell sx={headCellSx}>Item</TableCell>
-                )}
-                <TableCell align="right" sx={headCellSx}>Qty In</TableCell>
-                <TableCell align="right" sx={headCellSx}>Qty Out</TableCell>
-                <TableCell align="right" sx={headCellSx}>Rate</TableCell>
-                <TableCell align="right" sx={headCellSx}>Value</TableCell>
-                <TableCell align="right" sx={headCellSx}>Balance</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {loading ? (
-                <TableRow>
-                  <TableCell colSpan={selectedItem ? 9 : 10} align="center" sx={{ color: 'text.secondary', py: 4 }}>Loading...</TableCell>
-                </TableRow>
-              ) : transactions.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={selectedItem ? 9 : 10} align="center" sx={{ color: 'text.secondary', py: 4 }}>No transactions found</TableCell>
-                </TableRow>
-              ) : (
-                renderTransactionRows()
-              )}
-            </TableBody>
-          </Table>
-        </TableContainer>
+        <DataTable
+          columns={columns}
+          rows={ledgerRows}
+          rowKey="__key"
+          loading={loading}
+          emptyMessage="No transactions found"
+          emptyHint="Try adjusting the report filters"
+          minWidth={1000}
+          defaultPageSize={25}
+          rowsPerPageOptions={[10, 25, 50, 100]}
+        />
       </Card>
     </Box>
   );

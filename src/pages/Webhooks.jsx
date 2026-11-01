@@ -21,14 +21,6 @@ import {
   MenuItem,
   Select,
   Stack,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TablePagination,
-  TableRow,
-  TableSortLabel,
   TextField,
   Tooltip,
   Typography,
@@ -38,6 +30,7 @@ import { toast } from "react-toastify";
 import api from "../api";
 import { canCreate, canEdit, canDelete, canView } from "../utils/permissions";
 import { Iconify } from "../components/iconify";
+import { DataTable } from "../components/data-table";
 
 const tableReducer = (state, action) => {
   switch (action.type) {
@@ -70,20 +63,6 @@ const EVENT_OPTIONS = [
   { value: "follow-up.created", label: "Follow-up Created" },
   { value: "follow-up.completed", label: "Follow-up Completed" },
 ];
-
-const headCellSx = {
-  color: 'text.secondary',
-  fontSize: 12,
-  fontWeight: 700,
-  textTransform: 'uppercase',
-  letterSpacing: '.04em',
-  px: 2,
-  py: 1.5,
-  borderBottom: '1px solid',
-  borderColor: 'divider',
-};
-
-const bodyCellSx = { verticalAlign: 'middle', px: 2, py: 1.5, borderBottom: '1px solid #f1f5f9' };
 
 const dialogPaperSx = {
   borderRadius: 3,
@@ -259,15 +238,114 @@ export default function Webhooks() {
     }));
   };
 
-  const handleSort = (field) => {
-    const isAsc = table.sortField === field && table.sortDir === 'asc';
-    dispatch({ type: 'SORT', field, dir: isAsc ? 'desc' : 'asc' });
-  };
-
   const handleDialogClose = (event, reason) => {
     if (reason === 'backdropClick') return;
     setShow(false);
   };
+
+  const columns = [
+    { key: 'id', label: 'ID', sortField: 'id', width: 70, render: (row) => row.id },
+    {
+      key: 'name', label: 'Name', sortField: 'name',
+      render: (row) => <Typography variant="body2" sx={{ fontWeight: 600 }}>{row.name}</Typography>,
+    },
+    {
+      key: 'url', label: 'URL',
+      render: (row) => (
+        <Tooltip title={row.url || ''}>
+          <Typography
+            variant="body2"
+            noWrap
+            sx={{ color: 'text.secondary', maxWidth: 240 }}
+          >
+            {row.url}
+          </Typography>
+        </Tooltip>
+      ),
+    },
+    {
+      key: 'type', label: 'Type', width: 80,
+      render: (row) => (
+        <Chip
+          label={row.type}
+          size="small"
+          sx={{
+            fontWeight: 700,
+            textTransform: 'capitalize',
+            ...(row.type === "push"
+              ? { bgcolor: '#eaf0f6', color: '#062849' }
+              : { bgcolor: '#caf4ff', color: '#006c9c' }),
+          }}
+        />
+      ),
+    },
+    {
+      key: 'events', label: 'Events',
+      render: (row) => (
+        <Stack direction="row" spacing={0.5} flexWrap="wrap" useFlexGap>
+          {(row.events || []).slice(0, 2).map((e) => (
+            <Chip key={e} label={e} size="small" variant="outlined" />
+          ))}
+          {(row.events || []).length > 2 && (
+            <Chip label={`+${(row.events || []).length - 2}`} size="small" sx={{ bgcolor: '#f1f5f9', color: '#475569' }} />
+          )}
+        </Stack>
+      ),
+    },
+    {
+      key: 'status', label: 'Status', width: 90,
+      render: (row) => (
+        <Chip
+          label={row.active ? "Active" : "Inactive"}
+          size="small"
+          sx={{
+            fontWeight: 700,
+            ...(row.active
+              ? { bgcolor: '#dbf5e9', color: '#118d57' }
+              : { bgcolor: '#f1f5f9', color: '#475569' }),
+          }}
+        />
+      ),
+    },
+    {
+      key: 'action', label: 'Action', width: 140, align: 'right',
+      render: (row) => (
+        <Stack direction="row" spacing={0.5} justifyContent="flex-end">
+          {canEditWebhook && (
+            <Tooltip title="Edit">
+              <IconButton size="small" onClick={() => openEdit(row)} aria-label="Edit webhook" sx={{ color: 'primary.main' }}>
+                <Iconify icon="fa6-solid:pen-to-square" width={13} />
+              </IconButton>
+            </Tooltip>
+          )}
+          <Tooltip title="Test webhook">
+            <span>
+              <IconButton
+                size="small"
+                onClick={() => testWebhook(row)}
+                disabled={testLoading === row.id}
+                aria-label="Test webhook"
+                sx={{ color: 'info.main' }}
+              >
+                {testLoading === row.id ? (
+                  <CircularProgress size={14} color="inherit" />
+                ) : (
+                  <Iconify icon="fa6-solid:vial" width={13} />
+                )}
+              </IconButton>
+            </span>
+          </Tooltip>
+          {canDeleteWebhook && (
+            <Tooltip title="Delete">
+              <IconButton size="small" onClick={() => deleteWebhook(row)} aria-label="Delete webhook" sx={{ color: 'error.main' }}>
+                <Iconify icon="fa6-solid:trash-can" width={13} />
+              </IconButton>
+            </Tooltip>
+          )}
+        </Stack>
+      ),
+    },
+  ];
 
   if (!canViewWebhooks) {
     return (
@@ -316,157 +394,23 @@ export default function Webhooks() {
 
         {loading && <LinearProgress />}
 
-        <TableContainer sx={{ overflowX: 'auto' }}>
-          <Table size="small" sx={{ minWidth: 900 }}>
-            <TableHead>
-              <TableRow sx={{ bgcolor: 'background.neutral' }}>
-                <TableCell sx={{ ...headCellSx, width: 70 }}>
-                  <TableSortLabel
-                    active={table.sortField === 'id'}
-                    direction={table.sortField === 'id' ? table.sortDir : 'asc'}
-                    onClick={() => handleSort('id')}
-                  >
-                    ID
-                  </TableSortLabel>
-                </TableCell>
-                <TableCell sx={headCellSx}>
-                  <TableSortLabel
-                    active={table.sortField === 'name'}
-                    direction={table.sortField === 'name' ? table.sortDir : 'asc'}
-                    onClick={() => handleSort('name')}
-                  >
-                    Name
-                  </TableSortLabel>
-                </TableCell>
-                <TableCell sx={headCellSx}>URL</TableCell>
-                <TableCell sx={{ ...headCellSx, width: 80 }}>Type</TableCell>
-                <TableCell sx={headCellSx}>Events</TableCell>
-                <TableCell sx={{ ...headCellSx, width: 90 }}>Status</TableCell>
-                <TableCell sx={{ ...headCellSx, width: 140 }} align="right">Action</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {rows.length === 0 && !loading ? (
-                <TableRow>
-                  <TableCell colSpan={7} align="center" sx={{ py: 7, borderBottom: 0 }}>
-                    <Iconify icon="fa6-solid:folder-open" width={42} />
-                    <Typography variant="subtitle2" sx={{ color: 'text.secondary', mt: 1.5 }}>
-                      No webhooks found
-                    </Typography>
-                    <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-                      Create a webhook to push or pull lead data
-                    </Typography>
-                  </TableCell>
-                </TableRow>
-              ) : rows.map((row) => (
-                <TableRow
-                  key={row.id}
-                  hover
-                  sx={{ '&:last-child td': { borderBottom: 0 } }}
-                >
-                  <TableCell sx={bodyCellSx}>{row.id}</TableCell>
-                  <TableCell sx={{ ...bodyCellSx, fontWeight: 600 }}>{row.name}</TableCell>
-                  <TableCell sx={bodyCellSx}>
-                    <Tooltip title={row.url || ''}>
-                      <Typography
-                        variant="body2"
-                        noWrap
-                        sx={{ color: 'text.secondary', maxWidth: 240 }}
-                      >
-                        {row.url}
-                      </Typography>
-                    </Tooltip>
-                  </TableCell>
-                  <TableCell sx={bodyCellSx}>
-                    <Chip
-                      label={row.type}
-                      size="small"
-                      sx={{
-                        fontWeight: 700,
-                        textTransform: 'capitalize',
-                        ...(row.type === "push"
-                          ? { bgcolor: '#eaf0f6', color: '#062849' }
-                          : { bgcolor: '#caf4ff', color: '#006c9c' }),
-                      }}
-                    />
-                  </TableCell>
-                  <TableCell sx={bodyCellSx}>
-                    <Stack direction="row" spacing={0.5} flexWrap="wrap" useFlexGap>
-                      {(row.events || []).slice(0, 2).map((e) => (
-                        <Chip key={e} label={e} size="small" variant="outlined" />
-                      ))}
-                      {(row.events || []).length > 2 && (
-                        <Chip label={`+${(row.events || []).length - 2}`} size="small" sx={{ bgcolor: '#f1f5f9', color: '#475569' }} />
-                      )}
-                    </Stack>
-                  </TableCell>
-                  <TableCell sx={bodyCellSx}>
-                    <Chip
-                      label={row.active ? "Active" : "Inactive"}
-                      size="small"
-                      sx={{
-                        fontWeight: 700,
-                        ...(row.active
-                          ? { bgcolor: '#dbf5e9', color: '#118d57' }
-                          : { bgcolor: '#f1f5f9', color: '#475569' }),
-                      }}
-                    />
-                  </TableCell>
-                  <TableCell sx={bodyCellSx} align="right">
-                    <Stack direction="row" spacing={0.5} justifyContent="flex-end">
-                      {canEditWebhook && (
-                        <Tooltip title="Edit">
-                          <IconButton size="small" onClick={() => openEdit(row)} aria-label="Edit webhook" sx={{ color: 'primary.main' }}>
-                            <Iconify icon="fa6-solid:pen-to-square" width={13} />
-                          </IconButton>
-                        </Tooltip>
-                      )}
-                      <Tooltip title="Test webhook">
-                        <span>
-                          <IconButton
-                            size="small"
-                            onClick={() => testWebhook(row)}
-                            disabled={testLoading === row.id}
-                            aria-label="Test webhook"
-                            sx={{ color: 'info.main' }}
-                          >
-                            {testLoading === row.id ? (
-                              <CircularProgress size={14} color="inherit" />
-                            ) : (
-                              <Iconify icon="fa6-solid:vial" width={13} />
-                            )}
-                          </IconButton>
-                        </span>
-                      </Tooltip>
-                      {canDeleteWebhook && (
-                        <Tooltip title="Delete">
-                          <IconButton size="small" onClick={() => deleteWebhook(row)} aria-label="Delete webhook" sx={{ color: 'error.main' }}>
-                            <Iconify icon="fa6-solid:trash-can" width={13} />
-                          </IconButton>
-                        </Tooltip>
-                      )}
-                    </Stack>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </TableContainer>
-
-        <TablePagination
-          component="div"
-          count={total}
-          page={Math.max(table.page - 1, 0)}
-          rowsPerPage={table.perPage}
+        <DataTable
+          columns={columns}
+          rows={rows}
+          loading={loading}
+          emptyMessage="No webhooks found"
+          emptyHint="Create a webhook to push or pull lead data"
+          minWidth={900}
+          server
+          total={total}
+          page={table.page}
+          perPage={table.perPage}
+          sortField={table.sortField}
+          sortDir={table.sortDir}
+          onPageChange={(pageIndex) => dispatch({ type: 'PAGE', page: pageIndex + 1 })}
+          onPerPageChange={(size) => dispatch({ type: 'PER_PAGE', perPage: size })}
+          onSortChange={(field, dir) => dispatch({ type: 'SORT', field, dir })}
           rowsPerPageOptions={[10, 20, 50, 100]}
-          onPageChange={(event, page) => {
-            const nextPage = page + 1;
-            if (nextPage !== table.page) dispatch({ type: 'PAGE', page: nextPage });
-          }}
-          onRowsPerPageChange={(event) => {
-            const nextSize = Number(event.target.value);
-            if (nextSize !== table.perPage) dispatch({ type: 'PER_PAGE', perPage: nextSize });
-          }}
         />
       </Card>
 

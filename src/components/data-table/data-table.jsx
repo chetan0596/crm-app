@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
   Box,
   Checkbox,
@@ -17,113 +17,215 @@ import {
   Tooltip,
   Typography,
 } from '@mui/material';
+import {
+  useReactTable,
+  getCoreRowModel,
+  getFilteredRowModel,
+  getPaginationRowModel,
+  getSortedRowModel,
+  flexRender,
+} from '@tanstack/react-table';
 
 import { Iconify } from '../iconify';
 
-// Ported from the `ui components` CommonTable, adapted for this app:
-// client-side sorting + pagination, sticky header, loading skeleton,
-// icon empty state, optional selection and actions column.
+// TanStack-backed table, adapted for this app:
+// - columns accept the app's shape: { key|id, label, sortField?, sortable?, width?, minWidth?, align?, render?(row), accessor?(row) }
+// - `server` mode: caller controls page/perPage/sortField/sortDir (manual* flags)
+// - client mode: TanStack paginates/sorts/filters the full `rows` array itself
+// - sticky header, loading skeleton, empty state, optional selection & actions column
 export function DataTable({
   columns,
   rows = [],
   loading = false,
   emptyMessage = 'No data',
-  maxHeight = 440,
+  emptyTitle,
+  emptyHint,
   minWidth = 640,
-  defaultRowsPerPage = 5,
+  maxHeight,
+  // server mode
+  server = false,
+  total,
+  page,               // 1-based, server mode
+  perPage,            // server mode
+  sortField,          // server mode
+  sortDir,            // server mode
+  onPageChange,       // (pageIndex0) => void
+  onPerPageChange,    // (size) => void
+  onSortChange,       // (field, dir) => void
+  columnVisibility,   // { [columnId]: boolean }
+  onColumnVisibilityChange,
+  globalFilter,
+  // client mode
+  defaultPageSize = 5,
   rowsPerPageOptions = [5, 10, 25],
+  // misc
+  rowKey = 'id',
+  onRowClick,
   selectable = false,
   selected = [],
   onSelect,
   renderActions,
   actionsLabel = 'Actions',
+  dense = false,
 }) {
-  const [page, setPage] = useState(0);
-  const [rowsPerPage, setRowsPerPage] = useState(defaultRowsPerPage);
-  const [order, setOrder] = useState('asc');
-  const [orderBy, setOrderBy] = useState(null);
+  const [clientPagination, setClientPagination] = useState({ pageIndex: 0, pageSize: defaultPageSize });
+  const [clientSorting, setClientSorting] = useState([]);
 
-  const colCount = columns.length + (selectable ? 1 : 0) + (renderActions ? 1 : 0);
+  const tanColumns = useMemo(
+    () =>
+      columns.map((column) => {
+        const id = column.id ?? column.key;
+        const sortFieldName = column.sortField ?? (column.sortable ? id : null);
+        return {
+          id,
+          header: column.label,
+          enableSorting: Boolean(sortFieldName),
+          accessorFn: column.accessor ?? column.sortValue ?? (sortFieldName ? (row) => row[sortFieldName] : (row) => row[id]),
+          meta: {
+            sortField: sortFieldName,
+            align: column.align,
+            minWidth: column.minWidth,
+            width: column.width,
+          },
+          cell: ({ row }) =>
+            column.render ? column.render(row.original) : (row.original[id] ?? '-'),
+        };
+      }),
+    [columns]
+  );
 
-  const handleSort = (columnId) => {
-    const isAsc = orderBy === columnId && order === 'asc';
-    setOrder(isAsc ? 'desc' : 'asc');
-    setOrderBy(columnId);
-  };
+  const pagination = server
+    ? { pageIndex: Math.max((page ?? 1) - 1, 0), pageSize: perPage ?? defaultPageSize }
+    : clientPagination;
 
-  const valueFor = (row, column) =>
-    column.sortValue ? column.sortValue(row) : row[column.id];
+  const sorting = useMemo(() => {
+    if (!server) return clientSorting;
+    const columnId = sortField
+      ? (tanColumns.find((c) => c.meta?.sortField === sortField)?.id ?? sortField)
+      : null;
+    return columnId ? [{ id: columnId, desc: sortDir === 'desc' }] : [];
+  }, [server, clientSorting, tanColumns, sortField, sortDir]);
 
-  const sorted = [...rows].sort((a, b) => {
-    if (!orderBy) return 0;
-    const column = columns.find((c) => c.id === orderBy);
-    if (!column) return 0;
-    const aVal = valueFor(a, column);
-    const bVal = valueFor(b, column);
-    if (aVal == null || bVal == null) return 0;
-    if (typeof aVal === 'number' && typeof bVal === 'number') {
-      return order === 'asc' ? aVal - bVal : bVal - aVal;
-    }
-    return order === 'asc'
-      ? String(aVal).localeCompare(String(bVal))
-      : String(bVal).localeCompare(String(aVal));
+  const table = useReactTable({
+    data: rows,
+    columns: tanColumns,
+    state: {
+      sorting,
+      pagination,
+      ...(columnVisibility ? { columnVisibility } : {}),
+      ...(globalFilter != null ? { globalFilter } : {}),
+    },
+    onSortingChange: (updater) => {
+      const next = typeof updater === 'function' ? updater(sorting) : updater;
+      const first = next[0];
+      if (server) {
+        if (!first) return;
+        const field = tanColumns.find((c) => c.id === first.id)?.meta?.sortField ?? first.id;
+        onSortChange?.(field, first.desc ? 'desc' : 'asc');
+      } else {
+        setClientSorting(next);
+      }
+    },
+    onPaginationChange: (updater) => {
+      const next = typeof updater === 'function' ? updater(pagination) : updater;
+      if (server) {
+        if (next.pageSize !== pagination.pageSize) onPerPageChange?.(next.pageSize);
+        if (next.pageIndex !== pagination.pageIndex) onPageChange?.(next.pageIndex);
+      } else {
+        setClientPagination(next);
+      }
+    },
+    ...(onColumnVisibilityChange ? { onColumnVisibilityChange } : {}),
+    getRowId: (row, index) => String(row?.[rowKey] ?? index),
+    getCoreRowModel: getCoreRowModel(),
+    getPaginationRowModel: getPaginationRowModel(),
+    getSortedRowModel: getSortedRowModel(),
+    getFilteredRowModel: getFilteredRowModel(),
+    manualPagination: server,
+    manualSorting: server,
+    manualFiltering: server,
+    enableSortingRemoval: false,
+    pageCount: server ? Math.max(Math.ceil((total ?? 0) / (perPage || defaultPageSize)), 1) : -1,
+    autoResetPageIndex: !server,
   });
 
-  const maxPage = Math.max(0, Math.ceil(sorted.length / rowsPerPage) - 1);
-  const safePage = Math.min(page, maxPage);
-  const paginated = sorted.slice(safePage * rowsPerPage, safePage * rowsPerPage + rowsPerPage);
+  const visibleColumns = table.getVisibleLeafColumns();
+  const colCount = visibleColumns.length + (selectable ? 1 : 0) + (renderActions ? 1 : 0);
+  const bodyRows = table.getRowModel().rows;
+
+  const pageCountDisplay = server
+    ? (total ?? 0)
+    : (table.getFilteredRowModel()?.rows.length ?? rows.length);
 
   const allSelected = rows.length > 0 && selected.length === rows.length;
 
+  const headCellSx = {
+    color: 'text.secondary',
+    fontSize: 12,
+    fontWeight: 700,
+    textTransform: 'uppercase',
+    letterSpacing: '.04em',
+    px: 2,
+    py: 1.5,
+    whiteSpace: 'nowrap',
+    borderBottom: '1px solid',
+    borderColor: 'divider',
+  };
+
+  const bodyCellSx = {
+    verticalAlign: 'middle',
+    px: 2,
+    py: dense ? 1 : 1.5,
+    borderBottom: '1px solid #f1f5f9',
+  };
+
   return (
     <>
-      <TableContainer sx={{ maxHeight }}>
-        <Table size="small" stickyHeader sx={{ minWidth }}>
+      <TableContainer sx={{ overflowX: 'auto', ...(maxHeight ? { maxHeight } : {}) }}>
+        <Table size="small" stickyHeader={Boolean(maxHeight)} sx={{ minWidth }}>
           <TableHead>
-            <TableRow>
-              {selectable && (
-                <TableCell padding="checkbox" sx={{ width: 48 }}>
-                  <Checkbox
-                    checked={allSelected}
-                    indeterminate={selected.length > 0 && !allSelected}
-                    onChange={(event) =>
-                      onSelect?.(event.target.checked ? rows.map((r) => r.id ?? r) : [])
-                    }
-                  />
-                </TableCell>
-              )}
-              {columns.map((column, index) => (
-                <TableCell
-                  key={column.id}
-                  align={column.align || 'left'}
-                  sortDirection={orderBy === column.id ? order : false}
-                  sx={{
-                    width: column.width,
-                    minWidth: column.minWidth,
-                    whiteSpace: 'nowrap',
-                    ...(index === 0 && !selectable && { borderTopLeftRadius: 12, borderBottomLeftRadius: 12 }),
-                    ...(index === columns.length - 1 && !renderActions && { borderTopRightRadius: 12, borderBottomRightRadius: 12 }),
-                  }}
-                >
-                  {column.sortable ? (
-                    <TableSortLabel
-                      active={orderBy === column.id}
-                      direction={orderBy === column.id ? order : 'asc'}
-                      onClick={() => handleSort(column.id)}
+            {table.getHeaderGroups().map((headerGroup) => (
+              <TableRow key={headerGroup.id} sx={{ bgcolor: 'background.neutral' }}>
+                {selectable && (
+                  <TableCell padding="checkbox" sx={{ ...headCellSx, width: 48 }}>
+                    <Checkbox
+                      checked={allSelected}
+                      indeterminate={selected.length > 0 && !allSelected}
+                      onChange={(event) =>
+                        onSelect?.(event.target.checked ? rows.map((r) => r?.[rowKey] ?? r) : [])
+                      }
+                    />
+                  </TableCell>
+                )}
+                {headerGroup.headers.map((header) => {
+                  const meta = header.column.columnDef.meta || {};
+                  return (
+                    <TableCell
+                      key={header.id}
+                      align={meta.align || 'left'}
+                      sx={{ ...headCellSx, width: meta.width, minWidth: meta.minWidth }}
                     >
-                      {column.label}
-                    </TableSortLabel>
-                  ) : (
-                    column.label
-                  )}
-                </TableCell>
-              ))}
-              {renderActions && (
-                <TableCell align="right" sx={{ width: 56, borderTopRightRadius: 12, borderBottomRightRadius: 12 }}>
-                  {actionsLabel}
-                </TableCell>
-              )}
-            </TableRow>
+                      {header.column.getCanSort() ? (
+                        <TableSortLabel
+                          active={header.column.getIsSorted() !== false}
+                          direction={header.column.getIsSorted() === 'desc' ? 'desc' : 'asc'}
+                          onClick={header.column.getToggleSortingHandler()}
+                        >
+                          {flexRender(header.column.columnDef.header, header.getContext())}
+                        </TableSortLabel>
+                      ) : (
+                        flexRender(header.column.columnDef.header, header.getContext())
+                      )}
+                    </TableCell>
+                  );
+                })}
+                {renderActions && (
+                  <TableCell align="right" sx={{ ...headCellSx, width: 56 }}>
+                    {actionsLabel}
+                  </TableCell>
+                )}
+              </TableRow>
+            ))}
           </TableHead>
 
           <TableBody>
@@ -131,49 +233,68 @@ export function DataTable({
               [...Array(3)].map((_, index) => (
                 <TableRow key={index}>
                   {selectable && <TableCell padding="checkbox"><Skeleton /></TableCell>}
-                  {columns.map((column) => (
-                    <TableCell key={column.id} align={column.align || 'left'}>
+                  {visibleColumns.map((column) => (
+                    <TableCell key={column.id} align={column.columnDef.meta?.align || 'left'}>
                       <Skeleton variant="text" width="80%" />
                     </TableCell>
                   ))}
                   {renderActions && <TableCell align="right"><Skeleton width={24} sx={{ ml: 'auto' }} /></TableCell>}
                 </TableRow>
               ))
-            ) : paginated.length === 0 ? (
+            ) : bodyRows.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={colCount} align="center" sx={{ py: 5, borderBottom: 'none' }}>
-                  <Stack alignItems="center" spacing={1} sx={{ color: 'text.disabled' }}>
-                    <Iconify icon="solar:database-bold-duotone" width={36} />
-                    <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-                      {emptyMessage}
+                <TableCell colSpan={colCount} align="center" sx={{ py: 7, borderBottom: 'none' }}>
+                  <Stack alignItems="center" spacing={0.5} sx={{ color: 'text.disabled' }}>
+                    <Iconify icon="fa6-solid:folder-open" width={42} />
+                    <Typography variant="subtitle2" sx={{ color: 'text.secondary', mt: 1.5 }}>
+                      {emptyTitle || emptyMessage}
                     </Typography>
+                    {emptyHint && (
+                      <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                        {emptyHint}
+                      </Typography>
+                    )}
                   </Stack>
                 </TableCell>
               </TableRow>
             ) : (
-              paginated.map((row, rowIndex) => (
-                <TableRow key={row.id ?? rowIndex} hover selected={selectable && selected.includes(row.id ?? row)}>
+              bodyRows.map((row) => (
+                <TableRow
+                  key={row.id}
+                  hover
+                  selected={selectable && selected.includes(row.original?.[rowKey] ?? row.original)}
+                  onClick={onRowClick ? () => onRowClick(row.original) : undefined}
+                  sx={{
+                    ...(onRowClick ? { cursor: 'pointer' } : {}),
+                    '&:hover': { bgcolor: 'rgba(6,40,73,.035)' },
+                    '&:last-child td': { borderBottom: 0 },
+                  }}
+                >
                   {selectable && (
                     <TableCell padding="checkbox">
                       <Checkbox
-                        checked={selected.includes(row.id ?? row)}
+                        checked={selected.includes(row.original?.[rowKey] ?? row.original)}
                         onChange={(event) => {
-                          const key = row.id ?? row;
+                          const key = row.original?.[rowKey] ?? row.original;
                           onSelect?.(
                             event.target.checked ? [...selected, key] : selected.filter((k) => k !== key)
                           );
                         }}
+                        onClick={(event) => event.stopPropagation()}
                       />
                     </TableCell>
                   )}
-                  {columns.map((column) => (
-                    <TableCell key={column.id} align={column.align || 'left'}>
-                      {column.render ? column.render(row) : (row[column.id] ?? '-')}
-                    </TableCell>
-                  ))}
+                  {row.getVisibleCells().map((cell) => {
+                    const meta = cell.column.columnDef.meta || {};
+                    return (
+                      <TableCell key={cell.id} align={meta.align || 'left'} sx={bodyCellSx}>
+                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                      </TableCell>
+                    );
+                  })}
                   {renderActions && (
-                    <TableCell align="right" sx={{ whiteSpace: 'nowrap' }}>
-                      {renderActions(row)}
+                    <TableCell align="right" sx={{ ...bodyCellSx, whiteSpace: 'nowrap' }}>
+                      {renderActions(row.original)}
                     </TableCell>
                   )}
                 </TableRow>
@@ -183,22 +304,17 @@ export function DataTable({
         </Table>
       </TableContainer>
 
-      {rows.length > 0 && (
-        <>
-          <Divider sx={{ borderStyle: 'dashed' }} />
-          <TablePagination
-            component="div"
-            count={rows.length}
-            page={safePage}
-            rowsPerPage={rowsPerPage}
-            onPageChange={(_, newPage) => setPage(newPage)}
-            onRowsPerPageChange={(event) => {
-              setRowsPerPage(parseInt(event.target.value, 10));
-              setPage(0);
-            }}
-            rowsPerPageOptions={rowsPerPageOptions}
-          />
-        </>
+      {(pageCountDisplay > 0 || server) && (
+        <TablePagination
+          component="div"
+          count={pageCountDisplay}
+          page={pagination.pageIndex}
+          rowsPerPage={pagination.pageSize}
+          rowsPerPageOptions={rowsPerPageOptions}
+          onPageChange={(_, newPage) => table.setPageIndex(newPage)}
+          onRowsPerPageChange={(event) => table.setPageSize(Number(event.target.value))}
+          sx={{ borderTop: '1px solid', borderColor: 'divider' }}
+        />
       )}
     </>
   );

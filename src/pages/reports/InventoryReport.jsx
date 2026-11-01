@@ -14,18 +14,13 @@ import {
   MenuItem,
   Select,
   Stack,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
   TextField,
   Typography,
 } from "@mui/material";
 import api from "../../api";
 import { canView } from "../../utils/permissions";
 import { Iconify } from "../../components/iconify";
+import { DataTable } from "../../components/data-table";
 
 const formatMoney = (v) => {
   const n = Number(v || 0);
@@ -46,16 +41,6 @@ const cardSx = {
   borderColor: 'divider',
   borderRadius: 3,
   boxShadow: '0 8px 24px rgba(28,37,46,.05)',
-};
-
-const headCellSx = {
-  color: 'text.secondary',
-  fontSize: 12,
-  fontWeight: 700,
-  textTransform: 'uppercase',
-  letterSpacing: '.04em',
-  px: 2,
-  py: 1.5,
 };
 
 const initialDates = () => {
@@ -196,6 +181,64 @@ export default function InventoryReport() {
     );
   }
 
+  const columns = [
+    {
+      key: 'name', label: 'Item', sortable: true, accessor: (item) => item.name ?? '', minWidth: 160,
+      render: (item) => <Typography variant="body2" sx={{ fontWeight: 600 }}>{item.name}</Typography>,
+    },
+    {
+      key: 'sku', label: 'SKU', sortable: true, accessor: (item) => item.sku ?? '',
+      render: (item) => <Chip label={item.sku} size="small" variant="outlined" />,
+    },
+    {
+      key: 'unit', label: 'Unit', sortable: true, accessor: (item) => item.unit ?? '',
+      render: (item) => <Typography variant="body2" color="text.secondary">{item.unit}</Typography>,
+    },
+    {
+      key: 'current_stock', label: 'Current Stock', align: 'right', sortable: true, accessor: (item) => Number(item.current_stock) || 0,
+      render: (item) => <Typography variant="body2" sx={{ color: 'info.main', fontWeight: 600 }}>{Number(item.current_stock || 0).toFixed(3)}</Typography>,
+    },
+    {
+      key: 'min_stock', label: 'Min Stock', align: 'right', sortable: true, accessor: (item) => Number(item.min_stock) || 0,
+      render: (item) => <Typography variant="body2" color="text.secondary">{Number(item.min_stock || 0).toFixed(3)}</Typography>,
+    },
+    {
+      key: 'sale_price', label: 'Sale Price', align: 'right', sortable: true, accessor: (item) => Number(item.sale_price) || 0,
+      render: (item) => `₹${formatMoney(item.sale_price)}`,
+    },
+    {
+      key: 'stock_value', label: 'Stock Value', align: 'right', sortable: true, accessor: (item) => Number(item.stock_value) || 0,
+      render: (item) => <Typography variant="body2" sx={{ color: 'success.main', fontWeight: 700 }}>₹{formatMoney(item.stock_value)}</Typography>,
+    },
+    {
+      key: 'purchases_in_period', label: 'Purchases (Period)', align: 'center', sortable: true, accessor: (item) => Number(item.purchases_in_period) || 0,
+      render: (item) => (
+        <Typography variant="body2" sx={{ color: 'success.main' }}>
+          {item.purchases_in_period > 0 ? '+' + Number(item.purchases_in_period).toFixed(3) : '-'}
+        </Typography>
+      ),
+    },
+    {
+      key: 'sales_in_period', label: 'Sales (Period)', align: 'center', sortable: true, accessor: (item) => Number(item.sales_in_period) || 0,
+      render: (item) => (
+        <Typography variant="body2" sx={{ color: 'error.main' }}>
+          {item.sales_in_period > 0 ? '-' + Number(item.sales_in_period).toFixed(3) : '-'}
+        </Typography>
+      ),
+    },
+    {
+      key: 'status', label: 'Status', align: 'center', sortable: true, accessor: (item) => item.status ?? '',
+      render: (item) => (
+        <Chip
+          label={item.status}
+          size="small"
+          color={chipColorMap[item.status_color] || "default"}
+          sx={{ fontWeight: 700 }}
+        />
+      ),
+    },
+  ];
+
   return (
     <Box>
       <Box sx={{ mb: 2.5 }}>
@@ -282,61 +325,16 @@ export default function InventoryReport() {
         </Box>
         <Divider />
         {loading && <LinearProgress />}
-        <TableContainer sx={{ overflowX: 'auto' }}>
-          <Table size="small" sx={{ minWidth: 1000 }}>
-            <TableHead>
-              <TableRow sx={{ bgcolor: 'background.neutral' }}>
-                <TableCell sx={headCellSx}>Item</TableCell>
-                <TableCell sx={headCellSx}>SKU</TableCell>
-                <TableCell sx={headCellSx}>Unit</TableCell>
-                <TableCell align="right" sx={headCellSx}>Current Stock</TableCell>
-                <TableCell align="right" sx={headCellSx}>Min Stock</TableCell>
-                <TableCell align="right" sx={headCellSx}>Sale Price</TableCell>
-                <TableCell align="right" sx={headCellSx}>Stock Value</TableCell>
-                <TableCell align="center" sx={headCellSx}>Purchases (Period)</TableCell>
-                <TableCell align="center" sx={headCellSx}>Sales (Period)</TableCell>
-                <TableCell align="center" sx={headCellSx}>Status</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {loading ? (
-                <TableRow>
-                  <TableCell colSpan={10} align="center" sx={{ color: 'text.secondary', py: 4 }}>Loading...</TableCell>
-                </TableRow>
-              ) : data.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={10} align="center" sx={{ color: 'text.secondary', py: 4 }}>No items found</TableCell>
-                </TableRow>
-              ) : (
-                data.map((item) => (
-                  <TableRow key={item.id} hover>
-                    <TableCell sx={{ px: 2, fontWeight: 600 }}>{item.name}</TableCell>
-                    <TableCell sx={{ px: 2 }}><Chip label={item.sku} size="small" variant="outlined" /></TableCell>
-                    <TableCell sx={{ px: 2, color: 'text.secondary' }}>{item.unit}</TableCell>
-                    <TableCell align="right" sx={{ px: 2, color: 'info.main', fontWeight: 600 }}>{Number(item.current_stock || 0).toFixed(3)}</TableCell>
-                    <TableCell align="right" sx={{ px: 2, color: 'text.secondary' }}>{Number(item.min_stock || 0).toFixed(3)}</TableCell>
-                    <TableCell align="right" sx={{ px: 2 }}>₹{formatMoney(item.sale_price)}</TableCell>
-                    <TableCell align="right" sx={{ px: 2, color: 'success.main', fontWeight: 700 }}>₹{formatMoney(item.stock_value)}</TableCell>
-                    <TableCell align="center" sx={{ px: 2, color: 'success.main' }}>
-                      {item.purchases_in_period > 0 ? '+' + Number(item.purchases_in_period).toFixed(3) : '-'}
-                    </TableCell>
-                    <TableCell align="center" sx={{ px: 2, color: 'error.main' }}>
-                      {item.sales_in_period > 0 ? '-' + Number(item.sales_in_period).toFixed(3) : '-'}
-                    </TableCell>
-                    <TableCell align="center" sx={{ px: 2 }}>
-                      <Chip
-                        label={item.status}
-                        size="small"
-                        color={chipColorMap[item.status_color] || "default"}
-                        sx={{ fontWeight: 700 }}
-                      />
-                    </TableCell>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </TableContainer>
+        <DataTable
+          columns={columns}
+          rows={data}
+          loading={loading}
+          emptyMessage="No items found"
+          emptyHint="Try adjusting the report filters"
+          minWidth={1000}
+          defaultPageSize={25}
+          rowsPerPageOptions={[10, 25, 50, 100]}
+        />
       </Card>
     </Box>
   );

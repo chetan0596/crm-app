@@ -26,9 +26,7 @@ import {
   TableCell,
   TableContainer,
   TableHead,
-  TablePagination,
   TableRow,
-  TableSortLabel,
   TextField,
   Tooltip,
   Typography,
@@ -38,6 +36,7 @@ import { toast } from "react-toastify";
 import api from "../api";
 import { canCreate, canEdit, canDelete, canView } from "../utils/permissions";
 import { Iconify } from "../components/iconify";
+import { DataTable } from "../components/data-table";
 
 const tableReducer = (state, action) => {
   switch (action.type) {
@@ -95,13 +94,6 @@ const headerCellSx = {
   py: 1.5,
   borderBottom: '1px solid',
   borderColor: 'divider',
-};
-
-const bodyCellSx = {
-  verticalAlign: 'middle',
-  px: 2,
-  py: 1.5,
-  borderBottom: '1px solid #f1f5f9',
 };
 
 const sectionBoxSx = {
@@ -299,8 +291,8 @@ export default function DebitNotes() {
   };
 
   const columns = [
-    { key: 'debit_note_number', label: 'DN #', minWidth: 130, sortValue: (r) => r.debit_note_number },
-    { key: 'debit_note_date', label: 'Date', minWidth: 110, sortValue: (r) => r.debit_note_date, render: (row) => row.debit_note_date || '-' },
+    { key: 'debit_note_number', label: 'DN #', minWidth: 130, sortable: true, sortValue: (r) => r.debit_note_number },
+    { key: 'debit_note_date', label: 'Date', minWidth: 110, sortable: true, sortValue: (r) => r.debit_note_date, render: (row) => row.debit_note_date || '-' },
     { key: 'bill', label: 'Bill', minWidth: 120, render: (row) => row.purchase?.bill_number || '-' },
     { key: 'vendor', label: 'Vendor', minWidth: 150, render: (row) => row.purchase?.vendor?.name || '-' },
     {
@@ -313,7 +305,7 @@ export default function DebitNotes() {
         />
       ),
     },
-    { key: 'grand_total', label: 'Amount', minWidth: 110, sortValue: (r) => Number(r.grand_total) || 0, render: (row) => `₹${formatMoney(row.grand_total)}` },
+    { key: 'grand_total', label: 'Amount', minWidth: 110, sortable: true, sortValue: (r) => Number(r.grand_total) || 0, render: (row) => `₹${formatMoney(row.grand_total)}` },
     {
       key: 'status', label: 'Status', minWidth: 90,
       render: (row) => (
@@ -368,10 +360,6 @@ export default function DebitNotes() {
     });
   })();
 
-  const handleLocalSort = (field) => {
-    setSort((s) => ({ field, dir: s.field === field && s.dir === 'asc' ? 'desc' : 'asc' }));
-  };
-
   const totals = calculateTotals();
 
   if (!canViewNotes) {
@@ -424,81 +412,23 @@ export default function DebitNotes() {
         </CardContent>
 
         {loading && <LinearProgress />}
-        <TableContainer sx={{ overflowX: 'auto' }}>
-          <Table sx={{ minWidth: 960 }} size="small">
-            <TableHead>
-              <TableRow sx={{ bgcolor: 'background.neutral' }}>
-                {columns.map((column) => (
-                  <TableCell
-                    key={column.key}
-                    align={column.align || 'left'}
-                    sx={{ ...headerCellSx, minWidth: column.minWidth, width: column.width }}
-                  >
-                    {column.sortValue ? (
-                      <TableSortLabel
-                        active={sort.field === column.key}
-                        direction={sort.field === column.key ? sort.dir : 'asc'}
-                        onClick={() => handleLocalSort(column.key)}
-                      >
-                        {column.label}
-                      </TableSortLabel>
-                    ) : column.label}
-                  </TableCell>
-                ))}
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {sortedRows.length === 0 && !loading ? (
-                <TableRow>
-                  <TableCell colSpan={Math.max(columns.length, 1)} align="center" sx={{ py: 7 }}>
-                    <Iconify icon="fa6-solid:folder-open" width={42} />
-                    <Typography variant="subtitle2" sx={{ color: 'text.secondary', mt: 1.5 }}>
-                      No data found
-                    </Typography>
-                    <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-                      Try adjusting your filters or check back later
-                    </Typography>
-                  </TableCell>
-                </TableRow>
-              ) : sortedRows.map((row) => (
-                <TableRow
-                  key={row.id}
-                  hover
-                  sx={{
-                    '&:hover': { bgcolor: 'rgba(6,40,73,.035)' },
-                    '&:last-child td': { borderBottom: 0 },
-                  }}
-                >
-                  {columns.map((column) => (
-                    <TableCell
-                      key={`${row.id}-${column.key}`}
-                      align={column.align || 'left'}
-                      sx={bodyCellSx}
-                    >
-                      {column.render ? column.render(row) : column.sortValue?.(row) ?? '-'}
-                    </TableCell>
-                  ))}
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </TableContainer>
-
-        <TablePagination
-          component="div"
-          count={total}
-          page={Math.max(table.page - 1, 0)}
-          rowsPerPage={table.perPage}
+        <DataTable
+          columns={columns}
+          rows={sortedRows}
+          loading={loading}
+          emptyMessage="No data found"
+          emptyHint="Try adjusting your filters or check back later"
+          minWidth={960}
+          server
+          total={total}
+          page={table.page}
+          perPage={table.perPage}
+          sortField={sort.field}
+          sortDir={sort.dir}
+          onPageChange={(pageIndex) => dispatch({ type: 'PAGE', page: pageIndex + 1 })}
+          onPerPageChange={(size) => dispatch({ type: 'PER_PAGE', perPage: size })}
+          onSortChange={(field, dir) => setSort({ field, dir })}
           rowsPerPageOptions={[10, 20, 50, 100, 200]}
-          onPageChange={(event, page) => {
-            const nextPage = page + 1;
-            if (nextPage !== table.page) dispatch({ type: 'PAGE', page: nextPage });
-          }}
-          onRowsPerPageChange={(event) => {
-            const nextSize = Number(event.target.value);
-            if (nextSize !== table.perPage) dispatch({ type: 'PER_PAGE', perPage: nextSize });
-          }}
-          sx={{ borderTop: '1px solid', borderColor: 'divider' }}
         />
       </Card>
 

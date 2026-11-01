@@ -14,18 +14,13 @@ import {
   MenuItem,
   Select,
   Stack,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
   TextField,
   Typography,
 } from "@mui/material";
 import api from "../../api";
 import { canView } from "../../utils/permissions";
 import { Iconify } from "../../components/iconify";
+import { DataTable } from "../../components/data-table";
 
 const formatMoney = (v) => {
   const n = Number(v || 0);
@@ -96,16 +91,6 @@ const cardSx = {
   borderColor: 'divider',
   borderRadius: 3,
   boxShadow: '0 8px 24px rgba(28,37,46,.05)',
-};
-
-const headCellSx = {
-  color: 'text.secondary',
-  fontSize: 12,
-  fontWeight: 700,
-  textTransform: 'uppercase',
-  letterSpacing: '.04em',
-  px: 2,
-  py: 1.5,
 };
 
 const statusChipColor = (s) => (s === "posted" ? "success" : "warning");
@@ -257,6 +242,44 @@ export default function CreditNotesReport() {
     );
   }
 
+  const columns = [
+    { key: 'credit_note_date', label: 'Date', sortable: true, accessor: (r) => r.credit_note_date ?? '' },
+    {
+      key: 'credit_note_number', label: 'CN #', sortable: true, accessor: (r) => r.credit_note_number ?? '',
+      render: (r) => <Typography variant="body2" sx={{ fontWeight: 700 }}>{r.credit_note_number}</Typography>,
+    },
+    { key: 'invoice_number', label: 'Invoice', sortable: true, accessor: (r) => r.invoice_number ?? '' },
+    { key: 'customer_name', label: 'Customer', sortable: true, accessor: (r) => r.customer_name ?? '' },
+    {
+      key: 'warehouse_name', label: 'Warehouse', sortable: true, accessor: (r) => r.warehouse_name ?? '',
+      render: (r) => r.warehouse_name || '-',
+    },
+    {
+      key: 'type', label: 'Type', sortable: true, accessor: (r) => r.type ?? '',
+      render: (r) => <Chip label={r.type} size="small" color={typeChipColor(r.type)} sx={{ fontWeight: 700, textTransform: 'capitalize' }} />,
+    },
+    {
+      key: 'status', label: 'Status', sortable: true, accessor: (r) => r.status ?? '',
+      render: (r) => <Chip label={r.status} size="small" color={statusChipColor(r.status)} sx={{ fontWeight: 700, textTransform: 'capitalize' }} />,
+    },
+    {
+      key: 'subtotal', label: 'Subtotal', align: 'right', sortable: true, accessor: (r) => Number(r.subtotal) || 0,
+      render: (r) => `₹${formatMoney(r.subtotal)}`,
+    },
+    {
+      key: 'discount', label: 'Discount', align: 'right', sortable: true, accessor: (r) => Number(r.discount) || 0,
+      render: (r) => <Typography variant="body2" sx={{ color: 'error.main' }}>-₹{formatMoney(r.discount)}</Typography>,
+    },
+    {
+      key: 'tax', label: 'Tax', align: 'right', sortable: true, accessor: (r) => Number(r.tax) || 0,
+      render: (r) => `₹${formatMoney(r.tax)}`,
+    },
+    {
+      key: 'grand_total', label: 'Grand Total', align: 'right', sortable: true, accessor: (r) => Number(r.grand_total) || 0,
+      render: (r) => <Typography variant="body2" sx={{ fontWeight: 700 }}>₹{formatMoney(r.grand_total)}</Typography>,
+    },
+  ];
+
   return (
     <Box>
       <Box sx={{ mb: 2.5 }}>
@@ -375,56 +398,16 @@ export default function CreditNotesReport() {
         </Box>
         <Divider />
         {loading && <LinearProgress />}
-        <TableContainer sx={{ overflowX: 'auto' }}>
-          <Table size="small" sx={{ minWidth: 1000 }}>
-            <TableHead>
-              <TableRow sx={{ bgcolor: 'background.neutral' }}>
-                <TableCell sx={headCellSx}>Date</TableCell>
-                <TableCell sx={headCellSx}>CN #</TableCell>
-                <TableCell sx={headCellSx}>Invoice</TableCell>
-                <TableCell sx={headCellSx}>Customer</TableCell>
-                <TableCell sx={headCellSx}>Warehouse</TableCell>
-                <TableCell sx={headCellSx}>Type</TableCell>
-                <TableCell sx={headCellSx}>Status</TableCell>
-                <TableCell align="right" sx={headCellSx}>Subtotal</TableCell>
-                <TableCell align="right" sx={headCellSx}>Discount</TableCell>
-                <TableCell align="right" sx={headCellSx}>Tax</TableCell>
-                <TableCell align="right" sx={headCellSx}>Grand Total</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {loading ? (
-                <TableRow>
-                  <TableCell colSpan={11} align="center" sx={{ color: 'text.secondary', py: 4 }}>Loading...</TableCell>
-                </TableRow>
-              ) : data.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={11} align="center" sx={{ color: 'text.secondary', py: 4 }}>No data</TableCell>
-                </TableRow>
-              ) : (
-                data.map((r) => (
-                  <TableRow key={r.id} hover>
-                    <TableCell sx={{ px: 2 }}>{r.credit_note_date}</TableCell>
-                    <TableCell sx={{ px: 2, fontWeight: 700 }}>{r.credit_note_number}</TableCell>
-                    <TableCell sx={{ px: 2 }}>{r.invoice_number}</TableCell>
-                    <TableCell sx={{ px: 2 }}>{r.customer_name}</TableCell>
-                    <TableCell sx={{ px: 2 }}>{r.warehouse_name || '-'}</TableCell>
-                    <TableCell sx={{ px: 2 }}>
-                      <Chip label={r.type} size="small" color={typeChipColor(r.type)} sx={{ fontWeight: 700, textTransform: 'capitalize' }} />
-                    </TableCell>
-                    <TableCell sx={{ px: 2 }}>
-                      <Chip label={r.status} size="small" color={statusChipColor(r.status)} sx={{ fontWeight: 700, textTransform: 'capitalize' }} />
-                    </TableCell>
-                    <TableCell align="right" sx={{ px: 2 }}>₹{formatMoney(r.subtotal)}</TableCell>
-                    <TableCell align="right" sx={{ px: 2, color: 'error.main' }}>-₹{formatMoney(r.discount)}</TableCell>
-                    <TableCell align="right" sx={{ px: 2 }}>₹{formatMoney(r.tax)}</TableCell>
-                    <TableCell align="right" sx={{ px: 2, fontWeight: 700 }}>₹{formatMoney(r.grand_total)}</TableCell>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </TableContainer>
+        <DataTable
+          columns={columns}
+          rows={data}
+          loading={loading}
+          emptyMessage="No data found"
+          emptyHint="Try adjusting the report filters"
+          minWidth={1000}
+          defaultPageSize={25}
+          rowsPerPageOptions={[10, 25, 50, 100]}
+        />
       </Card>
     </Box>
   );

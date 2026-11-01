@@ -19,14 +19,6 @@ import {
   MenuItem,
   Select,
   Stack,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TablePagination,
-  TableRow,
-  TableSortLabel,
   TextField,
   Tooltip,
   Typography,
@@ -36,6 +28,7 @@ import Swal from "sweetalert2";
 import api from "../api";
 import { canView, canDelete, canEdit, getUserData } from "../utils/permissions";
 import { Iconify } from "../components/iconify";
+import { DataTable } from "../components/data-table";
 
 const getIndiamartQueryTypeBadge = (queryType) => {
   const types = {
@@ -73,25 +66,6 @@ const cardSx = {
   borderColor: 'divider',
   borderRadius: 3,
   boxShadow: '0 8px 24px rgba(28,37,46,.05)',
-};
-
-const headCellSx = {
-  color: 'text.secondary',
-  fontSize: 12,
-  fontWeight: 700,
-  textTransform: 'uppercase',
-  letterSpacing: '.04em',
-  px: 2,
-  py: 1.5,
-  borderBottom: '1px solid',
-  borderColor: 'divider',
-};
-
-const bodyCellSx = {
-  verticalAlign: 'middle',
-  px: 2,
-  py: 1.5,
-  borderBottom: '1px solid #f1f5f9',
 };
 
 export default function FollowUps() {
@@ -428,39 +402,6 @@ export default function FollowUps() {
   const updateFilterActivityFrom = (v) => { setFilterActivityFrom(v); setPage(1); };
   const updateFilterActivityTo = (v) => { setFilterActivityTo(v); setPage(1); };
 
-  const handleSort = (field) => {
-    const dir = sortField === field ? (sortDir === 'asc' ? 'desc' : 'asc') : 'asc';
-    setSortField(field);
-    setSortDir(dir);
-  };
-
-  const isRowSelected = (r) => selectedRows.some((s) => s.id === r.id);
-
-  const toggleRow = (r) => {
-    setSelectedRows((prev) =>
-      prev.some((s) => s.id === r.id)
-        ? prev.filter((s) => s.id !== r.id)
-        : [...prev, r]
-    );
-  };
-
-  const toggleAllRows = () => {
-    setSelectedRows((prev) => {
-      const allSelected = rows.length > 0 && rows.every((r) => prev.some((s) => s.id === r.id));
-      if (allSelected) {
-        return prev.filter((s) => !rows.some((r) => r.id === s.id));
-      }
-      const next = [...prev];
-      rows.forEach((r) => {
-        if (!next.some((s) => s.id === r.id)) next.push(r);
-      });
-      return next;
-    });
-  };
-
-  const allRowsSelected = rows.length > 0 && rows.every((r) => selectedRows.some((s) => s.id === r.id));
-  const someRowsSelected = rows.some((r) => selectedRows.some((s) => s.id === r.id)) && !allRowsSelected;
-
   const columns = useMemo(
     () => [
       visibleCols.id && {
@@ -597,8 +538,6 @@ export default function FollowUps() {
     ['next_follow_up', 'Next Follow-up'],
     ['action', 'Action'],
   ];
-
-  const totalColumnCount = columns.length + (canDeleteLeads ? 1 : 0);
 
   return (
     <Box>
@@ -879,96 +818,33 @@ export default function FollowUps() {
         )}
 
         {loading && <LinearProgress />}
-        <TableContainer sx={{ overflowX: 'auto' }}>
-          <Table sx={{ minWidth: 1100 }} size="small">
-            <TableHead>
-              <TableRow sx={{ bgcolor: 'background.neutral' }}>
-                {canDeleteLeads && (
-                  <TableCell padding="checkbox" sx={{ ...headCellSx, px: 1 }}>
-                    <Checkbox
-                      size="small"
-                      checked={allRowsSelected}
-                      indeterminate={someRowsSelected}
-                      onChange={toggleAllRows}
-                    />
-                  </TableCell>
-                )}
-                {columns.map((column) => (
-                  <TableCell
-                    key={column.key}
-                    align={column.align || 'left'}
-                    sx={{ ...headCellSx, minWidth: column.minWidth, width: column.width }}
-                  >
-                    {column.sortField ? (
-                      <TableSortLabel
-                        active={sortField === column.sortField}
-                        direction={sortField === column.sortField ? sortDir : 'asc'}
-                        onClick={() => handleSort(column.sortField)}
-                      >
-                        {column.label}
-                      </TableSortLabel>
-                    ) : column.label}
-                  </TableCell>
-                ))}
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {rows.length === 0 && !loading ? (
-                <TableRow>
-                  <TableCell colSpan={Math.max(totalColumnCount, 1)} align="center" sx={{ py: 7 }}>
-                    <Iconify icon="fa6-solid:folder-open" width={42} />
-                    <Typography variant="subtitle2" sx={{ color: 'text.secondary', mt: 1.5 }}>
-                      No leads found
-                    </Typography>
-                    <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-                      Try adjusting your filters or check back later
-                    </Typography>
-                  </TableCell>
-                </TableRow>
-              ) : rows.map((row) => (
-                <TableRow
-                  key={row.id}
-                  hover
-                  selected={isRowSelected(row)}
-                  sx={{ '&:last-child td': { borderBottom: 0 } }}
-                >
-                  {canDeleteLeads && (
-                    <TableCell padding="checkbox" sx={{ ...bodyCellSx, px: 1 }}>
-                      <Checkbox
-                        size="small"
-                        checked={isRowSelected(row)}
-                        onChange={() => toggleRow(row)}
-                      />
-                    </TableCell>
-                  )}
-                  {columns.map((column) => (
-                    <TableCell
-                      key={`${row.id}-${column.key}`}
-                      align={column.align || 'left'}
-                      sx={bodyCellSx}
-                    >
-                      {column.render(row)}
-                    </TableCell>
-                  ))}
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </TableContainer>
-
-        <TablePagination
-          component="div"
-          count={total}
-          page={Math.max(page - 1, 0)}
-          rowsPerPage={perPage}
+        <DataTable
+          columns={columns}
+          rows={rows}
+          loading={loading}
+          emptyMessage="No leads found"
+          emptyHint="Try adjusting your filters or check back later"
+          minWidth={1100}
+          server
+          total={total}
+          page={page}
+          perPage={perPage}
+          sortField={sortField}
+          sortDir={sortDir}
+          onPageChange={(pageIndex) => setPage(pageIndex + 1)}
+          onPerPageChange={(size) => { setPerPage(size); setPage(1); }}
+          onSortChange={(field, dir) => { setSortField(field); setSortDir(dir); }}
+          columnVisibility={visibleCols}
+          selectable={canDeleteLeads}
+          selected={selectedRows.map((s) => s.id)}
+          onSelect={(ids) =>
+            setSelectedRows(
+              ids
+                .map((id) => rows.find((r) => r.id === id) ?? selectedRows.find((s) => s.id === id))
+                .filter(Boolean)
+            )
+          }
           rowsPerPageOptions={[10, 25, 50, 100]}
-          onPageChange={(event, p) => setPage(p + 1)}
-          onRowsPerPageChange={(event) => {
-            const nextSize = Number(event.target.value);
-            setPerPage(nextSize);
-            setPage(1);
-          }}
-          sx={{ borderTop: '1px solid', borderColor: 'divider' }}
         />
       </Card>
     </Box>

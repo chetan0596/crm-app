@@ -17,14 +17,6 @@ import {
   LinearProgress,
   Stack,
   Switch,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TablePagination,
-  TableRow,
-  TableSortLabel,
   TextField,
   Tooltip,
   Typography,
@@ -34,6 +26,7 @@ import { toast } from "react-toastify";
 import api from "../api";
 import { canCreate, canDelete, canEdit, canView } from "../utils/permissions";
 import { Iconify } from "../components/iconify";
+import { DataTable } from "../components/data-table";
 
 function getNum(v, d) {
   const n = Number(v);
@@ -67,25 +60,6 @@ const cardSx = {
   borderColor: 'divider',
   borderRadius: 3,
   boxShadow: '0 8px 24px rgba(28,37,46,.05)',
-};
-
-const headCellSx = {
-  color: 'text.secondary',
-  fontSize: 12,
-  fontWeight: 700,
-  textTransform: 'uppercase',
-  letterSpacing: '.04em',
-  px: 2,
-  py: 1.5,
-  borderBottom: '1px solid',
-  borderColor: 'divider',
-};
-
-const bodyCellSx = {
-  verticalAlign: 'middle',
-  px: 2,
-  py: 1.5,
-  borderBottom: '1px solid #f1f5f9',
 };
 
 const dialogPaperSx = {
@@ -269,9 +243,95 @@ export default function LeadTags() {
     return [...rows].sort((a, b) => String(a?.name ?? "").localeCompare(String(b?.name ?? "")) * dir);
   }, [rows, nameSort]);
 
-  const handleNameSort = () => {
-    setNameSort((s) => (s === 'asc' ? 'desc' : 'asc'));
-  };
+  const columns = [
+    {
+      key: 'id', label: 'ID', width: 80,
+      render: (r) => <Typography variant="body2" sx={{ fontWeight: 700 }}>#{r.id}</Typography>,
+    },
+    { key: 'name', label: 'Name', sortField: 'name' },
+    {
+      key: 'color', label: 'Color', width: 140,
+      render: (r) => (
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <Box
+            sx={{
+              width: 18,
+              height: 18,
+              borderRadius: 1,
+              bgcolor: r.color || '#94a3b8',
+            }}
+          />
+          <Typography variant="body2" color="text.secondary">{r.color || "-"}</Typography>
+        </Box>
+      ),
+    },
+    {
+      key: 'priority', label: 'Priority', width: 150,
+      render: (r) => (
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <Typography variant="body2">{r.priority ?? 0}</Typography>
+          {canEdit("leads") && (
+            <Stack direction="row" spacing={0.5}>
+              <IconButton
+                size="small"
+                aria-label="Move up"
+                onClick={() => moveRow(r, "up")}
+                disabled={rows.findIndex((x) => x.id === r.id) <= 0}
+                sx={{ border: '1px solid', borderColor: 'divider' }}
+              >
+                <Iconify icon="fa6-solid:arrow-up" width={11} />
+              </IconButton>
+              <IconButton
+                size="small"
+                aria-label="Move down"
+                onClick={() => moveRow(r, "down")}
+                disabled={(() => {
+                  const idx = rows.findIndex((x) => x.id === r.id);
+                  return idx < 0 || idx >= rows.length - 1;
+                })()}
+                sx={{ border: '1px solid', borderColor: 'divider' }}
+              >
+                <Iconify icon="fa6-solid:arrow-down" width={11} />
+              </IconButton>
+            </Stack>
+          )}
+        </Box>
+      ),
+    },
+    {
+      key: 'status', label: 'Status', width: 110,
+      render: (r) => (
+        <Chip
+          label={r.status ? "Active" : "Inactive"}
+          size="small"
+          sx={r.status
+            ? { bgcolor: '#dbf5e9', color: '#118d57', fontWeight: 700 }
+            : { bgcolor: '#f1f5f9', color: '#475569', fontWeight: 700 }}
+        />
+      ),
+    },
+    {
+      key: 'action', label: 'Action', width: 140, align: 'right',
+      render: (r) => (
+        <Stack direction="row" spacing={0.5} justifyContent="flex-end">
+          {canEdit("leads") && (
+            <Tooltip title="Edit">
+              <IconButton size="small" color="primary" onClick={() => openEdit(r)} sx={{ border: '1px solid', borderColor: 'divider' }} aria-label="Edit">
+                <Iconify icon="fa6-solid:pen-to-square" width={13} />
+              </IconButton>
+            </Tooltip>
+          )}
+          {canDelete("leads") && (
+            <Tooltip title="Delete">
+              <IconButton size="small" color="error" onClick={() => remove(r)} sx={{ border: '1px solid', borderColor: 'divider' }} aria-label="Delete">
+                <Iconify icon="fa6-solid:trash-can" width={13} />
+              </IconButton>
+            </Tooltip>
+          )}
+        </Stack>
+      ),
+    },
+  ];
 
   if (!canViewPage) {
     return (
@@ -321,140 +381,23 @@ export default function LeadTags() {
         </CardContent>
 
         {loading && <LinearProgress />}
-        <TableContainer sx={{ overflowX: 'auto' }}>
-          <Table sx={{ minWidth: 760 }} size="small">
-            <TableHead>
-              <TableRow sx={{ bgcolor: 'background.neutral' }}>
-                <TableCell sx={{ ...headCellSx, width: 80 }}>ID</TableCell>
-                <TableCell sx={headCellSx}>
-                  <TableSortLabel
-                    active={Boolean(nameSort)}
-                    direction={nameSort || 'asc'}
-                    onClick={handleNameSort}
-                  >
-                    Name
-                  </TableSortLabel>
-                </TableCell>
-                <TableCell sx={{ ...headCellSx, width: 140 }}>Color</TableCell>
-                <TableCell sx={{ ...headCellSx, width: 150 }}>Priority</TableCell>
-                <TableCell sx={{ ...headCellSx, width: 110 }}>Status</TableCell>
-                <TableCell align="right" sx={{ ...headCellSx, width: 140 }}>Action</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {displayRows.length === 0 && !loading ? (
-                <TableRow>
-                  <TableCell colSpan={6} align="center" sx={{ py: 7 }}>
-                    <Iconify icon="fa6-solid:folder-open" width={42} />
-                    <Typography variant="subtitle2" sx={{ color: 'text.secondary', mt: 1.5 }}>
-                      No data found
-                    </Typography>
-                    <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-                      Try adjusting your filters or check back later
-                    </Typography>
-                  </TableCell>
-                </TableRow>
-              ) : displayRows.map((r) => (
-                <TableRow
-                  key={r.id}
-                  hover
-                  sx={{ '&:last-child td': { borderBottom: 0 } }}
-                >
-                  <TableCell sx={bodyCellSx}>
-                    <Typography variant="body2" sx={{ fontWeight: 700 }}>#{r.id}</Typography>
-                  </TableCell>
-                  <TableCell sx={bodyCellSx}>{r.name}</TableCell>
-                  <TableCell sx={bodyCellSx}>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                      <Box
-                        sx={{
-                          width: 18,
-                          height: 18,
-                          borderRadius: 1,
-                          bgcolor: r.color || '#94a3b8',
-                        }}
-                      />
-                      <Typography variant="body2" color="text.secondary">{r.color || "-"}</Typography>
-                    </Box>
-                  </TableCell>
-                  <TableCell sx={bodyCellSx}>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                      <Typography variant="body2">{r.priority ?? 0}</Typography>
-                      {canEdit("leads") && (
-                        <Stack direction="row" spacing={0.5}>
-                          <IconButton
-                            size="small"
-                            aria-label="Move up"
-                            onClick={() => moveRow(r, "up")}
-                            disabled={rows.findIndex((x) => x.id === r.id) <= 0}
-                            sx={{ border: '1px solid', borderColor: 'divider' }}
-                          >
-                            <Iconify icon="fa6-solid:arrow-up" width={11} />
-                          </IconButton>
-                          <IconButton
-                            size="small"
-                            aria-label="Move down"
-                            onClick={() => moveRow(r, "down")}
-                            disabled={(() => {
-                              const idx = rows.findIndex((x) => x.id === r.id);
-                              return idx < 0 || idx >= rows.length - 1;
-                            })()}
-                            sx={{ border: '1px solid', borderColor: 'divider' }}
-                          >
-                            <Iconify icon="fa6-solid:arrow-down" width={11} />
-                          </IconButton>
-                        </Stack>
-                      )}
-                    </Box>
-                  </TableCell>
-                  <TableCell sx={bodyCellSx}>
-                    <Chip
-                      label={r.status ? "Active" : "Inactive"}
-                      size="small"
-                      sx={r.status
-                        ? { bgcolor: '#dbf5e9', color: '#118d57', fontWeight: 700 }
-                        : { bgcolor: '#f1f5f9', color: '#475569', fontWeight: 700 }}
-                    />
-                  </TableCell>
-                  <TableCell align="right" sx={bodyCellSx}>
-                    <Stack direction="row" spacing={0.5} justifyContent="flex-end">
-                      {canEdit("leads") && (
-                        <Tooltip title="Edit">
-                          <IconButton size="small" color="primary" onClick={() => openEdit(r)} sx={{ border: '1px solid', borderColor: 'divider' }} aria-label="Edit">
-                            <Iconify icon="fa6-solid:pen-to-square" width={13} />
-                          </IconButton>
-                        </Tooltip>
-                      )}
-                      {canDelete("leads") && (
-                        <Tooltip title="Delete">
-                          <IconButton size="small" color="error" onClick={() => remove(r)} sx={{ border: '1px solid', borderColor: 'divider' }} aria-label="Delete">
-                            <Iconify icon="fa6-solid:trash-can" width={13} />
-                          </IconButton>
-                        </Tooltip>
-                      )}
-                    </Stack>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </TableContainer>
-
-        <TablePagination
-          component="div"
-          count={total}
-          page={Math.max(table.page - 1, 0)}
-          rowsPerPage={table.perPage}
-          rowsPerPageOptions={[10, 15, 20, 25, 30]}
-          onPageChange={(event, page) => {
-            const nextPage = page + 1;
-            if (nextPage !== table.page) dispatch({ type: 'PAGE', page: nextPage });
-          }}
-          onRowsPerPageChange={(event) => {
-            const nextSize = Number(event.target.value);
-            if (nextSize !== table.perPage) dispatch({ type: 'PER_PAGE', perPage: nextSize });
-          }}
-          sx={{ borderTop: '1px solid', borderColor: 'divider' }}
+        <DataTable
+          columns={columns}
+          rows={displayRows}
+          loading={loading}
+          emptyMessage="No data found"
+          emptyHint="Try adjusting your filters or check back later"
+          minWidth={760}
+          server
+          total={total}
+          page={table.page}
+          perPage={table.perPage}
+          sortField={nameSort ? 'name' : undefined}
+          sortDir={nameSort}
+          onPageChange={(pageIndex) => dispatch({ type: 'PAGE', page: pageIndex + 1 })}
+          onPerPageChange={(size) => dispatch({ type: 'PER_PAGE', perPage: size })}
+          onSortChange={(field, dir) => setNameSort(dir)}
+          rowsPerPageOptions={[10, 25, 50, 100]}
         />
       </Card>
 

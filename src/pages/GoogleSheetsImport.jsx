@@ -17,12 +17,6 @@ import {
   Step,
   StepLabel,
   Stepper,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
   TextField,
   Typography,
 } from "@mui/material";
@@ -30,6 +24,7 @@ import { toast } from "react-toastify";
 import api from "../api";
 import { canCreate } from "../utils/permissions";
 import { Iconify } from "../components/iconify";
+import { DataTable } from "../components/data-table";
 
 const LEAD_FIELDS = [
   { key: "name", label: "Name", required: true },
@@ -656,61 +651,68 @@ export default function GoogleSheetsImport() {
                 <Chip size="small" color="secondary" variant="outlined" label={`${parsed.headers.length} columns`} />
               </Stack>
 
-              <TableContainer sx={{ maxHeight: 560, border: '1px solid', borderColor: 'divider', borderRadius: 2 }}>
-                <Table stickyHeader size="small" sx={{ minWidth: 780 }}>
-                  <TableHead>
-                    <TableRow>
-                      <TableCell sx={{ width: 220 }}>Lead Field</TableCell>
-                      <TableCell sx={{ width: 240 }}>CSV Column</TableCell>
-                      <TableCell>Sample Data</TableCell>
-                    </TableRow>
-                  </TableHead>
-                  <TableBody>
-                    {LEAD_FIELDS.map((field) => (
-                      <TableRow key={field.key} hover>
-                        <TableCell>
+              <Box sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 2, overflow: 'hidden' }}>
+                <DataTable
+                  columns={[
+                    {
+                      key: 'label', label: 'Lead Field', width: 220,
+                      render: (field) => (
+                        <>
                           <Typography variant="body2" component="span" sx={{ fontWeight: 700 }}>
                             {field.label}
                           </Typography>
                           {field.required && <Box component="span" sx={{ color: 'error.main', ml: .5 }}>*</Box>}
-                        </TableCell>
-                        <TableCell>
-                          <FormControl size="small" fullWidth>
-                            <InputLabel>CSV column</InputLabel>
-                            <Select
-                              label="CSV column"
-                              value={mapping[field.key] ?? ""}
-                              onChange={(e) => {
-                                const val = e.target.value;
-                                setMapping((m) => {
-                                  const next = { ...m };
-                                  if (val === "") delete next[field.key];
-                                  else next[field.key] = Number(val);
-                                  return next;
-                                });
-                              }}
-                            >
-                              <MenuItem value=""><em>Not mapped</em></MenuItem>
-                              {parsed.headers.map((h, i) => <MenuItem key={`${field.key}-${i}`} value={i}>{h}</MenuItem>)}
-                            </Select>
-                          </FormControl>
-                        </TableCell>
-                        <TableCell>
-                          <Typography variant="caption" color="text.secondary">
-                            {mapping[field.key] !== undefined
-                              ? parsed.rows
-                                  .slice(0, 3)
-                                  .map((r) => r[mapping[field.key]])
-                                  .filter(Boolean)
-                                  .join(", ") || "—"
-                              : "—"}
-                          </Typography>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </TableContainer>
+                        </>
+                      ),
+                    },
+                    {
+                      key: 'csv_column', label: 'CSV Column', width: 240,
+                      render: (field) => (
+                        <FormControl size="small" fullWidth>
+                          <InputLabel>CSV column</InputLabel>
+                          <Select
+                            label="CSV column"
+                            value={mapping[field.key] ?? ""}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              setMapping((m) => {
+                                const next = { ...m };
+                                if (val === "") delete next[field.key];
+                                else next[field.key] = Number(val);
+                                return next;
+                              });
+                            }}
+                          >
+                            <MenuItem value=""><em>Not mapped</em></MenuItem>
+                            {parsed.headers.map((h, i) => <MenuItem key={`${field.key}-${i}`} value={i}>{h}</MenuItem>)}
+                          </Select>
+                        </FormControl>
+                      ),
+                    },
+                    {
+                      key: 'sample', label: 'Sample Data',
+                      render: (field) => (
+                        <Typography variant="caption" color="text.secondary">
+                          {mapping[field.key] !== undefined
+                            ? parsed.rows
+                                .slice(0, 3)
+                                .map((r) => r[mapping[field.key]])
+                                .filter(Boolean)
+                                .join(", ") || "—"
+                            : "—"}
+                        </Typography>
+                      ),
+                    },
+                  ]}
+                  rows={LEAD_FIELDS}
+                  rowKey="key"
+                  emptyMessage="No fields found"
+                  minWidth={780}
+                  maxHeight={560}
+                  defaultPageSize={LEAD_FIELDS.length}
+                  rowsPerPageOptions={[LEAD_FIELDS.length]}
+                />
+              </Box>
 
               <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} justifyContent="space-between" sx={{ mt: 3 }}>
                 <Button variant="outlined" onClick={() => setStep(1)} startIcon={<Iconify icon="fa6-solid:arrow-left" width={16} />}>
@@ -746,55 +748,44 @@ export default function GoogleSheetsImport() {
               )}
 
               {importErrors.length > 0 && (
-                <TableContainer sx={{ mb: 3, maxHeight: 220, border: '1px solid', borderColor: 'divider', borderRadius: 2 }}>
-                  <Table stickyHeader size="small">
-                    <TableHead>
-                      <TableRow>
-                        <TableCell sx={{ width: 90 }}>Row</TableCell>
-                        <TableCell>Error</TableCell>
-                      </TableRow>
-                    </TableHead>
-                    <TableBody>
-                      {importErrors.map((err, i) => (
-                        <TableRow key={`${err.row}-${i}`} hover>
-                          <TableCell>{err.row}</TableCell>
-                          <TableCell sx={{ color: 'error.main' }}>{err.message}</TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </TableContainer>
+                <Box sx={{ mb: 3, border: '1px solid', borderColor: 'divider', borderRadius: 2, overflow: 'hidden' }}>
+                  <DataTable
+                    columns={[
+                      { key: 'row', label: 'Row', width: 90, render: (err) => err.row },
+                      { key: 'message', label: 'Error', render: (err) => <Box component="span" sx={{ color: 'error.main' }}>{err.message}</Box> },
+                    ]}
+                    rows={importErrors}
+                    emptyMessage="No errors"
+                    maxHeight={220}
+                    defaultPageSize={10}
+                    rowsPerPageOptions={[10, 25, 50]}
+                  />
+                </Box>
               )}
 
               <Typography variant="subtitle2" sx={{ mb: 1.5 }}>
                 Preview (first {previewRows.length} rows)
               </Typography>
-              <TableContainer sx={{ mb: 3, maxHeight: 400, border: '1px solid', borderColor: 'divider', borderRadius: 2 }}>
-                <Table stickyHeader size="small" sx={{ minWidth: 980 }}>
-                  <TableHead>
-                    <TableRow>
-                      {mappedFields.map((field) => (
-                        <TableCell key={field}>
-                          {LEAD_FIELDS.find((f) => f.key === field)?.label || field}
-                        </TableCell>
-                      ))}
-                    </TableRow>
-                  </TableHead>
-                  <TableBody>
-                    {previewRows.map((row) => (
-                      <TableRow key={row._rowIndex} hover>
-                        {mappedFields.map((field) => (
-                          <TableCell key={`${row._rowIndex}-${field}`}>
-                            <Typography variant="body2" color="text.secondary">
-                              {row[field] || '—'}
-                            </Typography>
-                          </TableCell>
-                        ))}
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </TableContainer>
+              <Box sx={{ mb: 3, border: '1px solid', borderColor: 'divider', borderRadius: 2, overflow: 'hidden' }}>
+                <DataTable
+                  columns={mappedFields.map((field) => ({
+                    key: field,
+                    label: LEAD_FIELDS.find((f) => f.key === field)?.label || field,
+                    render: (row) => (
+                      <Typography variant="body2" color="text.secondary">
+                        {row[field] || '—'}
+                      </Typography>
+                    ),
+                  }))}
+                  rows={previewRows}
+                  rowKey="_rowIndex"
+                  emptyMessage="No preview rows"
+                  minWidth={980}
+                  maxHeight={400}
+                  defaultPageSize={10}
+                  rowsPerPageOptions={[10, 25, 50]}
+                />
+              </Box>
 
               <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} justifyContent="space-between">
                 <Button variant="outlined" onClick={() => setStep(2)} disabled={importing} startIcon={<Iconify icon="fa6-solid:arrow-left" width={16} />}>

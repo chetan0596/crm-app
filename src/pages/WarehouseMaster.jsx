@@ -17,14 +17,6 @@ import {
   LinearProgress,
   Stack,
   Switch,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TablePagination,
-  TableRow,
-  TableSortLabel,
   TextField,
   Tooltip,
   Typography,
@@ -32,6 +24,7 @@ import {
 import { canCreate, canDelete, canEdit, canView } from "../utils/permissions";
 import api from "../api";
 import { Iconify } from "../components/iconify";
+import { DataTable } from "../components/data-table";
 
 const toArray = (value) => {
   if (Array.isArray(value)) return value;
@@ -47,25 +40,6 @@ const cardSx = {
   borderColor: 'divider',
   borderRadius: 3,
   boxShadow: '0 8px 24px rgba(28,37,46,.05)',
-};
-
-const headCellSx = {
-  color: 'text.secondary',
-  fontSize: 12,
-  fontWeight: 700,
-  textTransform: 'uppercase',
-  letterSpacing: '.04em',
-  px: 2,
-  py: 1.5,
-  borderBottom: '1px solid',
-  borderColor: 'divider',
-};
-
-const bodyCellSx = {
-  verticalAlign: 'middle',
-  px: 2,
-  py: 1.5,
-  borderBottom: '1px solid #f1f5f9',
 };
 
 const dialogPaperSx = {
@@ -211,15 +185,6 @@ export default function WarehouseMaster() {
     });
   }, [warehouses, sortField, sortDir]);
 
-  const handleSort = (field) => {
-    if (sortField === field) {
-      setSortDir(d => (d === 'asc' ? 'desc' : 'asc'));
-    } else {
-      setSortField(field);
-      setSortDir('asc');
-    }
-  };
-
   const columns = [
     {
       key: 'code', label: 'Code', sortField: 'code', width: 110,
@@ -339,75 +304,23 @@ export default function WarehouseMaster() {
         <Divider />
 
         {loading && <LinearProgress />}
-        <TableContainer sx={{ overflowX: 'auto' }}>
-          <Table sx={{ minWidth: 860 }} size="small">
-            <TableHead>
-              <TableRow sx={{ bgcolor: 'background.neutral' }}>
-                {columns.map((column) => (
-                  <TableCell
-                    key={column.key}
-                    align={column.align || 'left'}
-                    sx={{ ...headCellSx, minWidth: column.minWidth, width: column.width }}
-                  >
-                    {column.sortField ? (
-                      <TableSortLabel
-                        active={sortField === column.sortField}
-                        direction={sortField === column.sortField ? sortDir : 'asc'}
-                        onClick={() => handleSort(column.sortField)}
-                      >
-                        {column.label}
-                      </TableSortLabel>
-                    ) : column.label}
-                  </TableCell>
-                ))}
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {sortedWarehouses.length === 0 && !loading ? (
-                <TableRow>
-                  <TableCell colSpan={columns.length} align="center" sx={{ py: 7 }}>
-                    <Iconify icon="fa6-solid:folder-open" width={42} />
-                    <Typography variant="subtitle2" sx={{ color: 'text.secondary', mt: 1.5 }}>
-                      No data found
-                    </Typography>
-                    <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-                      Try adjusting your filters or check back later
-                    </Typography>
-                  </TableCell>
-                </TableRow>
-              ) : sortedWarehouses.map((row) => (
-                <TableRow
-                  key={row.id}
-                  hover
-                  sx={{
-                    '&:hover': { bgcolor: 'rgba(6,40,73,.035)' },
-                    '&:last-child td': { borderBottom: 0 },
-                  }}
-                >
-                  {columns.map((column) => (
-                    <TableCell
-                      key={`${row.id}-${column.key}`}
-                      align={column.align || 'left'}
-                      sx={bodyCellSx}
-                    >
-                      {column.render(row)}
-                    </TableCell>
-                  ))}
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </TableContainer>
-
-        <TablePagination
-          component="div"
-          count={total}
-          page={Math.max(page - 1, 0)}
-          rowsPerPage={perPage}
+        <DataTable
+          columns={columns}
+          rows={sortedWarehouses}
+          loading={loading}
+          emptyMessage="No data found"
+          emptyHint="Try adjusting your filters or check back later"
+          minWidth={860}
+          server
+          total={total}
+          page={page}
+          perPage={perPage}
+          sortField={sortField}
+          sortDir={sortDir}
+          onPageChange={(pageIndex) => setPage(pageIndex + 1)}
+          onPerPageChange={(size) => setPerPage(size)}
+          onSortChange={(field, dir) => { setSortField(field); setSortDir(dir); }}
           rowsPerPageOptions={[10, 25, 50, 100]}
-          onPageChange={(event, nextPage) => setPage(nextPage + 1)}
-          onRowsPerPageChange={(event) => setPerPage(Number(event.target.value))}
-          sx={{ borderTop: '1px solid', borderColor: 'divider' }}
         />
       </Card>
 

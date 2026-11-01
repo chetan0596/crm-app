@@ -1,5 +1,5 @@
 import { useParams, useSearchParams } from "react-router-dom";
-import { useCallback, useEffect, useMemo, useReducer, useState } from "react";
+import { useCallback, useEffect, useReducer, useState } from "react";
 import {
   Box,
   Button,
@@ -17,14 +17,6 @@ import {
   InputAdornment,
   LinearProgress,
   Stack,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TablePagination,
-  TableRow,
-  TableSortLabel,
   TextField,
   Typography,
 } from "@mui/material";
@@ -32,6 +24,7 @@ import Swal from "sweetalert2";
 import { toast } from "react-toastify";
 import api from "../api";
 import { Iconify } from "../components/iconify";
+import { DataTable } from "../components/data-table";
 
 function getNum(v, d) {
   const n = Number(v);
@@ -58,25 +51,6 @@ const cardSx = {
   borderColor: 'divider',
   borderRadius: 3,
   boxShadow: '0 8px 24px rgba(28,37,46,.05)',
-};
-
-const headCellSx = {
-  color: 'text.secondary',
-  fontSize: 12,
-  fontWeight: 700,
-  textTransform: 'uppercase',
-  letterSpacing: '.04em',
-  px: 2,
-  py: 1.5,
-  borderBottom: '1px solid',
-  borderColor: 'divider',
-};
-
-const bodyCellSx = {
-  verticalAlign: 'middle',
-  px: 2,
-  py: 1.5,
-  borderBottom: '1px solid #f1f5f9',
 };
 
 const dialogPaperSx = {
@@ -190,49 +164,7 @@ export default function LeadSubcategoryPage() {
     return () => controller.abort();
   }, [reloadKey, load]);
 
-  const clientRows = useMemo(() => {
-    if (serverMode) return [];
-
-    let data = rawRows;
-
-    const q = table.search.trim().toLowerCase();
-    if (q) {
-      data = data.filter(r => (r?.name ?? "").toLowerCase().includes(q));
-    }
-
-    const dir = table.sortDir === "asc" ? 1 : -1;
-    const field = table.sortField;
-
-    const sorted = [...data].sort((a, b) => {
-      const av = a?.[field];
-      const bv = b?.[field];
-
-      if (av == null && bv == null) return 0;
-      if (av == null) return 1;
-      if (bv == null) return -1;
-
-      if (typeof av === "number" && typeof bv === "number") {
-        return (av - bv) * dir;
-      }
-
-      return String(av).localeCompare(String(bv)) * dir;
-    });
-
-    const start = (table.page - 1) * table.perPage;
-    const end = start + table.perPage;
-    return sorted.slice(start, end);
-  }, [rawRows, serverMode, table.page, table.perPage, table.search, table.sortDir, table.sortField]);
-
-  const clientTotal = useMemo(() => {
-    const q = table.search.trim().toLowerCase();
-    const filtered = q
-      ? rawRows.filter(r => (r?.name ?? "").toLowerCase().includes(q))
-      : rawRows;
-    return filtered.length;
-  }, [rawRows, table.search]);
-
-  const displayRows = serverMode ? rows : clientRows;
-  const displayTotal = serverMode ? total : clientTotal;
+  const displayRows = serverMode ? rows : rawRows;
 
   const openAdd = () => {
     setEditRow(null);
@@ -297,20 +229,16 @@ export default function LeadSubcategoryPage() {
     });
   };
 
-  const handleSort = (field) => {
-    const dir = table.sortField === field
-      ? (table.sortDir === 'asc' ? 'desc' : 'asc')
-      : 'asc';
-    dispatch({ type: "SORT", field, dir });
-  };
-
   const handleDialogClose = (event, reason) => {
     if (reason === 'backdropClick') return;
     setShow(false);
   };
 
   const columns = [
-    visibleCols.id && { key: 'id', label: 'ID', sortField: 'id', width: 100 },
+    visibleCols.id && {
+      key: 'id', label: 'ID', sortField: 'id', width: 100,
+      render: (row) => <Typography variant="body2" sx={{ fontWeight: 700 }}>#{row.id}</Typography>,
+    },
     visibleCols.name && { key: 'name', label: 'Subcategory Name', sortField: 'name' },
     visibleCols.action && {
       key: 'action',
@@ -398,82 +326,25 @@ export default function LeadSubcategoryPage() {
         </Box>
 
         {loading && <LinearProgress />}
-        <TableContainer sx={{ overflowX: 'auto' }}>
-          <Table sx={{ minWidth: 560 }} size="small">
-            <TableHead>
-              <TableRow sx={{ bgcolor: 'background.neutral' }}>
-                {columns.map((column) => (
-                  <TableCell
-                    key={column.key}
-                    align={column.align || 'left'}
-                    sx={{ ...headCellSx, width: column.width }}
-                  >
-                    {column.sortField ? (
-                      <TableSortLabel
-                        active={table.sortField === column.sortField}
-                        direction={table.sortField === column.sortField ? table.sortDir : 'asc'}
-                        onClick={() => handleSort(column.sortField)}
-                      >
-                        {column.label}
-                      </TableSortLabel>
-                    ) : column.label}
-                  </TableCell>
-                ))}
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {displayRows.length === 0 && !loading ? (
-                <TableRow>
-                  <TableCell colSpan={Math.max(columns.length, 1)} align="center" sx={{ py: 7 }}>
-                    <Iconify icon="fa6-solid:folder-open" width={42} />
-                    <Typography variant="subtitle2" sx={{ color: 'text.secondary', mt: 1.5 }}>
-                      No data found
-                    </Typography>
-                    <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-                      Try adjusting your filters or check back later
-                    </Typography>
-                  </TableCell>
-                </TableRow>
-              ) : displayRows.map((r) => (
-                <TableRow
-                  key={r.id}
-                  hover
-                  sx={{ '&:last-child td': { borderBottom: 0 } }}
-                >
-                  {columns.map((column) => (
-                    <TableCell
-                      key={`${r.id}-${column.key}`}
-                      align={column.align || 'left'}
-                      sx={bodyCellSx}
-                    >
-                      {column.render ? column.render(r) : (
-                        column.key === 'id'
-                          ? <Typography variant="body2" sx={{ fontWeight: 700 }}>#{r.id}</Typography>
-                          : r[column.key]
-                      )}
-                    </TableCell>
-                  ))}
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </TableContainer>
-
-        <TablePagination
-          component="div"
-          count={displayTotal}
-          page={Math.max(table.page - 1, 0)}
-          rowsPerPage={table.perPage}
-          rowsPerPageOptions={[10, 15, 20, 25, 30]}
-          onPageChange={(event, page) => {
-            const nextPage = page + 1;
-            if (nextPage !== table.page) dispatch({ type: 'PAGE', page: nextPage });
-          }}
-          onRowsPerPageChange={(event) => {
-            const nextSize = Number(event.target.value);
-            if (nextSize !== table.perPage) dispatch({ type: 'PER_PAGE', perPage: nextSize });
-          }}
-          sx={{ borderTop: '1px solid', borderColor: 'divider' }}
+        <DataTable
+          columns={columns}
+          rows={displayRows}
+          loading={loading}
+          emptyMessage="No data found"
+          emptyHint="Try adjusting your filters or check back later"
+          minWidth={560}
+          server={serverMode}
+          total={total}
+          page={table.page}
+          perPage={table.perPage}
+          sortField={table.sortField}
+          sortDir={table.sortDir}
+          globalFilter={serverMode ? undefined : table.search}
+          onPageChange={(pageIndex) => dispatch({ type: 'PAGE', page: pageIndex + 1 })}
+          onPerPageChange={(size) => dispatch({ type: 'PER_PAGE', perPage: size })}
+          onSortChange={(field, dir) => dispatch({ type: 'SORT', field, dir })}
+          columnVisibility={visibleCols}
+          rowsPerPageOptions={[10, 25, 50, 100]}
         />
       </Card>
 

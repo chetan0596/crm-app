@@ -19,14 +19,6 @@ import {
   Menu,
   MenuItem,
   Stack,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TablePagination,
-  TableRow,
-  TableSortLabel,
   TextField,
   Tooltip,
   Typography,
@@ -35,6 +27,7 @@ import Swal from "sweetalert2";
 import { toast } from "react-toastify";
 import api from "../api";
 import { Iconify } from "../components/iconify";
+import { DataTable } from "../components/data-table";
 
 const tableReducer = (state, action) => {
   switch (action.type) {
@@ -65,25 +58,6 @@ const cardSx = {
   borderColor: 'divider',
   borderRadius: 3,
   boxShadow: '0 8px 24px rgba(28,37,46,.05)',
-};
-
-const headCellSx = {
-  color: 'text.secondary',
-  fontSize: 12,
-  fontWeight: 700,
-  textTransform: 'uppercase',
-  letterSpacing: '.04em',
-  px: 2,
-  py: 1.5,
-  borderBottom: '1px solid',
-  borderColor: 'divider',
-};
-
-const bodyCellSx = {
-  verticalAlign: 'middle',
-  px: 2,
-  py: 1.5,
-  borderBottom: '1px solid #f1f5f9',
 };
 
 const dialogPaperSx = {
@@ -281,11 +255,6 @@ export default function CustomerMaster() {
 
   const shownColumnCount = visibleColumnOptions.filter(([key]) => visibleCols[key]).length;
 
-  const handleSort = (field) => {
-    const isAsc = table.sortField === field && table.sortDir === 'asc';
-    dispatch({ type: 'SORT', field, dir: isAsc ? 'desc' : 'asc' });
-  };
-
   return (
     <Box>
       <Card sx={cardSx}>
@@ -358,81 +327,24 @@ export default function CustomerMaster() {
         </Box>
 
         {loading && <LinearProgress />}
-        <TableContainer sx={{ overflowX: 'auto' }}>
-          <Table sx={{ minWidth: 860 }} size="small">
-            <TableHead>
-              <TableRow sx={{ bgcolor: 'background.neutral' }}>
-                {columns.map((column) => (
-                  <TableCell
-                    key={column.key}
-                    align={column.align || 'left'}
-                    sx={{ ...headCellSx, minWidth: column.minWidth, width: column.width }}
-                  >
-                    {column.sortField ? (
-                      <TableSortLabel
-                        active={table.sortField === column.sortField}
-                        direction={table.sortField === column.sortField ? table.sortDir : 'asc'}
-                        onClick={() => handleSort(column.sortField)}
-                      >
-                        {column.label}
-                      </TableSortLabel>
-                    ) : column.label}
-                  </TableCell>
-                ))}
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {rows.length === 0 && !loading ? (
-                <TableRow>
-                  <TableCell colSpan={Math.max(columns.length, 1)} align="center" sx={{ py: 7 }}>
-                    <Iconify icon="fa6-solid:folder-open" width={42} />
-                    <Typography variant="subtitle2" sx={{ color: 'text.secondary', mt: 1.5 }}>
-                      No data found
-                    </Typography>
-                    <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-                      Try adjusting your filters or check back later
-                    </Typography>
-                  </TableCell>
-                </TableRow>
-              ) : rows.map((row) => (
-                <TableRow
-                  key={row.id}
-                  hover
-                  sx={{
-                    '&:hover': { bgcolor: 'rgba(6,40,73,.035)' },
-                    '&:last-child td': { borderBottom: 0 },
-                  }}
-                >
-                  {columns.map((column) => (
-                    <TableCell
-                      key={`${row.id}-${column.key}`}
-                      align={column.align || 'left'}
-                      sx={bodyCellSx}
-                    >
-                      {column.render(row)}
-                    </TableCell>
-                  ))}
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </TableContainer>
-
-        <TablePagination
-          component="div"
-          count={total}
-          page={Math.max(table.page - 1, 0)}
-          rowsPerPage={table.perPage}
+        <DataTable
+          columns={columns}
+          rows={rows}
+          loading={loading}
+          emptyMessage="No data found"
+          emptyHint="Try adjusting your filters or check back later"
+          minWidth={860}
+          server
+          total={total}
+          page={table.page}
+          perPage={table.perPage}
+          sortField={table.sortField}
+          sortDir={table.sortDir}
+          onPageChange={(pageIndex) => dispatch({ type: 'PAGE', page: pageIndex + 1 })}
+          onPerPageChange={(size) => dispatch({ type: 'PER_PAGE', perPage: size })}
+          onSortChange={(field, dir) => dispatch({ type: 'SORT', field, dir })}
+          columnVisibility={visibleCols}
           rowsPerPageOptions={[10, 25, 50, 100]}
-          onPageChange={(event, page) => {
-            const nextPage = page + 1;
-            if (nextPage !== table.page) dispatch({ type: 'PAGE', page: nextPage });
-          }}
-          onRowsPerPageChange={(event) => {
-            const nextSize = Number(event.target.value);
-            if (nextSize !== table.perPage) dispatch({ type: 'PER_PAGE', perPage: nextSize });
-          }}
-          sx={{ borderTop: '1px solid', borderColor: 'divider' }}
         />
       </Card>
 

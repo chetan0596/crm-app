@@ -22,14 +22,6 @@ import {
   Select,
   Stack,
   Tab,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TablePagination,
-  TableRow,
-  TableSortLabel,
   Tabs,
   TextField,
   Tooltip,
@@ -41,6 +33,7 @@ import api from "../api";
 import { canCreate, canEdit, canDelete, canView } from "../utils/permissions";
 import WhatsAppSendModal from "../components/WhatsAppSendModal";
 import { Iconify } from "../components/iconify";
+import { DataTable } from "../components/data-table";
 
 const tableReducer = (state, action) => {
   switch (action.type) {
@@ -84,25 +77,6 @@ const metricCardSx = {
   borderColor: 'divider',
   borderRadius: 3,
   boxShadow: '0 8px 24px rgba(28,37,46,.05)',
-};
-
-const headerCellSx = {
-  color: 'text.secondary',
-  fontSize: 12,
-  fontWeight: 700,
-  textTransform: 'uppercase',
-  letterSpacing: '.04em',
-  px: 2,
-  py: 1.5,
-  borderBottom: '1px solid',
-  borderColor: 'divider',
-};
-
-const bodyCellSx = {
-  verticalAlign: 'middle',
-  px: 2,
-  py: 1.5,
-  borderBottom: '1px solid #f1f5f9',
 };
 
 const typeChipSx = {
@@ -417,8 +391,8 @@ export default function Payments() {
   };
 
   const paymentColumns = [
-    { key: 'id', label: 'ID', width: 70, sortValue: (r) => r.id, render: (row) => <Typography variant="body2" sx={{ fontWeight: 700 }}>#{row.id}</Typography> },
-    { key: 'payment_date', label: 'Date', minWidth: 110, sortValue: (r) => r.payment_date },
+    { key: 'id', label: 'ID', width: 70, sortable: true, sortValue: (r) => r.id, render: (row) => <Typography variant="body2" sx={{ fontWeight: 700 }}>#{row.id}</Typography> },
+    { key: 'payment_date', label: 'Date', minWidth: 110, sortable: true, sortValue: (r) => r.payment_date },
     {
       key: 'type', label: 'Type', minWidth: 100,
       render: (row) => (
@@ -432,7 +406,7 @@ export default function Payments() {
     { key: 'doc', label: 'Invoice/Bill', minWidth: 130, render: (row) => row.sale?.invoice_number || row.purchase?.bill_number || "-" },
     { key: 'party', label: 'Party', minWidth: 140, render: (row) => row.sale?.customer?.name || row.purchase?.vendor?.name || "-" },
     { key: 'method', label: 'Method', minWidth: 120, render: (row) => (row.payment_method || '').replace(/_/g, " ").toUpperCase() },
-    { key: 'amount', label: 'Amount', minWidth: 110, sortValue: (r) => Number(r.amount) || 0, render: (row) => `₹${formatMoney(row.amount)}` },
+    { key: 'amount', label: 'Amount', minWidth: 110, sortable: true, sortValue: (r) => Number(r.amount) || 0, render: (row) => `₹${formatMoney(row.amount)}` },
     { key: 'reference_number', label: 'Reference', minWidth: 120, render: (row) => row.reference_number || "-" },
     {
       key: 'action', label: 'Action', minWidth: 110, align: 'right',
@@ -465,20 +439,20 @@ export default function Payments() {
   ];
 
   const outstandingColumns = [
-    { key: 'number', label: 'Number', minWidth: 130, sortValue: (r) => r.number },
-    { key: 'date', label: 'Date', minWidth: 110, sortValue: (r) => r.date },
+    { key: 'number', label: 'Number', minWidth: 130, sortable: true, sortValue: (r) => r.number },
+    { key: 'date', label: 'Date', minWidth: 110, sortable: true, sortValue: (r) => r.date },
     { key: 'party', label: 'Party', minWidth: 140, render: (row) => row.party },
     { key: 'warehouse_name', label: 'Warehouse', minWidth: 120, render: (row) => row.warehouse_name || "-" },
     {
-      key: 'total', label: 'Total', minWidth: 110, sortValue: (r) => Number(r.total) || 0,
+      key: 'total', label: 'Total', minWidth: 110, sortable: true, sortValue: (r) => Number(r.total) || 0,
       render: (row) => <Typography variant="body2" sx={{ color: 'primary.main', fontWeight: 700 }}>₹{formatMoney(row.total)}</Typography>,
     },
     {
-      key: 'paid', label: 'Paid', minWidth: 110, sortValue: (r) => Number(r.paid) || 0,
+      key: 'paid', label: 'Paid', minWidth: 110, sortable: true, sortValue: (r) => Number(r.paid) || 0,
       render: (row) => <Typography variant="body2" sx={{ color: 'success.main' }}>₹{formatMoney(row.paid)}</Typography>,
     },
     {
-      key: 'outstanding', label: 'Outstanding', minWidth: 120, sortValue: (r) => Number(r.outstanding) || 0,
+      key: 'outstanding', label: 'Outstanding', minWidth: 120, sortable: true, sortValue: (r) => Number(r.outstanding) || 0,
       render: (row) => <Typography variant="body2" sx={{ color: 'error.main', fontWeight: 700 }}>₹{formatMoney(row.outstanding)}</Typography>,
     },
     {
@@ -526,10 +500,6 @@ export default function Payments() {
       return String(av).localeCompare(String(bv)) * dir;
     });
   })();
-
-  const handleLocalSort = (field) => {
-    setSort((s) => ({ field, dir: s.field === field && s.dir === 'asc' ? 'desc' : 'asc' }));
-  };
 
   const summaryCards = [
     { label: 'Today Received', value: summary?.today_received, color: '#118d57', bg: '#dbf5e9' },
@@ -698,81 +668,23 @@ export default function Payments() {
         )}
 
         {loading && <LinearProgress />}
-        <TableContainer sx={{ overflowX: 'auto' }}>
-          <Table sx={{ minWidth: 1000 }} size="small">
-            <TableHead>
-              <TableRow sx={{ bgcolor: 'background.neutral' }}>
-                {activeColumns.map((column) => (
-                  <TableCell
-                    key={column.key}
-                    align={column.align || 'left'}
-                    sx={{ ...headerCellSx, minWidth: column.minWidth, width: column.width }}
-                  >
-                    {column.sortValue ? (
-                      <TableSortLabel
-                        active={sort.field === column.key}
-                        direction={sort.field === column.key ? sort.dir : 'asc'}
-                        onClick={() => handleLocalSort(column.key)}
-                      >
-                        {column.label}
-                      </TableSortLabel>
-                    ) : column.label}
-                  </TableCell>
-                ))}
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {sortedRows.length === 0 && !loading ? (
-                <TableRow>
-                  <TableCell colSpan={Math.max(activeColumns.length, 1)} align="center" sx={{ py: 7 }}>
-                    <Iconify icon="fa6-solid:folder-open" width={42} />
-                    <Typography variant="subtitle2" sx={{ color: 'text.secondary', mt: 1.5 }}>
-                      No data found
-                    </Typography>
-                    <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-                      Try adjusting your filters or check back later
-                    </Typography>
-                  </TableCell>
-                </TableRow>
-              ) : sortedRows.map((row, idx) => (
-                <TableRow
-                  key={row.id ?? idx}
-                  hover
-                  sx={{
-                    '&:hover': { bgcolor: 'rgba(6,40,73,.035)' },
-                    '&:last-child td': { borderBottom: 0 },
-                  }}
-                >
-                  {activeColumns.map((column) => (
-                    <TableCell
-                      key={`${row.id ?? idx}-${column.key}`}
-                      align={column.align || 'left'}
-                      sx={bodyCellSx}
-                    >
-                      {column.render ? column.render(row) : column.sortValue?.(row) ?? '-'}
-                    </TableCell>
-                  ))}
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </TableContainer>
-
-        <TablePagination
-          component="div"
-          count={activeTotal}
-          page={Math.max(table.page - 1, 0)}
-          rowsPerPage={table.perPage}
+        <DataTable
+          columns={activeColumns}
+          rows={sortedRows}
+          loading={loading}
+          emptyMessage="No data found"
+          emptyHint="Try adjusting your filters or check back later"
+          minWidth={1000}
+          server
+          total={activeTotal}
+          page={table.page}
+          perPage={table.perPage}
+          sortField={sort.field}
+          sortDir={sort.dir}
+          onPageChange={(pageIndex) => dispatch({ type: 'PAGE', page: pageIndex + 1 })}
+          onPerPageChange={(size) => dispatch({ type: 'PER_PAGE', perPage: size })}
+          onSortChange={(field, dir) => setSort({ field, dir })}
           rowsPerPageOptions={[10, 20, 50, 100, 200]}
-          onPageChange={(event, page) => {
-            const nextPage = page + 1;
-            if (nextPage !== table.page) dispatch({ type: 'PAGE', page: nextPage });
-          }}
-          onRowsPerPageChange={(event) => {
-            const nextSize = Number(event.target.value);
-            if (nextSize !== table.perPage) dispatch({ type: 'PER_PAGE', perPage: nextSize });
-          }}
-          sx={{ borderTop: '1px solid', borderColor: 'divider' }}
         />
       </Card>
 

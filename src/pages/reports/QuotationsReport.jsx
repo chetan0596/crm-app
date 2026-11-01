@@ -14,18 +14,13 @@ import {
   MenuItem,
   Select,
   Stack,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
   TextField,
   Typography,
 } from "@mui/material";
 import api from "../../api";
 import { canView } from "../../utils/permissions";
 import { Iconify } from "../../components/iconify";
+import { DataTable } from "../../components/data-table";
 
 const formatMoney = (v) => {
   const n = Number(v || 0);
@@ -103,16 +98,6 @@ const cardSx = {
   borderColor: 'divider',
   borderRadius: 3,
   boxShadow: '0 8px 24px rgba(28,37,46,.05)',
-};
-
-const headCellSx = {
-  color: 'text.secondary',
-  fontSize: 12,
-  fontWeight: 700,
-  textTransform: 'uppercase',
-  letterSpacing: '.04em',
-  px: 2,
-  py: 1.5,
 };
 
 const initialDates = () => {
@@ -253,6 +238,39 @@ export default function QuotationsReport() {
     { label: "Converted", value: summary.converted_count, color: statusColor("converted") },
   ];
 
+  const columns = [
+    { key: 'quotation_date', label: 'Date', sortable: true, accessor: (r) => r.quotation_date ?? '' },
+    {
+      key: 'quotation_number', label: 'Quotation #', sortable: true, accessor: (r) => r.quotation_number ?? '',
+      render: (r) => <Typography variant="body2" sx={{ fontWeight: 700 }}>{r.quotation_number}</Typography>,
+    },
+    { key: 'customer_name', label: 'Customer', sortable: true, accessor: (r) => r.customer_name ?? '' },
+    {
+      key: 'status', label: 'Status', sortable: true, accessor: (r) => r.status ?? '',
+      render: (r) => <Chip label={String(r.status || "").toUpperCase()} size="small" color={statusColor(r.status)} sx={{ fontWeight: 700 }} />,
+    },
+    {
+      key: 'subtotal', label: 'Subtotal', align: 'right', sortable: true, accessor: (r) => Number(r.subtotal) || 0,
+      render: (r) => `₹${formatMoney(r.subtotal)}`,
+    },
+    {
+      key: 'discount', label: 'Discount', align: 'right', sortable: true, accessor: (r) => Number(r.discount) || 0,
+      render: (r) => <Typography variant="body2" sx={{ color: 'error.main' }}>-₹{formatMoney(r.discount)}</Typography>,
+    },
+    {
+      key: 'tax', label: 'Tax', align: 'right', sortable: true, accessor: (r) => Number(r.tax) || 0,
+      render: (r) => `₹${formatMoney(r.tax)}`,
+    },
+    {
+      key: 'grand_total', label: 'Grand Total', align: 'right', sortable: true, accessor: (r) => Number(r.grand_total) || 0,
+      render: (r) => <Typography variant="body2" sx={{ fontWeight: 700 }}>₹{formatMoney(r.grand_total)}</Typography>,
+    },
+    {
+      key: 'converted_invoice_number', label: 'Converted Invoice', sortable: true, accessor: (r) => r.converted_invoice_number ?? '',
+      render: (r) => <Typography variant="body2" color="text.secondary">{r.converted_invoice_number || "-"}</Typography>,
+    },
+  ];
+
   return (
     <Box>
       <Box sx={{ mb: 2.5 }}>
@@ -360,50 +378,16 @@ export default function QuotationsReport() {
         </Box>
         <Divider />
         {loading && <LinearProgress />}
-        <TableContainer sx={{ overflowX: 'auto' }}>
-          <Table size="small" sx={{ minWidth: 900 }}>
-            <TableHead>
-              <TableRow sx={{ bgcolor: 'background.neutral' }}>
-                <TableCell sx={headCellSx}>Date</TableCell>
-                <TableCell sx={headCellSx}>Quotation #</TableCell>
-                <TableCell sx={headCellSx}>Customer</TableCell>
-                <TableCell sx={headCellSx}>Status</TableCell>
-                <TableCell align="right" sx={headCellSx}>Subtotal</TableCell>
-                <TableCell align="right" sx={headCellSx}>Discount</TableCell>
-                <TableCell align="right" sx={headCellSx}>Tax</TableCell>
-                <TableCell align="right" sx={headCellSx}>Grand Total</TableCell>
-                <TableCell sx={headCellSx}>Converted Invoice</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {loading ? (
-                <TableRow>
-                  <TableCell colSpan={9} align="center" sx={{ color: 'text.secondary', py: 4 }}>Loading...</TableCell>
-                </TableRow>
-              ) : data.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={9} align="center" sx={{ color: 'text.secondary', py: 4 }}>No data</TableCell>
-                </TableRow>
-              ) : (
-                data.map((r) => (
-                  <TableRow key={r.id} hover>
-                    <TableCell sx={{ px: 2 }}>{r.quotation_date}</TableCell>
-                    <TableCell sx={{ px: 2, fontWeight: 700 }}>{r.quotation_number}</TableCell>
-                    <TableCell sx={{ px: 2 }}>{r.customer_name}</TableCell>
-                    <TableCell sx={{ px: 2 }}>
-                      <Chip label={String(r.status || "").toUpperCase()} size="small" color={statusColor(r.status)} sx={{ fontWeight: 700 }} />
-                    </TableCell>
-                    <TableCell align="right" sx={{ px: 2 }}>₹{formatMoney(r.subtotal)}</TableCell>
-                    <TableCell align="right" sx={{ px: 2, color: 'error.main' }}>-₹{formatMoney(r.discount)}</TableCell>
-                    <TableCell align="right" sx={{ px: 2 }}>₹{formatMoney(r.tax)}</TableCell>
-                    <TableCell align="right" sx={{ px: 2, fontWeight: 700 }}>₹{formatMoney(r.grand_total)}</TableCell>
-                    <TableCell sx={{ px: 2, color: 'text.secondary' }}>{r.converted_invoice_number || "-"}</TableCell>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </TableContainer>
+        <DataTable
+          columns={columns}
+          rows={data}
+          loading={loading}
+          emptyMessage="No data found"
+          emptyHint="Try adjusting the report filters"
+          minWidth={900}
+          defaultPageSize={25}
+          rowsPerPageOptions={[10, 25, 50, 100]}
+        />
       </Card>
     </Box>
   );

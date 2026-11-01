@@ -36,6 +36,7 @@ import {
   ResponsiveContainer, AreaChart, Area
 } from "recharts";
 import { Iconify } from "../components/iconify";
+import { DataTable } from "../components/data-table";
 
 const COLORS = {
   won: "#118d57",
@@ -111,22 +112,17 @@ function SectionCard({ title, action, children, contentSx }) {
   );
 }
 
-function ReportTable({ columns, children }) {
+function ReportTable({ columns, rows, minWidth = 640, emptyMessage = "No data found" }) {
   return (
-    <TableContainer sx={{ overflowX: 'auto' }}>
-      <Table size="small">
-        <TableHead>
-          <TableRow sx={{ bgcolor: 'background.neutral' }}>
-            {columns.map((column) => (
-              <TableCell key={column.label} align={column.align || 'left'} sx={headCellSx}>
-                {column.label}
-              </TableCell>
-            ))}
-          </TableRow>
-        </TableHead>
-        <TableBody>{children}</TableBody>
-      </Table>
-    </TableContainer>
+    <DataTable
+      columns={columns}
+      rows={rows || []}
+      emptyMessage={emptyMessage}
+      emptyHint="Try adjusting the filters or date range"
+      minWidth={minWidth}
+      defaultPageSize={10}
+      rowsPerPageOptions={[10, 25, 50, 100]}
+    />
   );
 }
 
@@ -650,34 +646,28 @@ export default function Reports() {
                 >
                   <ReportTable
                     columns={[
-                      { label: 'Stage' },
-                      { label: 'Count', align: 'right' },
-                      { label: '%', align: 'right' },
-                      { label: 'Status' },
+                      { key: 'stage', label: 'Stage', render: (item) => item.stage || "-" },
+                      { key: 'count', label: 'Count', align: 'right' },
+                      {
+                        key: 'percent', label: '%', align: 'right',
+                        render: (item) => `${pipelineData.summary.total_leads > 0
+                          ? Math.round((item.count / pipelineData.summary.total_leads) * 100)
+                          : 0}%`,
+                      },
+                      {
+                        key: 'status', label: 'Status',
+                        render: (item) => {
+                          const stageName = item.stage || "-";
+                          const isWon = wonStages.includes(stageName);
+                          const isLost = lostStages.includes(stageName);
+                          if (isWon) return <Chip label="Won" size="small" color="success" sx={{ fontWeight: 700 }} />;
+                          if (isLost) return <Chip label="Lost" size="small" color="error" sx={{ fontWeight: 700 }} />;
+                          return <Chip label="Open" size="small" color="primary" sx={{ fontWeight: 700 }} />;
+                        },
+                      },
                     ]}
-                  >
-                    {pipelineData.by_stage.map((item) => {
-                      const stageName = item.stage || "-";
-                      const isWon = wonStages.includes(stageName);
-                      const isLost = lostStages.includes(stageName);
-                      return (
-                        <TableRow key={item.stage} hover>
-                          <TableCell sx={{ px: 2 }}>{stageName}</TableCell>
-                          <TableCell align="right" sx={{ px: 2 }}>{item.count}</TableCell>
-                          <TableCell align="right" sx={{ px: 2 }}>
-                            {pipelineData.summary.total_leads > 0
-                              ? Math.round((item.count / pipelineData.summary.total_leads) * 100)
-                              : 0}%
-                          </TableCell>
-                          <TableCell sx={{ px: 2 }}>
-                            {isWon && <Chip label="Won" size="small" color="success" sx={{ fontWeight: 700 }} />}
-                            {isLost && <Chip label="Lost" size="small" color="error" sx={{ fontWeight: 700 }} />}
-                            {!isWon && !isLost && <Chip label="Open" size="small" color="primary" sx={{ fontWeight: 700 }} />}
-                          </TableCell>
-                        </TableRow>
-                      );
-                    })}
-                  </ReportTable>
+                    rows={pipelineData.by_stage}
+                  />
                 </SectionCard>
               </>
             )}
@@ -717,25 +707,15 @@ export default function Reports() {
                 >
                   <ReportTable
                     columns={[
-                      { label: 'Name' },
-                      { label: 'Total', align: 'right' },
-                      { label: 'Won', align: 'right' },
-                      { label: 'Lost', align: 'right' },
-                      { label: 'Open', align: 'right' },
-                      { label: 'Conversion %', align: 'right' },
+                      { key: 'name', label: 'Name' },
+                      { key: 'total_leads', label: 'Total', align: 'right' },
+                      { key: 'won_leads', label: 'Won', align: 'right', render: (user) => <Box component="span" sx={{ color: 'success.main' }}>{user.won_leads}</Box> },
+                      { key: 'lost_leads', label: 'Lost', align: 'right', render: (user) => <Box component="span" sx={{ color: 'error.main' }}>{user.lost_leads}</Box> },
+                      { key: 'open_leads', label: 'Open', align: 'right', render: (user) => <Box component="span" sx={{ color: 'primary.main' }}>{user.open_leads}</Box> },
+                      { key: 'conversion_rate', label: 'Conversion %', align: 'right', render: (user) => `${user.conversion_rate}%` },
                     ]}
-                  >
-                    {teamData.users.map((user) => (
-                      <TableRow key={user.id} hover>
-                        <TableCell sx={{ px: 2 }}>{user.name}</TableCell>
-                        <TableCell align="right" sx={{ px: 2 }}>{user.total_leads}</TableCell>
-                        <TableCell align="right" sx={{ px: 2, color: 'success.main' }}>{user.won_leads}</TableCell>
-                        <TableCell align="right" sx={{ px: 2, color: 'error.main' }}>{user.lost_leads}</TableCell>
-                        <TableCell align="right" sx={{ px: 2, color: 'primary.main' }}>{user.open_leads}</TableCell>
-                        <TableCell align="right" sx={{ px: 2 }}>{user.conversion_rate}%</TableCell>
-                      </TableRow>
-                    ))}
-                  </ReportTable>
+                    rows={teamData.users}
+                  />
                 </SectionCard>
               </>
             )}
@@ -792,25 +772,15 @@ export default function Reports() {
                 >
                   <ReportTable
                     columns={[
-                      { label: 'Source' },
-                      { label: 'Total', align: 'right' },
-                      { label: 'Won', align: 'right' },
-                      { label: 'Lost', align: 'right' },
-                      { label: 'Open', align: 'right' },
-                      { label: 'Conversion %', align: 'right' },
+                      { key: 'source', label: 'Source' },
+                      { key: 'total', label: 'Total', align: 'right' },
+                      { key: 'won', label: 'Won', align: 'right', render: (item) => <Box component="span" sx={{ color: 'success.main' }}>{item.won}</Box> },
+                      { key: 'lost', label: 'Lost', align: 'right', render: (item) => <Box component="span" sx={{ color: 'error.main' }}>{item.lost}</Box> },
+                      { key: 'open', label: 'Open', align: 'right', render: (item) => <Box component="span" sx={{ color: 'primary.main' }}>{item.open}</Box> },
+                      { key: 'conversion_rate', label: 'Conversion %', align: 'right', render: (item) => `${item.conversion_rate}%` },
                     ]}
-                  >
-                    {sourceData.sources.map((item) => (
-                      <TableRow key={item.source} hover>
-                        <TableCell sx={{ px: 2 }}>{item.source}</TableCell>
-                        <TableCell align="right" sx={{ px: 2 }}>{item.total}</TableCell>
-                        <TableCell align="right" sx={{ px: 2, color: 'success.main' }}>{item.won}</TableCell>
-                        <TableCell align="right" sx={{ px: 2, color: 'error.main' }}>{item.lost}</TableCell>
-                        <TableCell align="right" sx={{ px: 2, color: 'primary.main' }}>{item.open}</TableCell>
-                        <TableCell align="right" sx={{ px: 2 }}>{item.conversion_rate}%</TableCell>
-                      </TableRow>
-                    ))}
-                  </ReportTable>
+                    rows={sourceData.sources}
+                  />
                 </SectionCard>
               </>
             )}
@@ -874,32 +844,16 @@ export default function Reports() {
                     >
                       <ReportTable
                         columns={[
-                          { label: 'Product' },
-                          { label: 'Total', align: 'right' },
-                          { label: 'Won', align: 'right' },
-                          { label: 'Lost', align: 'right' },
-                          { label: 'Open', align: 'right' },
-                          { label: 'Conversion %', align: 'right' },
+                          { key: 'product', label: 'Product' },
+                          { key: 'total', label: 'Total', align: 'right' },
+                          { key: 'won', label: 'Won', align: 'right', render: (item) => <Box component="span" sx={{ color: 'success.main' }}>{item.won}</Box> },
+                          { key: 'lost', label: 'Lost', align: 'right', render: (item) => <Box component="span" sx={{ color: 'error.main' }}>{item.lost}</Box> },
+                          { key: 'open', label: 'Open', align: 'right', render: (item) => <Box component="span" sx={{ color: 'primary.main' }}>{item.open}</Box> },
+                          { key: 'conversion_rate', label: 'Conversion %', align: 'right', render: (item) => `${item.conversion_rate}%` },
                         ]}
-                      >
-                        {sourceGroup.products.map((item) => (
-                          <TableRow key={item.product} hover>
-                            <TableCell sx={{ px: 2 }}>{item.product}</TableCell>
-                            <TableCell align="right" sx={{ px: 2 }}>{item.total}</TableCell>
-                            <TableCell align="right" sx={{ px: 2, color: 'success.main' }}>{item.won}</TableCell>
-                            <TableCell align="right" sx={{ px: 2, color: 'error.main' }}>{item.lost}</TableCell>
-                            <TableCell align="right" sx={{ px: 2, color: 'primary.main' }}>{item.open}</TableCell>
-                            <TableCell align="right" sx={{ px: 2 }}>{item.conversion_rate}%</TableCell>
-                          </TableRow>
-                        ))}
-                        {sourceGroup.products.length === 0 && (
-                          <TableRow>
-                            <TableCell colSpan={6} align="center" sx={{ color: 'text.secondary', py: 4 }}>
-                              No product data found.
-                            </TableCell>
-                          </TableRow>
-                        )}
-                      </ReportTable>
+                        rows={sourceGroup.products}
+                        emptyMessage="No product data found."
+                      />
                     </SectionCard>
                   ))}
                 </Stack>
@@ -927,17 +881,14 @@ export default function Reports() {
                 >
                   <ReportTable
                     columns={[
-                      { label: 'Type' },
-                      { label: 'Count', align: 'right' },
+                      {
+                        key: 'type', label: 'Type',
+                        render: (item) => <Box component="span" sx={{ textTransform: 'capitalize' }}>{item.type.replace("_", " ")}</Box>,
+                      },
+                      { key: 'count', label: 'Count', align: 'right' },
                     ]}
-                  >
-                    {activityData.by_type.map((item) => (
-                      <TableRow key={item.type} hover>
-                        <TableCell sx={{ px: 2, textTransform: 'capitalize' }}>{item.type.replace("_", " ")}</TableCell>
-                        <TableCell align="right" sx={{ px: 2 }}>{item.count}</TableCell>
-                      </TableRow>
-                    ))}
-                  </ReportTable>
+                    rows={activityData.by_type}
+                  />
                 </SectionCard>
                 <SectionCard
                   title="Activities by User"
@@ -948,23 +899,14 @@ export default function Reports() {
                 >
                   <ReportTable
                     columns={[
-                      { label: 'User' },
-                      { label: 'Total', align: 'right' },
-                      { label: 'Calls', align: 'right' },
-                      { label: 'Meetings', align: 'right' },
-                      { label: 'Follow-ups', align: 'right' },
+                      { key: 'name', label: 'User' },
+                      { key: 'total_activities', label: 'Total', align: 'right' },
+                      { key: 'calls', label: 'Calls', align: 'right', render: (user) => user.calls || 0 },
+                      { key: 'meetings', label: 'Meetings', align: 'right', render: (user) => user.meetings || 0 },
+                      { key: 'follow_ups', label: 'Follow-ups', align: 'right', render: (user) => user.follow_ups || 0 },
                     ]}
-                  >
-                    {activityData.by_user.map((user) => (
-                      <TableRow key={user.id} hover>
-                        <TableCell sx={{ px: 2 }}>{user.name}</TableCell>
-                        <TableCell align="right" sx={{ px: 2 }}>{user.total_activities}</TableCell>
-                        <TableCell align="right" sx={{ px: 2 }}>{user.calls || 0}</TableCell>
-                        <TableCell align="right" sx={{ px: 2 }}>{user.meetings || 0}</TableCell>
-                        <TableCell align="right" sx={{ px: 2 }}>{user.follow_ups || 0}</TableCell>
-                      </TableRow>
-                    ))}
-                  </ReportTable>
+                    rows={activityData.by_user}
+                  />
                 </SectionCard>
               </Box>
             )}
@@ -1103,25 +1045,15 @@ export default function Reports() {
                 >
                   <ReportTable
                     columns={[
-                      { label: 'Assignee' },
-                      { label: 'Today', align: 'right' },
-                      { label: 'Overdue', align: 'right' },
-                      { label: 'Upcoming', align: 'right' },
-                      { label: 'Not Scheduled', align: 'right' },
-                      { label: 'Total', align: 'right' },
+                      { key: 'assignee', label: 'Assignee' },
+                      { key: 'today', label: 'Today', align: 'right' },
+                      { key: 'overdue', label: 'Overdue', align: 'right', render: (row) => <Box component="span" sx={{ color: 'error.main' }}>{row.overdue}</Box> },
+                      { key: 'upcoming', label: 'Upcoming', align: 'right', render: (row) => <Box component="span" sx={{ color: 'success.main' }}>{row.upcoming}</Box> },
+                      { key: 'not_scheduled', label: 'Not Scheduled', align: 'right', render: (row) => <Box component="span" sx={{ color: 'text.secondary' }}>{row.not_scheduled}</Box> },
+                      { key: 'total', label: 'Total', align: 'right', render: (row) => <Box component="span" sx={{ fontWeight: 700 }}>{row.total}</Box> },
                     ]}
-                  >
-                    {followupReportData.by_assignee?.map((row, i) => (
-                      <TableRow key={i} hover>
-                        <TableCell sx={{ px: 2 }}>{row.assignee}</TableCell>
-                        <TableCell align="right" sx={{ px: 2 }}>{row.today}</TableCell>
-                        <TableCell align="right" sx={{ px: 2, color: 'error.main' }}>{row.overdue}</TableCell>
-                        <TableCell align="right" sx={{ px: 2, color: 'success.main' }}>{row.upcoming}</TableCell>
-                        <TableCell align="right" sx={{ px: 2, color: 'text.secondary' }}>{row.not_scheduled}</TableCell>
-                        <TableCell align="right" sx={{ px: 2, fontWeight: 700 }}>{row.total}</TableCell>
-                      </TableRow>
-                    ))}
-                  </ReportTable>
+                    rows={followupReportData.by_assignee}
+                  />
                 </SectionCard>
               </>
             )}
@@ -1161,27 +1093,16 @@ export default function Reports() {
                 >
                   <ReportTable
                     columns={[
-                      { label: 'Stage' },
-                      { label: 'Total Leads', align: 'right' },
-                      { label: 'Avg Days', align: 'right' },
-                      { label: 'Min Days', align: 'right' },
-                      { label: 'Max Days', align: 'right' },
-                      { label: '>30 Days', align: 'right' },
-                      { label: '>60 Days', align: 'right' },
+                      { key: 'stage', label: 'Stage' },
+                      { key: 'count', label: 'Total Leads', align: 'right' },
+                      { key: 'avg_days', label: 'Avg Days', align: 'right', render: (item) => item.avg_days?.toFixed(1) || 0 },
+                      { key: 'min_days', label: 'Min Days', align: 'right', render: (item) => item.min_days || 0 },
+                      { key: 'max_days', label: 'Max Days', align: 'right', render: (item) => item.max_days || 0 },
+                      { key: 'stale_count', label: '>30 Days', align: 'right', render: (item) => <Box component="span" sx={{ color: 'warning.main' }}>{item.stale_count || 0}</Box> },
+                      { key: 'very_stale_count', label: '>60 Days', align: 'right', render: (item) => <Box component="span" sx={{ color: 'error.main' }}>{item.very_stale_count || 0}</Box> },
                     ]}
-                  >
-                    {agingData.by_stage?.map((item) => (
-                      <TableRow key={item.stage} hover>
-                        <TableCell sx={{ px: 2 }}>{item.stage}</TableCell>
-                        <TableCell align="right" sx={{ px: 2 }}>{item.count}</TableCell>
-                        <TableCell align="right" sx={{ px: 2 }}>{item.avg_days?.toFixed(1) || 0}</TableCell>
-                        <TableCell align="right" sx={{ px: 2 }}>{item.min_days || 0}</TableCell>
-                        <TableCell align="right" sx={{ px: 2 }}>{item.max_days || 0}</TableCell>
-                        <TableCell align="right" sx={{ px: 2, color: 'warning.main' }}>{item.stale_count || 0}</TableCell>
-                        <TableCell align="right" sx={{ px: 2, color: 'error.main' }}>{item.very_stale_count || 0}</TableCell>
-                      </TableRow>
-                    ))}
-                  </ReportTable>
+                    rows={agingData.by_stage}
+                  />
                 </SectionCard>
               </>
             )}

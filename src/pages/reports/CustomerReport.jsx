@@ -15,18 +15,13 @@ import {
   MenuItem,
   Select,
   Stack,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
   TextField,
   Typography,
 } from "@mui/material";
 import api from "../../api";
 import { canView } from "../../utils/permissions";
 import { Iconify } from "../../components/iconify";
+import { DataTable } from "../../components/data-table";
 
 const formatMoney = (v) => {
   const n = Number(v || 0);
@@ -47,16 +42,6 @@ const cardSx = {
   borderColor: 'divider',
   borderRadius: 3,
   boxShadow: '0 8px 24px rgba(28,37,46,.05)',
-};
-
-const headCellSx = {
-  color: 'text.secondary',
-  fontSize: 12,
-  fontWeight: 700,
-  textTransform: 'uppercase',
-  letterSpacing: '.04em',
-  px: 2,
-  py: 1.5,
 };
 
 const initialDates = () => {
@@ -200,6 +185,65 @@ export default function CustomerReport() {
     );
   }
 
+  const columns = [
+    {
+      key: 'customer_name', label: 'Customer', sortable: true, accessor: (c) => c.customer_name ?? '', minWidth: 180,
+      render: (customer) => (
+        <Stack direction="row" spacing={1.5} alignItems="center">
+          <Avatar sx={{ width: 32, height: 32, bgcolor: '#eaf0f6', color: '#062849', fontSize: 12, fontWeight: 700 }}>
+            {(customer.customer_name || '?').charAt(0).toUpperCase()}
+          </Avatar>
+          <Box sx={{ minWidth: 0 }}>
+            <Typography variant="body2" sx={{ fontWeight: 700 }}>{customer.customer_name}</Typography>
+            <Typography variant="caption" color="text.secondary">#{customer.customer_id}</Typography>
+          </Box>
+        </Stack>
+      ),
+    },
+    {
+      key: 'contact', label: 'Contact', sortable: true, accessor: (c) => c.customer_phone ?? c.customer_email ?? '', minWidth: 140,
+      render: (customer) => (
+        <Box>
+          <Typography variant="body2">{customer.customer_phone || '-'}</Typography>
+          <Typography variant="caption" color="text.secondary">{customer.customer_email || '-'}</Typography>
+        </Box>
+      ),
+    },
+    {
+      key: 'transaction_count', label: 'Transactions', align: 'center', sortable: true, accessor: (c) => Number(c.transaction_count) || 0,
+      render: (customer) => <Chip label={customer.transaction_count} size="small" color="info" sx={{ fontWeight: 700 }} />,
+    },
+    {
+      key: 'total_sales', label: 'Total Sales', align: 'right', sortable: true, accessor: (c) => Number(c.total_sales) || 0,
+      render: (customer) => <Typography variant="body2" sx={{ color: 'success.main', fontWeight: 700 }}>₹{formatMoney(customer.total_sales)}</Typography>,
+    },
+    {
+      key: 'avg_order_value', label: 'Avg Order', align: 'right', sortable: true, accessor: (c) => Number(c.avg_order_value) || 0,
+      render: (customer) => `₹${formatMoney(customer.avg_order_value)}`,
+    },
+    {
+      key: 'last_purchase_date', label: 'Last Purchase', sortable: true, accessor: (c) => c.last_purchase_date ?? '',
+      render: (customer) => (customer.last_purchase_date ? (
+        <Chip label={customer.last_purchase_date} size="small" variant="outlined" />
+      ) : (
+        <Typography variant="body2" color="text.secondary">-</Typography>
+      )),
+    },
+    {
+      key: 'top_item', label: 'Top Item', sortable: true, accessor: (c) => c.top_item?.name ?? '', minWidth: 140,
+      render: (customer) => (customer.top_item ? (
+        <Box>
+          <Typography variant="body2" sx={{ fontWeight: 600 }}>{customer.top_item.name}</Typography>
+          <Typography variant="caption" color="text.secondary">
+            {customer.top_item.quantity.toFixed(0)} qty | ₹{formatMoney(customer.top_item.amount)}
+          </Typography>
+        </Box>
+      ) : (
+        <Typography variant="body2" color="text.secondary">-</Typography>
+      )),
+    },
+  ];
+
   return (
     <Box>
       <Box sx={{ mb: 2.5 }}>
@@ -293,76 +337,17 @@ export default function CustomerReport() {
         </Box>
         <Divider />
         {loading && <LinearProgress />}
-        <TableContainer sx={{ overflowX: 'auto' }}>
-          <Table size="small" sx={{ minWidth: 900 }}>
-            <TableHead>
-              <TableRow sx={{ bgcolor: 'background.neutral' }}>
-                <TableCell sx={headCellSx}>Customer</TableCell>
-                <TableCell sx={headCellSx}>Contact</TableCell>
-                <TableCell align="center" sx={headCellSx}>Transactions</TableCell>
-                <TableCell align="right" sx={headCellSx}>Total Sales</TableCell>
-                <TableCell align="right" sx={headCellSx}>Avg Order</TableCell>
-                <TableCell sx={headCellSx}>Last Purchase</TableCell>
-                <TableCell sx={headCellSx}>Top Item</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {loading ? (
-                <TableRow>
-                  <TableCell colSpan={7} align="center" sx={{ color: 'text.secondary', py: 4 }}>Loading...</TableCell>
-                </TableRow>
-              ) : data.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={7} align="center" sx={{ color: 'text.secondary', py: 4 }}>No customers found</TableCell>
-                </TableRow>
-              ) : (
-                data.map((customer) => (
-                  <TableRow key={customer.customer_id} hover>
-                    <TableCell sx={{ px: 2 }}>
-                      <Stack direction="row" spacing={1.5} alignItems="center">
-                        <Avatar sx={{ width: 32, height: 32, bgcolor: '#eaf0f6', color: '#062849', fontSize: 12, fontWeight: 700 }}>
-                          {(customer.customer_name || '?').charAt(0).toUpperCase()}
-                        </Avatar>
-                        <Box sx={{ minWidth: 0 }}>
-                          <Typography variant="body2" sx={{ fontWeight: 700 }}>{customer.customer_name}</Typography>
-                          <Typography variant="caption" color="text.secondary">#{customer.customer_id}</Typography>
-                        </Box>
-                      </Stack>
-                    </TableCell>
-                    <TableCell sx={{ px: 2 }}>
-                      <Typography variant="body2">{customer.customer_phone || '-'}</Typography>
-                      <Typography variant="caption" color="text.secondary">{customer.customer_email || '-'}</Typography>
-                    </TableCell>
-                    <TableCell align="center" sx={{ px: 2 }}>
-                      <Chip label={customer.transaction_count} size="small" color="info" sx={{ fontWeight: 700 }} />
-                    </TableCell>
-                    <TableCell align="right" sx={{ px: 2, color: 'success.main', fontWeight: 700 }}>₹{formatMoney(customer.total_sales)}</TableCell>
-                    <TableCell align="right" sx={{ px: 2 }}>₹{formatMoney(customer.avg_order_value)}</TableCell>
-                    <TableCell sx={{ px: 2 }}>
-                      {customer.last_purchase_date ? (
-                        <Chip label={customer.last_purchase_date} size="small" variant="outlined" />
-                      ) : (
-                        <Typography variant="body2" color="text.secondary">-</Typography>
-                      )}
-                    </TableCell>
-                    <TableCell sx={{ px: 2 }}>
-                      {customer.top_item ? (
-                        <Box>
-                          <Typography variant="body2" sx={{ fontWeight: 600 }}>{customer.top_item.name}</Typography>
-                          <Typography variant="caption" color="text.secondary">
-                            {customer.top_item.quantity.toFixed(0)} qty | ₹{formatMoney(customer.top_item.amount)}
-                          </Typography>
-                        </Box>
-                      ) : (
-                        <Typography variant="body2" color="text.secondary">-</Typography>
-                      )}
-                    </TableCell>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </TableContainer>
+        <DataTable
+          columns={columns}
+          rows={data}
+          rowKey="customer_id"
+          loading={loading}
+          emptyMessage="No customers found"
+          emptyHint="Try adjusting the report filters"
+          minWidth={900}
+          defaultPageSize={25}
+          rowsPerPageOptions={[10, 25, 50, 100]}
+        />
       </Card>
     </Box>
   );

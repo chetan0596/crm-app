@@ -17,18 +17,13 @@ import {
   MenuItem,
   Select,
   Stack,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
   TextField,
   Typography,
 } from "@mui/material";
 import api from "../../api";
 import { canView } from "../../utils/permissions";
 import { Iconify } from "../../components/iconify";
+import { DataTable } from "../../components/data-table";
 
 const formatMoney = (v) => {
   const n = Number(v || 0);
@@ -77,16 +72,6 @@ const cardSx = {
   borderColor: 'divider',
   borderRadius: 3,
   boxShadow: '0 8px 24px rgba(28,37,46,.05)',
-};
-
-const headCellSx = {
-  color: 'text.secondary',
-  fontSize: 12,
-  fontWeight: 700,
-  textTransform: 'uppercase',
-  letterSpacing: '.04em',
-  px: 2,
-  py: 1.5,
 };
 
 const initialDates = () => {
@@ -266,6 +251,102 @@ export default function PurchaseReport() {
 
   const isGrouped = filters.group_by !== "date";
 
+  const detailColumns = [
+    {
+      key: 'date', label: 'Date', sortable: true, accessor: (row) => row.date ?? '',
+      render: (row) => <Typography variant="caption" color="text.secondary">{row.date}</Typography>,
+    },
+    {
+      key: 'bill_number', label: 'Bill', sortable: true, accessor: (row) => row.bill_number ?? '',
+      render: (row) => <Chip label={row.bill_number} size="small" variant="outlined" sx={{ fontWeight: 600 }} />,
+    },
+    {
+      key: 'vendor_name', label: 'Vendor', sortable: true, accessor: (row) => row.vendor_name ?? '', minWidth: 140,
+      render: (row) => <Typography variant="body2" sx={{ fontWeight: 600 }}>{row.vendor_name}</Typography>,
+    },
+    {
+      key: 'warehouse_name', label: 'Warehouse', sortable: true, accessor: (row) => row.warehouse_name ?? '',
+      render: (row) => <Typography variant="caption" color="text.secondary">{row.warehouse_name}</Typography>,
+    },
+    {
+      key: 'item_name', label: 'Item', sortable: true, accessor: (row) => row.item_name ?? '', minWidth: 140,
+      render: (row) => (
+        <Box>
+          <Typography variant="body2" sx={{ fontWeight: 600 }}>{row.item_name}</Typography>
+          <Typography variant="caption" color="text.secondary">{row.item_sku}</Typography>
+        </Box>
+      ),
+    },
+    {
+      key: 'quantity', label: 'Qty', align: 'right', sortable: true, accessor: (row) => Number(row.quantity) || 0,
+      render: (row) => <Typography variant="body2" sx={{ color: 'info.main', fontWeight: 600 }}>{Number(row.quantity || 0).toFixed(3)}</Typography>,
+    },
+    {
+      key: 'rate', label: 'Rate', align: 'right', sortable: true, accessor: (row) => Number(row.rate) || 0,
+      render: (row) => <Typography variant="body2" color="text.secondary">₹{formatMoney(row.rate)}</Typography>,
+    },
+    {
+      key: 'discount', label: 'Discount', align: 'right', sortable: true, accessor: (row) => Number(row.discount) || 0,
+      render: (row) => <Typography variant="body2" sx={{ color: 'warning.main' }}>₹{formatMoney(row.discount)}</Typography>,
+    },
+    {
+      key: 'tax_amount', label: 'Tax', align: 'right', sortable: true, accessor: (row) => Number(row.tax_amount) || 0,
+      render: (row) => <Typography variant="body2" color="text.secondary">₹{formatMoney(row.tax_amount)}</Typography>,
+    },
+    {
+      key: 'total', label: 'Total', align: 'right', sortable: true, accessor: (row) => Number(row.total) || 0,
+      render: (row) => <Typography variant="body2" sx={{ color: 'success.main', fontWeight: 700 }}>₹{formatMoney(row.total)}</Typography>,
+    },
+  ];
+
+  const vendorGroupColumns = [
+    {
+      key: 'vendor_name', label: 'Vendor', sortable: true, accessor: (row) => row.vendor_name ?? '', minWidth: 160,
+      render: (row) => <Typography variant="body2" sx={{ fontWeight: 600 }}>{row.vendor_name}</Typography>,
+    },
+    {
+      key: 'transaction_count', label: 'Transactions', align: 'center', sortable: true, accessor: (row) => Number(row.transaction_count) || 0,
+      render: (row) => <Chip label={row.transaction_count} size="small" color="info" sx={{ fontWeight: 600 }} />,
+    },
+    {
+      key: 'total_quantity', label: 'Total Qty', align: 'right', sortable: true, accessor: (row) => Number(row.total_quantity) || 0,
+      render: (row) => <Typography variant="body2" sx={{ color: 'info.main', fontWeight: 600 }}>{Number(row.total_quantity || 0).toFixed(3)}</Typography>,
+    },
+    {
+      key: 'total_amount', label: 'Total Amount', align: 'right', sortable: true, accessor: (row) => Number(row.total_amount) || 0,
+      render: (row) => <Typography variant="body2" sx={{ color: 'success.main', fontWeight: 700 }}>₹{formatMoney(row.total_amount)}</Typography>,
+    },
+  ];
+
+  const itemGroupColumns = [
+    {
+      key: 'item_name', label: 'Item', sortable: true, accessor: (row) => row.item_name ?? '', minWidth: 160,
+      render: (row) => <Typography variant="body2" sx={{ fontWeight: 600 }}>{row.item_name}</Typography>,
+    },
+    {
+      key: 'item_sku', label: 'SKU', sortable: true, accessor: (row) => row.item_sku ?? '',
+      render: (row) => <Chip label={row.item_sku} size="small" variant="outlined" />,
+    },
+    {
+      key: 'transaction_count', label: 'Transactions', align: 'center', sortable: true, accessor: (row) => Number(row.transaction_count) || 0,
+      render: (row) => <Chip label={row.transaction_count} size="small" color="info" sx={{ fontWeight: 600 }} />,
+    },
+    {
+      key: 'total_quantity', label: 'Total Qty', align: 'right', sortable: true, accessor: (row) => Number(row.total_quantity) || 0,
+      render: (row) => <Typography variant="body2" sx={{ color: 'info.main', fontWeight: 600 }}>{Number(row.total_quantity || 0).toFixed(3)}</Typography>,
+    },
+    {
+      key: 'total_amount', label: 'Total Amount', align: 'right', sortable: true, accessor: (row) => Number(row.total_amount) || 0,
+      render: (row) => <Typography variant="body2" sx={{ color: 'success.main', fontWeight: 700 }}>₹{formatMoney(row.total_amount)}</Typography>,
+    },
+  ];
+
+  const columns = !isGrouped
+    ? detailColumns
+    : filters.group_by === "vendor"
+      ? vendorGroupColumns
+      : itemGroupColumns;
+
   return (
     <Box>
       <Box sx={{ display: 'flex', alignItems: { md: 'center' }, justifyContent: 'space-between', flexDirection: { xs: 'column', md: 'row' }, gap: 2, mb: 2.5 }}>
@@ -430,113 +511,16 @@ export default function PurchaseReport() {
         </Box>
         <Divider />
         {loading && <LinearProgress />}
-        <TableContainer sx={{ overflowX: 'auto' }}>
-          <Table size="small" sx={{ minWidth: 1000 }}>
-            <TableHead>
-              <TableRow sx={{ bgcolor: 'background.neutral' }}>
-                {!isGrouped && (
-                  <>
-                    <TableCell sx={headCellSx}>Date</TableCell>
-                    <TableCell sx={headCellSx}>Bill</TableCell>
-                    <TableCell sx={headCellSx}>Vendor</TableCell>
-                    <TableCell sx={{ ...headCellSx, display: { xs: 'none', lg: 'table-cell' } }}>Warehouse</TableCell>
-                    <TableCell sx={headCellSx}>Item</TableCell>
-                    <TableCell align="right" sx={headCellSx}>Qty</TableCell>
-                    <TableCell align="right" sx={{ ...headCellSx, display: { xs: 'none', md: 'table-cell' } }}>Rate</TableCell>
-                    <TableCell align="right" sx={{ ...headCellSx, display: { xs: 'none', md: 'table-cell' } }}>Discount</TableCell>
-                    <TableCell align="right" sx={{ ...headCellSx, display: { xs: 'none', lg: 'table-cell' } }}>Tax</TableCell>
-                    <TableCell align="right" sx={headCellSx}>Total</TableCell>
-                  </>
-                )}
-                {isGrouped && filters.group_by === "vendor" && (
-                  <>
-                    <TableCell sx={headCellSx}>Vendor</TableCell>
-                    <TableCell align="center" sx={headCellSx}>Transactions</TableCell>
-                    <TableCell align="right" sx={headCellSx}>Total Qty</TableCell>
-                    <TableCell align="right" sx={headCellSx}>Total Amount</TableCell>
-                  </>
-                )}
-                {isGrouped && filters.group_by === "item" && (
-                  <>
-                    <TableCell sx={headCellSx}>Item</TableCell>
-                    <TableCell sx={{ ...headCellSx, display: { xs: 'none', md: 'table-cell' } }}>SKU</TableCell>
-                    <TableCell align="center" sx={headCellSx}>Transactions</TableCell>
-                    <TableCell align="right" sx={headCellSx}>Total Qty</TableCell>
-                    <TableCell align="right" sx={headCellSx}>Total Amount</TableCell>
-                  </>
-                )}
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {loading ? (
-                <TableRow>
-                  <TableCell colSpan={10} align="center" sx={{ color: 'text.secondary', py: 4 }}>Loading...</TableCell>
-                </TableRow>
-              ) : data.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={10} align="center" sx={{ py: 5 }}>
-                    <Box sx={{ color: 'text.secondary' }}>
-                      <Iconify icon="fa6-solid:inbox" width={28} />
-                      <Typography variant="body2" sx={{ fontWeight: 700, color: 'text.secondary' }}>No data found</Typography>
-                      <Typography variant="caption" color="text.secondary">Try adjusting your date range or filters</Typography>
-                    </Box>
-                  </TableCell>
-                </TableRow>
-              ) : (
-                data.map((row, index) => (
-                  <TableRow key={index} hover>
-                    {!isGrouped && (
-                      <>
-                        <TableCell sx={{ px: 2 }}>
-                          <Typography variant="caption" color="text.secondary">{row.date}</Typography>
-                        </TableCell>
-                        <TableCell sx={{ px: 2 }}>
-                          <Chip label={row.bill_number} size="small" variant="outlined" sx={{ fontWeight: 600 }} />
-                        </TableCell>
-                        <TableCell sx={{ px: 2, fontWeight: 600 }}>{row.vendor_name}</TableCell>
-                        <TableCell sx={{ px: 2, color: 'text.secondary', display: { xs: 'none', lg: 'table-cell' } }}>
-                          <Typography variant="caption" color="text.secondary">{row.warehouse_name}</Typography>
-                        </TableCell>
-                        <TableCell sx={{ px: 2 }}>
-                          <Typography variant="body2" sx={{ fontWeight: 600 }}>{row.item_name}</Typography>
-                          <Typography variant="caption" color="text.secondary">{row.item_sku}</Typography>
-                        </TableCell>
-                        <TableCell align="right" sx={{ px: 2, color: 'info.main', fontWeight: 600 }}>{Number(row.quantity || 0).toFixed(3)}</TableCell>
-                        <TableCell align="right" sx={{ px: 2, color: 'text.secondary', display: { xs: 'none', md: 'table-cell' } }}>₹{formatMoney(row.rate)}</TableCell>
-                        <TableCell align="right" sx={{ px: 2, color: 'warning.main', display: { xs: 'none', md: 'table-cell' } }}>₹{formatMoney(row.discount)}</TableCell>
-                        <TableCell align="right" sx={{ px: 2, color: 'text.secondary', display: { xs: 'none', lg: 'table-cell' } }}>₹{formatMoney(row.tax_amount)}</TableCell>
-                        <TableCell align="right" sx={{ px: 2, color: 'success.main', fontWeight: 700 }}>₹{formatMoney(row.total)}</TableCell>
-                      </>
-                    )}
-                    {isGrouped && filters.group_by === "vendor" && (
-                      <>
-                        <TableCell sx={{ px: 2, fontWeight: 600 }}>{row.vendor_name}</TableCell>
-                        <TableCell align="center" sx={{ px: 2 }}>
-                          <Chip label={row.transaction_count} size="small" color="info" sx={{ fontWeight: 600 }} />
-                        </TableCell>
-                        <TableCell align="right" sx={{ px: 2, color: 'info.main', fontWeight: 600 }}>{Number(row.total_quantity || 0).toFixed(3)}</TableCell>
-                        <TableCell align="right" sx={{ px: 2, color: 'success.main', fontWeight: 700 }}>₹{formatMoney(row.total_amount)}</TableCell>
-                      </>
-                    )}
-                    {isGrouped && filters.group_by === "item" && (
-                      <>
-                        <TableCell sx={{ px: 2, fontWeight: 600 }}>{row.item_name}</TableCell>
-                        <TableCell sx={{ px: 2, display: { xs: 'none', md: 'table-cell' } }}>
-                          <Chip label={row.item_sku} size="small" variant="outlined" />
-                        </TableCell>
-                        <TableCell align="center" sx={{ px: 2 }}>
-                          <Chip label={row.transaction_count} size="small" color="info" sx={{ fontWeight: 600 }} />
-                        </TableCell>
-                        <TableCell align="right" sx={{ px: 2, color: 'info.main', fontWeight: 600 }}>{Number(row.total_quantity || 0).toFixed(3)}</TableCell>
-                        <TableCell align="right" sx={{ px: 2, color: 'success.main', fontWeight: 700 }}>₹{formatMoney(row.total_amount)}</TableCell>
-                      </>
-                    )}
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </TableContainer>
+        <DataTable
+          columns={columns}
+          rows={data}
+          loading={loading}
+          emptyMessage="No data found"
+          emptyHint="Try adjusting your date range or filters"
+          minWidth={1000}
+          defaultPageSize={25}
+          rowsPerPageOptions={[10, 25, 50, 100]}
+        />
       </Card>
     </Box>
   );

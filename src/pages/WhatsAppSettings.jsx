@@ -12,12 +12,6 @@ import {
   IconButton,
   Stack,
   Switch,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
   TextField,
   Tooltip,
   Typography,
@@ -25,6 +19,7 @@ import {
 import { toast } from "react-toastify";
 import { whatsappApi } from "../services/whatsapp";
 import { Iconify } from "../components/iconify";
+import { DataTable } from "../components/data-table";
 
 const toArray = (value) => {
   if (Array.isArray(value)) return value;
@@ -39,20 +34,6 @@ const cardSx = {
   borderRadius: 3,
   boxShadow: '0 8px 24px rgba(28,37,46,.05)',
 };
-
-const headCellSx = {
-  color: 'text.secondary',
-  fontSize: 12,
-  fontWeight: 700,
-  textTransform: 'uppercase',
-  letterSpacing: '.04em',
-  px: 2,
-  py: 1.5,
-  borderBottom: '1px solid',
-  borderColor: 'divider',
-};
-
-const bodyCellSx = { px: 2, py: 1.5, borderBottom: '1px solid #f1f5f9' };
 
 const statusChipSx = (status) => {
   switch (status) {
@@ -322,46 +303,30 @@ export default function WhatsAppSettings() {
                   Message Templates ({templates.length})
                 </Typography>
               </CardContent>
-              <TableContainer sx={{ overflowX: 'auto', mt: 1 }}>
-                <Table size="small" sx={{ minWidth: 640 }}>
-                  <TableHead>
-                    <TableRow sx={{ bgcolor: 'background.neutral' }}>
-                      <TableCell sx={headCellSx}>Name</TableCell>
-                      <TableCell sx={headCellSx}>Category</TableCell>
-                      <TableCell sx={headCellSx}>Language</TableCell>
-                      <TableCell sx={headCellSx}>Status</TableCell>
-                      <TableCell sx={headCellSx}>Preview</TableCell>
-                    </TableRow>
-                  </TableHead>
-                  <TableBody>
-                    {templates.length === 0 ? (
-                      <TableRow>
-                        <TableCell colSpan={5} align="center" sx={{ py: 5, color: 'text.secondary', borderBottom: 0 }}>
-                          No templates found
-                        </TableCell>
-                      </TableRow>
-                    ) : templates.map(t => (
-                      <TableRow
-                        key={t.name}
-                        hover
-                        sx={{ '&:last-child td': { borderBottom: 0 } }}
-                      >
-                        <TableCell sx={{ ...bodyCellSx, fontWeight: 600 }}>{t.name}</TableCell>
-                        <TableCell sx={{ ...bodyCellSx, color: 'text.secondary' }}>{t.category}</TableCell>
-                        <TableCell sx={{ ...bodyCellSx, color: 'text.secondary' }}>{t.language}</TableCell>
-                        <TableCell sx={bodyCellSx}>
-                          <Chip label={t.status} size="small" sx={{ ...statusChipSx(t.status), fontWeight: 700 }} />
-                        </TableCell>
-                        <TableCell sx={{ ...bodyCellSx, color: 'text.secondary', maxWidth: 300 }}>
-                          <Typography variant="body2" noWrap sx={{ color: 'text.secondary', maxWidth: 300 }}>
-                            {t.components?.find(c => c.type === "BODY")?.text?.substring(0, 80) || "—"}
-                          </Typography>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </TableContainer>
+              <Box sx={{ mt: 1 }}>
+                <DataTable
+                  columns={[
+                    { key: 'name', label: 'Name', render: (t) => <Box component="span" sx={{ fontWeight: 600 }}>{t.name}</Box> },
+                    { key: 'category', label: 'Category', render: (t) => <Box component="span" sx={{ color: 'text.secondary' }}>{t.category}</Box> },
+                    { key: 'language', label: 'Language', render: (t) => <Box component="span" sx={{ color: 'text.secondary' }}>{t.language}</Box> },
+                    { key: 'status', label: 'Status', render: (t) => <Chip label={t.status} size="small" sx={{ ...statusChipSx(t.status), fontWeight: 700 }} /> },
+                    {
+                      key: 'preview', label: 'Preview', minWidth: 200,
+                      render: (t) => (
+                        <Typography variant="body2" noWrap sx={{ color: 'text.secondary', maxWidth: 300 }}>
+                          {t.components?.find(c => c.type === "BODY")?.text?.substring(0, 80) || "—"}
+                        </Typography>
+                      ),
+                    },
+                  ]}
+                  rows={templates}
+                  rowKey="name"
+                  emptyMessage="No templates found"
+                  minWidth={640}
+                  defaultPageSize={10}
+                  rowsPerPageOptions={[10, 25, 50]}
+                />
+              </Box>
             </Card>
           </Box>
         </Box>
