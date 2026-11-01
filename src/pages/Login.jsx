@@ -42,6 +42,21 @@ export default function Login() {
   const [err,setErr] = useState("");
   const [loading,setLoading] = useState(false);
 
+  // Keep the login page out of search results — landing page should rank instead
+  useEffect(() => {
+    const el = document.createElement("meta");
+    el.setAttribute("name", "robots");
+    el.setAttribute("content", "noindex, nofollow");
+    el.setAttribute("data-seo", "login");
+    document.head.appendChild(el);
+    const prevTitle = document.title;
+    document.title = "Sign In — Sarth CRM";
+    return () => {
+      document.head.querySelectorAll('[data-seo="login"]').forEach((n) => n.remove());
+      document.title = prevTitle;
+    };
+  }, []);
+
   // Setup axios interceptors on component mount
   useEffect(() => {
     setupAxiosInterceptors();
