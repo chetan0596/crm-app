@@ -19,8 +19,8 @@ function isPathActive(pathname, path, exact) {
   return pathname === path || pathname.startsWith(`${path}/`);
 }
 
-function NavItem({ item, pathname, onClick, depth = 0, mini = false }) {
-  const active = isPathActive(pathname, item.path, item.exact);
+function NavItem({ item, pathname, onClick, depth = 0, mini = false, suppressed = false }) {
+  const active = !suppressed && isPathActive(pathname, item.path, item.exact);
   const isMini = mini && depth === 0;
 
   const button = (
@@ -127,6 +127,13 @@ function NavItem({ item, pathname, onClick, depth = 0, mini = false }) {
 function NavGroupItem({ item, pathname, onNavigate, mini = false }) {
   const visibleChildren = (item.children || []).filter((child) => canView(child.permission));
   const childActive = visibleChildren.some((child) => isPathActive(pathname, child.path, child.exact));
+  // A sibling with a longer matching path wins, so e.g. /leads doesn't stay
+  // active on /leads/import, but still does on /leads/123.
+  const matchingPaths = visibleChildren
+    .filter((child) => isPathActive(pathname, child.path, child.exact))
+    .map((child) => child.path);
+  const isSuppressed = (child) =>
+    matchingPaths.some((p) => p !== child.path && p.startsWith(`${child.path}/`));
   // null = auto (open when a child route is active); a click stores an explicit override
   const [toggled, setToggled] = useState(null);
   const open = toggled ?? childActive;
@@ -209,6 +216,7 @@ function NavGroupItem({ item, pathname, onNavigate, mini = false }) {
                   item={child}
                   pathname={pathname}
                   depth={1}
+                  suppressed={isSuppressed(child)}
                   onClick={() => {
                     setFlyoutAnchor(null);
                     onNavigate?.();
@@ -297,7 +305,7 @@ function NavGroupItem({ item, pathname, onNavigate, mini = false }) {
         <Box component="ul" sx={{ listStyle: 'none', m: 0, p: 0, pl: 1.4 }}>
           {visibleChildren.map((child) => (
             <Box component="li" key={child.path} sx={{ display: 'flex' }}>
-              <NavItem item={child} pathname={pathname} onClick={onNavigate} depth={1} />
+              <NavItem item={child} pathname={pathname} onClick={onNavigate} depth={1} suppressed={isSuppressed(child)} />
             </Box>
           ))}
         </Box>

@@ -425,11 +425,11 @@ export default function LeadCategory() {
             },
           }}
         >
-          <MenuItem onClick={runRowAction((row) => nav(`/lead-categories/${row.id}/subcategories`))}>
+          <MenuItem onClick={runRowAction((row) => nav(`/leads/categories/${row.id}/subcategories`))}>
             <ListItemIcon><Iconify icon="fa6-solid:sitemap" width={16} /></ListItemIcon>
             <ListItemText primary="Subcategories" />
           </MenuItem>
-          <MenuItem onClick={runRowAction((row) => nav(`/lead-categories/${row.id}/activity`))}>
+          <MenuItem onClick={runRowAction((row) => nav(`/leads/categories/${row.id}/activity`))}>
             <ListItemIcon><Iconify icon="fa6-solid:clock-rotate-left" width={16} /></ListItemIcon>
             <ListItemText primary="Activity" />
           </MenuItem>

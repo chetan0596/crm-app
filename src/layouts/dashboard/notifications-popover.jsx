@@ -203,7 +203,7 @@ export function NotificationsPopover() {
         <Box sx={{ p: 1, borderTop: (theme) => `dashed 1px ${theme.vars.palette.divider}` }}>
           <Button
             component={RouterLink}
-            to="/follow-ups"
+            to="/leads/follow-ups"
             fullWidth
             size="small"
             onClick={popover.onClose}

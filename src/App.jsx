@@ -1,4 +1,4 @@
-import { Routes, Route } from "react-router-dom";
+import { Routes, Route, Navigate, useParams } from "react-router-dom";
 import { lazy, Suspense, useEffect } from "react";
 import { Box, CircularProgress } from "@mui/material";
 import { refreshPermissions } from "./utils/permissions";
@@ -74,6 +74,14 @@ const LoadingSpinner = () => (
   </Box>
 );
 
+// Redirects old flat paths (e.g. /lead-categories) to the nested /leads/* paths,
+// substituting route params so deep links keep working.
+const LegacyRedirect = ({ to }) => {
+  const params = useParams();
+  const path = Object.entries(params).reduce((p, [k, v]) => p.replace(`:${k}`, v), to);
+  return <Navigate to={path} replace />;
+};
+
 export default function App() {
   useFcmToken();
   useFcmForeground();
@@ -123,28 +131,42 @@ export default function App() {
             <Dashboard />
           </Suspense>
         } />
-        <Route path="/lead-categories" element={
+        {/* Legacy flat lead paths -> nested /leads/* */}
+        <Route path="/lead-categories" element={<LegacyRedirect to="/leads/categories" />} />
+        <Route path="/lead-categories/:id/activity" element={<LegacyRedirect to="/leads/categories/:id/activity" />} />
+        <Route path="/lead-categories/:id/subcategories" element={<LegacyRedirect to="/leads/categories/:id/subcategories" />} />
+        <Route path="/lead-subcategories" element={<LegacyRedirect to="/leads/subcategories" />} />
+        <Route path="/lead-sources" element={<LegacyRedirect to="/leads/sources" />} />
+        <Route path="/lead-stages" element={<LegacyRedirect to="/leads/stages" />} />
+        <Route path="/lead-tags" element={<LegacyRedirect to="/leads/tags" />} />
+        <Route path="/cities" element={<LegacyRedirect to="/leads/cities" />} />
+        <Route path="/follow-ups" element={<LegacyRedirect to="/leads/follow-ups" />} />
+        <Route path="/lead-source-integrations" element={<LegacyRedirect to="/leads/integrations" />} />
+        <Route path="/webhooks" element={<LegacyRedirect to="/leads/webhooks" />} />
+        <Route path="/whatsapp-settings" element={<LegacyRedirect to="/leads/whatsapp-settings" />} />
+
+        <Route path="/leads/categories" element={
           <PermissionRoute permission="lead-categories-view">
             <Suspense fallback={<LoadingSpinner />}>
               <LeadCategory />
             </Suspense>
           </PermissionRoute>
         }/>
-        <Route path="/lead-categories/:id/activity" element={
+        <Route path="/leads/categories/:id/activity" element={
           <PermissionRoute permission="lead-categories-view">
             <Suspense fallback={<LoadingSpinner />}>
               <LeadCategoryActivity />
             </Suspense>
           </PermissionRoute>
         }/>
-        <Route path="/lead-categories/:id/subcategories" element={
+        <Route path="/leads/categories/:id/subcategories" element={
           <PermissionRoute permission="lead-subcategories-view">
             <Suspense fallback={<LoadingSpinner />}>
               <LeadSubcategoryPage />
             </Suspense>
           </PermissionRoute>
         } />
-        <Route path="/lead-subcategories" element={
+        <Route path="/leads/subcategories" element={
           <PermissionRoute permission="lead-subcategories-view">
             <Suspense fallback={<LoadingSpinner />}>
               <LeadSubcategory />
@@ -173,28 +195,28 @@ export default function App() {
             </Suspense>
           </PermissionRoute>
         } />
-        <Route path="/lead-sources" element={
+        <Route path="/leads/sources" element={
           <PermissionRoute permission="lead-sources-view">
             <Suspense fallback={<LoadingSpinner />}>
               <LeadSources />
             </Suspense>
           </PermissionRoute>
         } />
-        <Route path="/lead-stages" element={
+        <Route path="/leads/stages" element={
           <PermissionRoute permission="lead-stages-view">
             <Suspense fallback={<LoadingSpinner />}>
               <LeadStages />
             </Suspense>
           </PermissionRoute>
         } />
-        <Route path="/lead-tags" element={
+        <Route path="/leads/tags" element={
           <PermissionRoute permission="lead-tags-view">
             <Suspense fallback={<LoadingSpinner />}>
               <LeadTags />
             </Suspense>
           </PermissionRoute>
         } />
-        <Route path="/cities" element={
+        <Route path="/leads/cities" element={
           <PermissionRoute permission="cities-view">
             <Suspense fallback={<LoadingSpinner />}>
               <City />
@@ -208,28 +230,28 @@ export default function App() {
             </Suspense>
           </PermissionRoute>
         } />
-        <Route path="/follow-ups" element={
+        <Route path="/leads/follow-ups" element={
           <PermissionRoute permission="follow-ups-view">
             <Suspense fallback={<LoadingSpinner />}>
               <FollowUps />
             </Suspense>
           </PermissionRoute>
         } />
-        <Route path="/lead-source-integrations" element={
+        <Route path="/leads/integrations" element={
           <PermissionRoute permission="lead-integrations-view">
             <Suspense fallback={<LoadingSpinner />}>
               <LeadSourceIntegrations />
             </Suspense>
           </PermissionRoute>
         } />
-        <Route path="/webhooks" element={
+        <Route path="/leads/webhooks" element={
           <PermissionRoute permission="webhooks-view">
             <Suspense fallback={<LoadingSpinner />}>
               <Webhooks />
             </Suspense>
           </PermissionRoute>
         } />
-        <Route path="/whatsapp-settings" element={
+        <Route path="/leads/whatsapp-settings" element={
           <PermissionRoute permission="whatsapp-settings-view">
             <Suspense fallback={<LoadingSpinner />}>
               <WhatsAppSettings />
