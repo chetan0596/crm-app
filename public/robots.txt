@@ -7,4 +7,4 @@ Disallow: /inventory
 Disallow: /settings
 Disallow: /users
 
-Sitemap: https://sarth.app/sitemap.xml
+Sitemap: https://sarthcrm.com/sitemap.xml
