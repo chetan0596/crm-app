@@ -766,6 +766,17 @@ export default function LandingPage() {
           </div>
         </div>
       </footer>
+
+      {/* Floating WhatsApp */}
+      <a
+        className="wa-float"
+        href="https://wa.me/919726997052?text=Hi%2C%20I%27m%20interested%20in%20Sarth%20CRM"
+        target="_blank"
+        rel="noreferrer"
+        aria-label="Chat with us on WhatsApp"
+      >
+        <i className="fa-brands fa-whatsapp"></i>
+      </a>
     </div>
   );
 }

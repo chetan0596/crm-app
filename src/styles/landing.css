@@ -1040,3 +1040,53 @@
   }
   .landing .reveal { opacity: 1; transform: none; }
 }
+
+/* ---------- Floating WhatsApp ---------- */
+.wa-float {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  z-index: 95;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: linear-gradient(140deg, #2be06e, #1fbd59);
+  color: #fff;
+  font-size: 1.7rem;
+  text-decoration: none;
+  box-shadow: 0 12px 28px rgba(31, 189, 89, .42), inset 0 1px 0 rgba(255, 255, 255, .3);
+  transition: transform .2s ease, box-shadow .2s ease;
+  animation: wa-pulse 2.6s ease-in-out infinite;
+}
+.wa-float:hover {
+  transform: translateY(-3px) scale(1.06);
+  box-shadow: 0 16px 36px rgba(31, 189, 89, .5);
+}
+.wa-float::before {
+  content: "";
+  position: absolute;
+  inset: -6px;
+  border-radius: 50%;
+  border: 2px solid rgba(43, 224, 110, .45);
+  animation: wa-ring 2.6s ease-out infinite;
+}
+@keyframes wa-pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.04); }
+}
+@keyframes wa-ring {
+  0% { transform: scale(.9); opacity: .9; }
+  70%, 100% { transform: scale(1.35); opacity: 0; }
+}
+
+@media (max-width: 575.98px) {
+  .wa-float {
+    right: 16px;
+    bottom: calc(16px + env(safe-area-inset-bottom));
+    width: 52px;
+    height: 52px;
+    font-size: 1.55rem;
+  }
+}
