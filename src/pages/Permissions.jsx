@@ -35,6 +35,7 @@ import {
 import Swal from "sweetalert2";
 import { toast } from "react-toastify";
 import api from "../api";
+import { Iconify } from "../components/iconify";
 
 const tableReducer = (state, action) => {
   switch (action.type) {
@@ -244,7 +245,7 @@ export default function Permissions() {
               aria-label="Edit permission"
               sx={{ border: '1px solid', borderColor: 'divider', color: 'primary.main' }}
             >
-              <i className="fas fa-edit" style={{ fontSize: 13 }} aria-hidden="true" />
+              <Iconify icon="fa6-solid:pen-to-square" width={13} />
             </IconButton>
           </Tooltip>
           <Tooltip title="Delete">
@@ -254,7 +255,7 @@ export default function Permissions() {
               aria-label="Delete permission"
               sx={{ border: '1px solid', borderColor: 'divider', color: 'error.main' }}
             >
-              <i className="fas fa-trash" style={{ fontSize: 13 }} aria-hidden="true" />
+              <Iconify icon="fa6-solid:trash-can" width={13} />
             </IconButton>
           </Tooltip>
         </Stack>
@@ -286,7 +287,7 @@ export default function Permissions() {
                   input: {
                     startAdornment: (
                       <InputAdornment position="start">
-                        <i className="fas fa-search" style={{ fontSize: 13 }} aria-hidden="true" />
+                        <Iconify icon="fa6-solid:magnifying-glass" width={13} />
                       </InputAdornment>
                     ),
                   },
@@ -295,7 +296,7 @@ export default function Permissions() {
               <Button
                 variant="contained"
                 onClick={openAdd}
-                startIcon={<i className="fas fa-plus" aria-hidden="true" />}
+                startIcon={<Iconify icon="fa6-solid:plus" width={16} />}
                 sx={{ whiteSpace: 'nowrap' }}
               >
                 New Permission
@@ -308,7 +309,7 @@ export default function Permissions() {
         {Object.keys(groupedPermissions).length > 0 && (
           <>
             <Divider />
-            <Box sx={{ px: 3, py: 2, bgcolor: '#f8fafc' }}>
+            <Box sx={{ px: 3, py: 2, bgcolor: 'background.neutral' }}>
               <Box
                 sx={{
                   display: 'grid',
@@ -343,7 +344,7 @@ export default function Permissions() {
         <TableContainer sx={{ overflowX: 'auto' }}>
           <Table sx={{ minWidth: 720 }} size="small">
             <TableHead>
-              <TableRow sx={{ bgcolor: '#f8fafc' }}>
+              <TableRow sx={{ bgcolor: 'background.neutral' }}>
                 {columns.map((column) => (
                   <TableCell
                     key={column.key}
@@ -367,7 +368,7 @@ export default function Permissions() {
               {rows.length === 0 && !loading ? (
                 <TableRow>
                   <TableCell colSpan={Math.max(columns.length, 1)} align="center" sx={{ py: 7 }}>
-                    <i className="fas fa-folder-open" style={{ color: '#637381', fontSize: 42, opacity: .4 }} aria-hidden="true" />
+                    <Iconify icon="fa6-solid:folder-open" width={42} />
                     <Typography variant="subtitle2" sx={{ color: 'text.secondary', mt: 1.5 }}>
                       No data found
                     </Typography>
@@ -428,13 +429,13 @@ export default function Permissions() {
       >
         <DialogTitle sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 2, py: 2 }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25 }}>
-            <i className={`fas ${editingId ? 'fa-edit' : 'fa-plus'}`} style={{ color: '#062849', fontSize: 15 }} aria-hidden="true" />
+            <Iconify icon={editingId ? 'fa6-solid:pen-to-square' : 'fa6-solid:plus'} width={15} sx={{ color: '#062849' }} />
             <Typography variant="h6" sx={{ fontWeight: 700 }}>
               {editingId ? 'Edit Permission' : 'New Permission'}
             </Typography>
           </Box>
           <IconButton size="small" onClick={() => setShow(false)} aria-label="Close">
-            <i className="fas fa-times" style={{ fontSize: 14 }} aria-hidden="true" />
+            <Iconify icon="fa6-solid:xmark" width={14} />
           </IconButton>
         </DialogTitle>
 

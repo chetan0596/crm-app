@@ -29,6 +29,7 @@ import {
 import { toast } from "react-toastify";
 import api from "../api";
 import { canCreate } from "../utils/permissions";
+import { Iconify } from "../components/iconify";
 
 const LEAD_FIELDS = [
   { key: "name", label: "Name", required: true },
@@ -587,7 +588,7 @@ export default function GoogleSheetsImport() {
           </Typography>
         </Box>
         {step > 1 && (
-          <Button variant="outlined" onClick={handleReset} startIcon={<i className="fas fa-undo" aria-hidden="true" />}>
+          <Button variant="outlined" onClick={handleReset} startIcon={<Iconify icon="fa6-solid:arrow-rotate-left" width={16} />}>
             Reset
           </Button>
         )}
@@ -609,9 +610,9 @@ export default function GoogleSheetsImport() {
                 Export your Google Sheet as a <strong>CSV file</strong> (File &gt; Download &gt; Comma Separated Values), then upload it or paste the content below.
               </Alert>
 
-              <Box sx={{ p: 2.5, border: '1px dashed', borderColor: 'rgba(145,158,171,.4)', borderRadius: 2.5, bgcolor: '#f8fafc' }}>
+              <Box sx={{ p: 2.5, border: '1px dashed', borderColor: 'rgba(145,158,171,.4)', borderRadius: 2.5, bgcolor: 'background.neutral' }}>
                 <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} alignItems={{ sm: 'center' }}>
-                  <Button component="label" variant="outlined" startIcon={<i className="fas fa-file-csv" aria-hidden="true" />}>
+                  <Button component="label" variant="outlined" startIcon={<Iconify icon="fa6-solid:file-excel" width={16} />}>
                     Upload CSV File
                     <input hidden type="file" accept=".csv,.txt" onChange={handleFileUpload} />
                   </Button>
@@ -637,10 +638,10 @@ export default function GoogleSheetsImport() {
               />
 
               <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} justifyContent="space-between" sx={{ mt: 3 }}>
-                <Button variant="outlined" onClick={downloadSampleCSV} startIcon={<i className="fas fa-download" aria-hidden="true" />}>
+                <Button variant="outlined" onClick={downloadSampleCSV} startIcon={<Iconify icon="fa6-solid:download" width={16} />}>
                   Download Sample CSV
                 </Button>
-                <Button variant="contained" onClick={handleParse} startIcon={<i className="fas fa-file-import" aria-hidden="true" />}>
+                <Button variant="contained" onClick={handleParse} startIcon={<Iconify icon="fa6-solid:file-import" width={16} />}>
                   Parse CSV
                 </Button>
               </Stack>
@@ -712,10 +713,10 @@ export default function GoogleSheetsImport() {
               </TableContainer>
 
               <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} justifyContent="space-between" sx={{ mt: 3 }}>
-                <Button variant="outlined" onClick={() => setStep(1)} startIcon={<i className="fas fa-arrow-left" aria-hidden="true" />}>
+                <Button variant="outlined" onClick={() => setStep(1)} startIcon={<Iconify icon="fa6-solid:arrow-left" width={16} />}>
                   Back
                 </Button>
-                <Button variant="contained" onClick={handlePreview} startIcon={<i className="fas fa-eye" aria-hidden="true" />}>
+                <Button variant="contained" onClick={handlePreview} startIcon={<Iconify icon="fa6-solid:eye" width={16} />}>
                   Preview & Import
                 </Button>
               </Stack>
@@ -726,7 +727,7 @@ export default function GoogleSheetsImport() {
           {step === 3 && (
             <Box>
               {importResult && (
-                <Alert severity={importResult.failed > 0 ? 'warning' : 'success'} sx={{ mb: 3 }} icon={<i className={`fas ${importResult.failed > 0 ? 'fa-exclamation-triangle' : 'fa-check-circle'}`} aria-hidden="true" />}>
+                <Alert severity={importResult.failed > 0 ? 'warning' : 'success'} sx={{ mb: 3 }} icon={<Iconify icon={importResult.failed > 0 ? 'fa6-solid:triangle-exclamation' : 'fa6-solid:circle-check'} width={16} />}>
                   <Typography variant="subtitle2">Import Complete</Typography>
                   <Typography variant="body2">
                     Total: {importResult.total} | Success: {importResult.success} | Failed: {importResult.failed}
@@ -796,7 +797,7 @@ export default function GoogleSheetsImport() {
               </TableContainer>
 
               <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} justifyContent="space-between">
-                <Button variant="outlined" onClick={() => setStep(2)} disabled={importing} startIcon={<i className="fas fa-arrow-left" aria-hidden="true" />}>
+                <Button variant="outlined" onClick={() => setStep(2)} disabled={importing} startIcon={<Iconify icon="fa6-solid:arrow-left" width={16} />}>
                   Back
                 </Button>
                 {!importResult && (
@@ -805,7 +806,7 @@ export default function GoogleSheetsImport() {
                     color="success"
                     onClick={handleImport}
                     disabled={importing}
-                    startIcon={importing ? <CircularProgress size={16} color="inherit" /> : <i className="fas fa-cloud-upload-alt" aria-hidden="true" />}
+                    startIcon={importing ? <CircularProgress size={16} color="inherit" /> : <Iconify icon="fa6-solid:cloud-arrow-up" width={16} />}
                   >
                     {importing ? 'Importing…' : `Import ${parsed.rows.length} Lead${parsed.rows.length !== 1 ? 's' : ''}`}
                   </Button>

@@ -26,6 +26,7 @@ import {
 import { toast } from "react-toastify";
 import api from "../api";
 import { canEdit, refreshPermissions } from "../utils/permissions";
+import { Iconify } from "../components/iconify";
 
 // =====================================================================
 // Permission Manager — single page for both ROLE-wise and USER-wise
@@ -33,10 +34,10 @@ import { canEdit, refreshPermissions } from "../utils/permissions";
 // =====================================================================
 
 const ACTION_META = {
-  view:   { label: "View",   color: "info",      icon: "fa-eye" },
-  create: { label: "Create", color: "success",   icon: "fa-plus" },
-  edit:   { label: "Edit",   color: "warning",   icon: "fa-edit" },
-  delete: { label: "Delete", color: "danger",    icon: "fa-trash" },
+  view:   { label: "View",   color: "info",      icon: "fa6-solid:eye" },
+  create: { label: "Create", color: "success",   icon: "fa6-solid:plus" },
+  edit:   { label: "Edit",   color: "warning",   icon: "fa6-solid:pen-to-square" },
+  delete: { label: "Delete", color: "danger",    icon: "fa6-solid:trash-can" },
 };
 
 const ACTION_CHIP_COLORS = {
@@ -50,7 +51,7 @@ const getActionChipColors = (color) => ACTION_CHIP_COLORS[color] || { bg: '#f1f5
 
 const getActionMeta = (permName) => {
   const action = permName.split("-").pop();
-  return ACTION_META[action] || { label: action, color: "secondary", icon: "fa-check" };
+  return ACTION_META[action] || { label: action, color: "secondary", icon: "fa6-solid:check" };
 };
 
 // Extract scope label from permission name, e.g. "lead-categories-view" -> "Categories"
@@ -190,7 +191,7 @@ export default function PermissionManager() {
             input: {
               startAdornment: (
                 <InputAdornment position="start">
-                  <i className="fas fa-search" style={{ fontSize: 13 }} aria-hidden="true" />
+                  <Iconify icon="fa6-solid:magnifying-glass" width={13} />
                 </InputAdornment>
               ),
             },
@@ -208,13 +209,13 @@ export default function PermissionManager() {
             <Tab
               value="role"
               label="Role-wise"
-              icon={<i className="fas fa-user-shield" aria-hidden="true" />}
+              icon={<Iconify icon="fa6-solid:user-lock" width={16} />}
               iconPosition="start"
             />
             <Tab
               value="user"
               label="User-wise"
-              icon={<i className="fas fa-user-cog" aria-hidden="true" />}
+              icon={<Iconify icon="fa6-solid:user-gear" width={16} />}
               iconPosition="start"
             />
           </Tabs>
@@ -330,7 +331,7 @@ function RoleTab({ roles, groupedPermissions, canEdit, onSaved }) {
 
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap', flexGrow: 1 }}>
           <Typography variant="body2" sx={{ color: 'text.secondary', display: 'flex', alignItems: 'center', gap: 1 }}>
-            <i className="fas fa-check-square" style={{ color: '#062849' }} aria-hidden="true" />
+            <Iconify icon="fa6-solid:square-check" width={16} />
             <Chip size="small" label={selected.size} sx={{ bgcolor: '#eaf0f6', color: '#062849' }} />
             permissions selected
           </Typography>
@@ -341,7 +342,7 @@ function RoleTab({ roles, groupedPermissions, canEdit, onSaved }) {
               onClick={save}
               disabled={saving || isSuperAdmin || loading}
               sx={{ ml: { md: 'auto' } }}
-              startIcon={saving ? <CircularProgress color="inherit" size={14} /> : <i className="fas fa-save" aria-hidden="true" />}
+              startIcon={saving ? <CircularProgress color="inherit" size={14} /> : <Iconify icon="fa6-solid:floppy-disk" width={16} />}
             >
               {saving ? "Saving…" : "Save Changes"}
             </Button>
@@ -353,7 +354,7 @@ function RoleTab({ roles, groupedPermissions, canEdit, onSaved }) {
         <Alert
           severity="warning"
           sx={{ mb: 2, background: 'linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%)' }}
-          icon={<i className="fas fa-crown" aria-hidden="true" />}
+          icon={<Iconify icon="fa6-solid:crown" width={16} />}
         >
           <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>Super Admin</Typography>
           <Typography variant="body2">This role always has all permissions. Editing is disabled for safety.</Typography>
@@ -505,7 +506,7 @@ function UserTab({ users, groupedPermissions, canEdit }) {
             input: {
               startAdornment: (
                 <InputAdornment position="start">
-                  <i className="fas fa-search" style={{ fontSize: 13 }} aria-hidden="true" />
+                  <Iconify icon="fa6-solid:magnifying-glass" width={13} />
                 </InputAdornment>
               ),
             },
@@ -538,7 +539,7 @@ function UserTab({ users, groupedPermissions, canEdit }) {
               p: 2,
               mb: 2,
               borderRadius: 2.5,
-              bgcolor: '#f8fafc',
+              bgcolor: 'background.neutral',
             }}
           >
             <Avatar sx={{ bgcolor: 'secondary.main', width: 48, height: 48, fontWeight: 700 }}>
@@ -569,19 +570,19 @@ function UserTab({ users, groupedPermissions, canEdit }) {
 
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap', mb: 2 }}>
             <Typography variant="body2" sx={{ color: 'text.secondary', display: 'flex', alignItems: 'center', gap: 1 }}>
-              <i className="fas fa-user-plus" style={{ color: '#062849' }} aria-hidden="true" />
+              <Iconify icon="fa6-solid:user-plus" width={16} />
               <Chip size="small" label={direct.size} sx={{ bgcolor: '#eaf0f6', color: '#062849' }} /> direct
             </Typography>
             <Typography variant="body2" sx={{ color: 'text.secondary', display: 'flex', alignItems: 'center', gap: 1 }}>
-              <i className="fas fa-users" style={{ color: '#637381' }} aria-hidden="true" />
+              <Iconify icon="fa6-solid:users" width={16} />
               <Chip size="small" label={rolePermIds.size} sx={{ bgcolor: '#f1f5f9', color: '#475569' }} /> from roles
             </Typography>
             <Typography variant="body2" sx={{ color: 'text.secondary', display: 'flex', alignItems: 'center', gap: 1 }}>
-              <i className="fas fa-ban" style={{ color: '#ff5630' }} aria-hidden="true" />
+              <Iconify icon="fa6-solid:ban" width={16} />
               <Chip size="small" label={revoked.size} sx={{ bgcolor: '#ffe4de', color: '#b71d18' }} /> revoked
             </Typography>
             <Typography variant="body2" sx={{ color: 'text.secondary', display: 'flex', alignItems: 'center', gap: 1 }}>
-              <i className="fas fa-shield-alt" style={{ color: '#22c55e' }} aria-hidden="true" />
+              <Iconify icon="fa6-solid:shield-halved" width={16} />
               <Chip size="small" label={effectiveIds.size} sx={{ bgcolor: '#dbf5e9', color: '#118d57' }} /> effective
             </Typography>
             {canEdit && (
@@ -591,7 +592,7 @@ function UserTab({ users, groupedPermissions, canEdit }) {
                 onClick={save}
                 disabled={saving}
                 sx={{ ml: { md: 'auto' } }}
-                startIcon={saving ? <CircularProgress color="inherit" size={14} /> : <i className="fas fa-save" aria-hidden="true" />}
+                startIcon={saving ? <CircularProgress color="inherit" size={14} /> : <Iconify icon="fa6-solid:floppy-disk" width={16} />}
               >
                 {saving ? "Saving…" : "Save Changes"}
               </Button>
@@ -610,7 +611,7 @@ function UserTab({ users, groupedPermissions, canEdit }) {
         </Box>
       ) : (
         <Box sx={{ textAlign: 'center', py: 6 }}>
-          <i className="fas fa-user-slash" style={{ fontSize: 42, color: '#637381', opacity: 0.4 }} aria-hidden="true" />
+          <Iconify icon="fa6-solid:user-slash" width={42} />
           <Typography variant="subtitle2" sx={{ color: 'text.secondary', mt: 1.5 }}>
             No user selected
           </Typography>
@@ -638,7 +639,7 @@ function PermissionSkeleton() {
               gap: 1.5,
               px: 2,
               py: 1.5,
-              bgcolor: '#f8fafc',
+              bgcolor: 'background.neutral',
               borderBottom: '1px solid',
               borderColor: 'divider',
             }}
@@ -683,7 +684,7 @@ function PermissionGrid({
   if (groups.length === 0) {
     return (
       <Box sx={{ textAlign: 'center', py: 6 }}>
-        <i className="fas fa-search" style={{ fontSize: 42, color: '#637381', opacity: 0.4 }} aria-hidden="true" />
+        <Iconify icon="fa6-solid:magnifying-glass" width={42} />
         <Typography variant="subtitle2" sx={{ color: 'text.secondary', mt: 1.5 }}>
           No permissions match your search
         </Typography>
@@ -709,7 +710,7 @@ function PermissionGrid({
                 gap: 1.5,
                 px: 2,
                 py: 1.5,
-                bgcolor: '#f8fafc',
+                bgcolor: 'background.neutral',
                 borderBottom: '1px solid',
                 borderColor: 'divider',
               }}
@@ -727,7 +728,7 @@ function PermissionGrid({
                   flexShrink: 0,
                 }}
               >
-                <i className="fas fa-layer-group" aria-hidden="true" />
+                <Iconify icon="fa6-solid:layer-group" width={16} />
               </Box>
               <Box sx={{ flex: 1, minWidth: 0 }}>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
@@ -796,9 +797,9 @@ function PermissionGrid({
                     >
                       <Box sx={{ flexShrink: 0, display: 'flex', alignItems: 'center' }}>
                         {checked ? (
-                          <i className="fas fa-check-square" style={{ color: '#6528e8', fontSize: 14 }} aria-hidden="true" />
+                          <Iconify icon="fa6-solid:square-check" width={14} />
                         ) : (
-                          <i className="far fa-square" style={{ color: '#919eab', fontSize: 14 }} aria-hidden="true" />
+                          <Iconify icon="fa6-regular:square" width={14} />
                         )}
                       </Box>
                       <Box
@@ -814,7 +815,7 @@ function PermissionGrid({
                           flexShrink: 0,
                         }}
                       >
-                        <i className={`fas ${meta.icon}`} aria-hidden="true" />
+                        <Iconify icon={meta.icon} width={16} />
                       </Box>
                       <Typography
                         variant="body2"

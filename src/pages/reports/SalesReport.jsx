@@ -28,6 +28,7 @@ import {
 } from "@mui/material";
 import api from "../../api";
 import { canView } from "../../utils/permissions";
+import { Iconify } from "../../components/iconify";
 
 const formatMoney = (v) => {
   const n = Number(v || 0);
@@ -128,7 +129,7 @@ function StatCard({ label, value, icon, color, background, dark }) {
       <CardContent sx={{ p: 2.5 }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
           <Box sx={{ width: 44, height: 44, borderRadius: 2, display: 'grid', placeItems: 'center', bgcolor: background, color, flexShrink: 0 }}>
-            <i className={icon} style={{ fontSize: 18 }} aria-hidden="true" />
+            <Iconify icon={icon} width={18} />
           </Box>
           <Box sx={{ minWidth: 0 }}>
             <Typography variant="body2" sx={{ color: dark ? 'rgba(255,255,255,.7)' : 'text.secondary', mb: .25 }}>
@@ -282,8 +283,8 @@ export default function SalesReport() {
             size="small"
             disabled={loading}
             onClick={(e) => setExportAnchorEl(e.currentTarget)}
-            startIcon={<i className="fas fa-download" aria-hidden="true" />}
-            endIcon={<i className="fas fa-chevron-down" style={{ fontSize: 10 }} aria-hidden="true" />}
+            startIcon={<Iconify icon="fa6-solid:download" width={16} />}
+            endIcon={<Iconify icon="fa6-solid:chevron-down" width={10} />}
           >
             Export
           </Button>
@@ -294,7 +295,7 @@ export default function SalesReport() {
           >
             <MenuItem onClick={() => { setExportAnchorEl(null); handleDownloadPDF(); }}>
               <ListItemIcon sx={{ color: 'error.main' }}>
-                <i className="fas fa-file-pdf" aria-hidden="true" />
+                <Iconify icon="fa6-solid:file-pdf" width={16} />
               </ListItemIcon>
               <ListItemText>Download PDF</ListItemText>
             </MenuItem>
@@ -381,7 +382,7 @@ export default function SalesReport() {
                 type="submit"
                 variant="contained"
                 disabled={loading}
-                startIcon={loading ? <i className="fas fa-spinner fa-spin" aria-hidden="true" /> : <i className="fas fa-search" aria-hidden="true" />}
+                startIcon={loading ? <Iconify icon="fa6-solid:spinner" width={16} /> : <Iconify icon="fa6-solid:magnifying-glass" width={16} />}
               >
                 {loading ? "Loading..." : "Apply"}
               </Button>
@@ -390,7 +391,7 @@ export default function SalesReport() {
                 variant="outlined"
                 onClick={handleClear}
                 disabled={loading}
-                startIcon={<i className="fas fa-undo" aria-hidden="true" />}
+                startIcon={<Iconify icon="fa6-solid:arrow-rotate-left" width={16} />}
               >
                 Clear
               </Button>
@@ -413,11 +414,11 @@ export default function SalesReport() {
       </Card>
 
       <Box sx={{ display: 'grid', gridTemplateColumns: { xs: 'repeat(2, 1fr)', md: 'repeat(3, 1fr)', xl: 'repeat(5, 1fr)' }, gap: 2.5, mb: 2.5 }}>
-        <StatCard label="Total Sales" value={`₹${formatMoney(summary.total_sales)}`} icon="fas fa-cash-register" color="#118d57" background="#dbf5e9" />
-        <StatCard label="Total Quantity" value={Number(summary.total_quantity || 0).toFixed(3)} icon="fas fa-cubes" color="#006c9c" background="#caf4ff" />
-        <StatCard label="Total Discount" value={`₹${formatMoney(summary.total_discount)}`} icon="fas fa-tag" color="#b76e00" background="#fff4d6" />
-        <StatCard label="Total Tax" value={`₹${formatMoney(summary.total_tax)}`} icon="fas fa-receipt" color="#637381" background="#f1f5f9" />
-        <StatCard label="Grand Total" value={`₹${formatMoney(summary.grand_total)}`} icon="fas fa-wallet" color="#062849" background="rgba(255,255,255,.14)" dark />
+        <StatCard label="Total Sales" value={`₹${formatMoney(summary.total_sales)}`} icon="fa6-solid:cash-register" color="#118d57" background="#dbf5e9" />
+        <StatCard label="Total Quantity" value={Number(summary.total_quantity || 0).toFixed(3)} icon="fa6-solid:cubes" color="#006c9c" background="#caf4ff" />
+        <StatCard label="Total Discount" value={`₹${formatMoney(summary.total_discount)}`} icon="fa6-solid:tag" color="#b76e00" background="#fff4d6" />
+        <StatCard label="Total Tax" value={`₹${formatMoney(summary.total_tax)}`} icon="fa6-solid:receipt" color="#637381" background="#f1f5f9" />
+        <StatCard label="Grand Total" value={`₹${formatMoney(summary.grand_total)}`} icon="fa6-solid:wallet" color="#062849" background="rgba(255,255,255,.14)" dark />
       </Box>
 
       <Card sx={cardSx}>
@@ -432,7 +433,7 @@ export default function SalesReport() {
         <TableContainer sx={{ overflowX: 'auto' }}>
           <Table size="small" sx={{ minWidth: 1000 }}>
             <TableHead>
-              <TableRow sx={{ bgcolor: '#f8fafc' }}>
+              <TableRow sx={{ bgcolor: 'background.neutral' }}>
                 {!isGrouped && (
                   <>
                     <TableCell sx={headCellSx}>Date</TableCell>
@@ -475,7 +476,7 @@ export default function SalesReport() {
                 <TableRow>
                   <TableCell colSpan={10} align="center" sx={{ py: 5 }}>
                     <Box sx={{ color: 'text.secondary' }}>
-                      <i className="fas fa-inbox" style={{ fontSize: 28, display: 'block', marginBottom: 8 }} aria-hidden="true" />
+                      <Iconify icon="fa6-solid:inbox" width={28} />
                       <Typography variant="body2" sx={{ fontWeight: 700, color: 'text.secondary' }}>No data found</Typography>
                       <Typography variant="caption" color="text.secondary">Try adjusting your date range or filters</Typography>
                     </Box>

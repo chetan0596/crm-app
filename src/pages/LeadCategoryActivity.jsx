@@ -7,6 +7,7 @@ import {
   Divider,
   Typography,
 } from "@mui/material";
+import { Iconify } from "../components/iconify";
 
 const cardSx = {
   border: '1px solid',
@@ -16,9 +17,9 @@ const cardSx = {
 };
 
 const iconByAction = {
-  create: { icon: 'fas fa-plus', color: '#22c55e' },
-  update: { icon: 'fas fa-edit', color: '#00b8d9' },
-  delete: { icon: 'fas fa-trash', color: '#ff5630' },
+  create: { icon: 'fa6-solid:plus', color: '#22c55e' },
+  update: { icon: 'fa6-solid:pen-to-square', color: '#00b8d9' },
+  delete: { icon: 'fa6-solid:trash-can', color: '#ff5630' },
 };
 
 export default function LeadCategoryActivity() {
@@ -53,7 +54,7 @@ export default function LeadCategoryActivity() {
     }
   ];
 
-  const icon = (a) => iconByAction[a] || { icon: 'fas fa-circle', color: '#637381' };
+  const icon = (a) => iconByAction[a] || { icon: 'fa6-solid:circle', color: '#637381' };
 
   return (
     <Box>
@@ -65,7 +66,7 @@ export default function LeadCategoryActivity() {
           <Button
             variant="outlined"
             onClick={() => nav(-1)}
-            startIcon={<i className="fas fa-arrow-left" aria-hidden="true" />}
+            startIcon={<Iconify icon="fa6-solid:arrow-left" width={16} />}
           >
             Back
           </Button>
@@ -104,11 +105,11 @@ export default function LeadCategoryActivity() {
                     fontSize: 13,
                   }}
                 >
-                  <i className={meta.icon} aria-hidden="true" />
+                  <Iconify icon={meta.icon} width={16} />
                 </Box>
                 <Box sx={{ minWidth: 0 }}>
                   <Typography variant="caption" sx={{ color: 'text.secondary', display: 'flex', alignItems: 'center', gap: .75 }}>
-                    <i className="far fa-clock" aria-hidden="true" /> {l.time}
+                    <Iconify icon="fa6-regular:clock" width={16} /> {l.time}
                   </Typography>
                   <Typography variant="subtitle2" sx={{ color: 'text.primary', fontWeight: 700, mt: .25 }}>
                     {l.action.toUpperCase()}

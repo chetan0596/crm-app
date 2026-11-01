@@ -23,6 +23,7 @@ import {
   Typography,
 } from "@mui/material";
 import api from "../api";
+import { Iconify } from "../components/iconify";
 
 const toArray = (value) => {
   if (Array.isArray(value)) return value;
@@ -155,7 +156,7 @@ function ReportTable({ columns, data, sortField, sortDir, onSort }) {
     <TableContainer sx={{ overflowX: 'auto' }}>
       <Table sx={{ minWidth: 860 }} size="small">
         <TableHead>
-          <TableRow sx={{ bgcolor: '#f8fafc' }}>
+          <TableRow sx={{ bgcolor: 'background.neutral' }}>
             {columns.map((column) => (
               <TableCell
                 key={column.key}
@@ -179,7 +180,7 @@ function ReportTable({ columns, data, sortField, sortDir, onSort }) {
           {data.length === 0 ? (
             <TableRow>
               <TableCell colSpan={columns.length} align="center" sx={{ py: 7 }}>
-                <i className="fas fa-folder-open" style={{ color: '#637381', fontSize: 42, opacity: .4 }} aria-hidden="true" />
+                <Iconify icon="fa6-solid:folder-open" width={42} />
                 <Typography variant="subtitle2" sx={{ color: 'text.secondary', mt: 1.5 }}>
                   No data found
                 </Typography>
@@ -384,11 +385,11 @@ export default function WarehouseReports() {
         scrollButtons="auto"
         sx={{ mb: 2.5, borderBottom: '1px solid', borderColor: 'divider' }}
       >
-        <Tab value="stock" label="Stock by Godown" icon={<i className="fas fa-boxes-stacked" aria-hidden="true" />} iconPosition="start" />
-        <Tab value="summary" label="Godown Summary" icon={<i className="fas fa-warehouse" aria-hidden="true" />} iconPosition="start" />
-        <Tab value="ledger" label="Item Ledger" icon={<i className="fas fa-clipboard-list" aria-hidden="true" />} iconPosition="start" />
-        <Tab value="transfers" label="Transfer History" icon={<i className="fas fa-arrow-right-arrow-left" aria-hidden="true" />} iconPosition="start" />
-        <Tab value="lowstock" label="Low Stock" icon={<i className="fas fa-triangle-exclamation" aria-hidden="true" />} iconPosition="start" />
+        <Tab value="stock" label="Stock by Godown" icon={<Iconify icon="fa6-solid:boxes-stacked" width={16} />} iconPosition="start" />
+        <Tab value="summary" label="Godown Summary" icon={<Iconify icon="fa6-solid:warehouse" width={16} />} iconPosition="start" />
+        <Tab value="ledger" label="Item Ledger" icon={<Iconify icon="fa6-solid:clipboard-list" width={16} />} iconPosition="start" />
+        <Tab value="transfers" label="Transfer History" icon={<Iconify icon="fa6-solid:arrow-right-arrow-left" width={16} />} iconPosition="start" />
+        <Tab value="lowstock" label="Low Stock" icon={<Iconify icon="fa6-solid:triangle-exclamation" width={16} />} iconPosition="start" />
       </Tabs>
 
       {activeTab === "stock" && (
@@ -431,7 +432,7 @@ export default function WarehouseReports() {
             <Typography variant="subtitle1" sx={{ color: 'text.primary', fontWeight: 700 }}>
               Godown-wise Stock Summary
             </Typography>
-            <Button variant="outlined" size="small" onClick={loadWarehouseSummary} startIcon={<i className="fas fa-sync-alt" aria-hidden="true" />}>
+            <Button variant="outlined" size="small" onClick={loadWarehouseSummary} startIcon={<Iconify icon="fa6-solid:arrows-rotate" width={16} />}>
               Refresh
             </Button>
           </Box>
@@ -531,7 +532,7 @@ export default function WarehouseReports() {
             <Typography variant="subtitle1" sx={{ color: 'text.primary', fontWeight: 700 }}>
               Low Stock Items by Godown
             </Typography>
-            <Button variant="outlined" size="small" onClick={loadLowStock} startIcon={<i className="fas fa-sync-alt" aria-hidden="true" />}>
+            <Button variant="outlined" size="small" onClick={loadLowStock} startIcon={<Iconify icon="fa6-solid:arrows-rotate" width={16} />}>
               Refresh
             </Button>
           </Box>

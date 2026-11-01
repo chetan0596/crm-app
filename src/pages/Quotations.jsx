@@ -41,6 +41,7 @@ import Swal from "sweetalert2";
 import { toast } from "react-toastify";
 import api from "../api";
 import { canCreate, canEdit, canDelete, canView } from "../utils/permissions";
+import { Iconify } from "../components/iconify";
 
 const tableReducer = (state, action) => {
   switch (action.type) {
@@ -107,7 +108,7 @@ const bodyCellSx = {
 
 const sectionBoxSx = {
   p: 2,
-  bgcolor: '#f8fafc',
+  bgcolor: 'background.neutral',
   border: '1px solid',
   borderColor: 'divider',
   borderRadius: 2,
@@ -462,7 +463,7 @@ export default function Quotations() {
             aria-haspopup="true"
             sx={{ border: '1px solid', borderColor: 'divider' }}
           >
-            <i className="fas fa-ellipsis-vertical" style={{ fontSize: 13 }} aria-hidden="true" />
+            <Iconify icon="fa6-solid:ellipsis-vertical" width={13} />
           </IconButton>
         </Tooltip>
       ),
@@ -505,14 +506,14 @@ export default function Quotations() {
                   input: {
                     startAdornment: (
                       <InputAdornment position="start">
-                        <i className="fas fa-search" style={{ fontSize: 13 }} aria-hidden="true" />
+                        <Iconify icon="fa6-solid:magnifying-glass" width={13} />
                       </InputAdornment>
                     ),
                   },
                 }}
               />
               {canCreate("quotations") && (
-                <Button variant="contained" onClick={openAdd} startIcon={<i className="fas fa-plus" aria-hidden="true" />}>
+                <Button variant="contained" onClick={openAdd} startIcon={<Iconify icon="fa6-solid:plus" width={16} />}>
                   New Quotation
                 </Button>
               )}
@@ -524,7 +525,7 @@ export default function Quotations() {
         <TableContainer sx={{ overflowX: 'auto' }}>
           <Table sx={{ minWidth: 960 }} size="small">
             <TableHead>
-              <TableRow sx={{ bgcolor: '#f8fafc' }}>
+              <TableRow sx={{ bgcolor: 'background.neutral' }}>
                 {columns.map((column) => (
                   <TableCell
                     key={column.key}
@@ -548,7 +549,7 @@ export default function Quotations() {
               {rows.length === 0 && !loading ? (
                 <TableRow>
                   <TableCell colSpan={Math.max(columns.length, 1)} align="center" sx={{ py: 7 }}>
-                    <i className="fas fa-folder-open" style={{ color: '#637381', fontSize: 42, opacity: .4 }} aria-hidden="true" />
+                    <Iconify icon="fa6-solid:folder-open" width={42} />
                     <Typography variant="subtitle2" sx={{ color: 'text.secondary', mt: 1.5 }}>
                       No data found
                     </Typography>
@@ -590,33 +591,33 @@ export default function Quotations() {
           slotProps={{ paper: { sx: menuPaperSx } }}
         >
           <MenuItem onClick={runRowAction(viewQuotation)}>
-            <ListItemIcon><i className="fas fa-eye" aria-hidden="true" /></ListItemIcon>
+            <ListItemIcon><Iconify icon="fa6-solid:eye" width={16} /></ListItemIcon>
             <ListItemText primary="View" />
           </MenuItem>
           <MenuItem onClick={runRowAction(handleViewQuotationPDF)}>
-            <ListItemIcon><i className="fas fa-file-pdf" aria-hidden="true" /></ListItemIcon>
+            <ListItemIcon><Iconify icon="fa6-solid:file-pdf" width={16} /></ListItemIcon>
             <ListItemText primary="View PDF" />
           </MenuItem>
           <MenuItem onClick={runRowAction(handleDownloadQuotationPDF)}>
-            <ListItemIcon><i className="fas fa-download" aria-hidden="true" /></ListItemIcon>
+            <ListItemIcon><Iconify icon="fa6-solid:download" width={16} /></ListItemIcon>
             <ListItemText primary="Download PDF" />
           </MenuItem>
           {actionRow?.status !== 'converted' && canEdit("quotations") && (
             <MenuItem onClick={runRowAction(openEdit)}>
-              <ListItemIcon><i className="fas fa-edit" aria-hidden="true" /></ListItemIcon>
+              <ListItemIcon><Iconify icon="fa6-solid:pen-to-square" width={16} /></ListItemIcon>
               <ListItemText primary="Edit" />
             </MenuItem>
           )}
           {actionRow?.status === 'accepted' && canCreate("quotations") && (
             <MenuItem onClick={runRowAction(convertToSale)}>
-              <ListItemIcon sx={{ color: 'success.main' }}><i className="fas fa-file-invoice" aria-hidden="true" /></ListItemIcon>
+              <ListItemIcon sx={{ color: 'success.main' }}><Iconify icon="fa6-solid:file-lines" width={16} /></ListItemIcon>
               <ListItemText primary="Convert to Invoice" />
             </MenuItem>
           )}
           {actionRow?.status !== 'converted' && canDelete("quotations") && <Divider />}
           {actionRow?.status !== 'converted' && canDelete("quotations") && (
             <MenuItem onClick={runRowAction(deleteQuotation)} sx={{ color: 'error.main' }}>
-              <ListItemIcon sx={{ color: 'error.main' }}><i className="fas fa-trash" aria-hidden="true" /></ListItemIcon>
+              <ListItemIcon sx={{ color: 'error.main' }}><Iconify icon="fa6-solid:trash-can" width={16} /></ListItemIcon>
               <ListItemText primary="Delete" />
             </MenuItem>
           )}
@@ -650,7 +651,7 @@ export default function Quotations() {
         <DialogTitle sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 2 }}>
           <Typography variant="h6" sx={{ fontWeight: 700 }}>{editingId ? 'Edit Quotation' : 'New Quotation'}</Typography>
           <IconButton size="small" onClick={() => setShow(false)} aria-label="Close">
-            <i className="fas fa-times" style={{ fontSize: 14 }} aria-hidden="true" />
+            <Iconify icon="fa6-solid:xmark" width={14} />
           </IconButton>
         </DialogTitle>
         <DialogContent dividers>
@@ -703,13 +704,13 @@ export default function Quotations() {
 
           <Box sx={{ ...sectionBoxSx, mb: 3 }}>
             <Typography sx={sectionTitleSx}>
-              <i className="fas fa-box" aria-hidden="true" />Items
+              <Iconify icon="fa6-solid:box" width={16} />Items
             </Typography>
             <Box sx={borderedTableSx}>
               <TableContainer sx={{ overflowX: 'auto' }}>
                 <Table size="small" sx={{ minWidth: 780 }}>
                   <TableHead>
-                    <TableRow sx={{ bgcolor: '#f8fafc' }}>
+                    <TableRow sx={{ bgcolor: 'background.neutral' }}>
                       <TableCell align="center" sx={{ ...headerCellSx, ...borderedCellSx, width: 40 }}>#</TableCell>
                       <TableCell sx={{ ...headerCellSx, ...borderedCellSx, minWidth: 220 }}>Item</TableCell>
                       <TableCell sx={{ ...headerCellSx, ...borderedCellSx, width: 80 }}>Qty</TableCell>
@@ -755,7 +756,7 @@ export default function Quotations() {
                           <TableCell align="right" sx={{ ...borderedCellSx, fontWeight: 700 }}>₹{amount.toFixed(2)}</TableCell>
                           <TableCell align="center" sx={borderedCellSx}>
                             <IconButton size="small" color="error" onClick={() => removeItemRow(idx)} aria-label="Remove item">
-                              <i className="fas fa-trash" style={{ fontSize: 13 }} aria-hidden="true" />
+                              <Iconify icon="fa6-solid:trash-can" width={13} />
                             </IconButton>
                           </TableCell>
                         </TableRow>
@@ -766,7 +767,7 @@ export default function Quotations() {
               </TableContainer>
             </Box>
             <Box sx={{ mt: 1.5 }}>
-              <Button variant="outlined" size="small" onClick={addItemRow} startIcon={<i className="fas fa-plus" aria-hidden="true" />}>
+              <Button variant="outlined" size="small" onClick={addItemRow} startIcon={<Iconify icon="fa6-solid:plus" width={16} />}>
                 Add Item
               </Button>
             </Box>
@@ -823,23 +824,23 @@ export default function Quotations() {
           <Typography variant="h6" sx={{ fontWeight: 700 }}>Quotation #{viewData?.quotation_number}</Typography>
           <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
             {viewData?.status === 'accepted' && canCreate("quotations") && (
-              <Button variant="contained" color="success" size="small" onClick={() => { setViewShow(false); convertToSale(viewData); }} startIcon={<i className="fas fa-file-invoice" aria-hidden="true" />}>
+              <Button variant="contained" color="success" size="small" onClick={() => { setViewShow(false); convertToSale(viewData); }} startIcon={<Iconify icon="fa6-solid:file-lines" width={16} />}>
                 Convert to Invoice
               </Button>
             )}
             {viewData?.status !== 'converted' && canEdit("quotations") && (
-              <Button variant="contained" size="small" onClick={() => { setViewShow(false); openEdit(viewData); }} startIcon={<i className="fas fa-edit" aria-hidden="true" />}>
+              <Button variant="contained" size="small" onClick={() => { setViewShow(false); openEdit(viewData); }} startIcon={<Iconify icon="fa6-solid:pen-to-square" width={16} />}>
                 Edit
               </Button>
             )}
-            <Button variant="outlined" size="small" disabled={!viewData} onClick={() => handleViewQuotationPDF(viewData)} startIcon={<i className="fas fa-file-pdf" aria-hidden="true" />}>
+            <Button variant="outlined" size="small" disabled={!viewData} onClick={() => handleViewQuotationPDF(viewData)} startIcon={<Iconify icon="fa6-solid:file-pdf" width={16} />}>
               View PDF
             </Button>
-            <Button variant="outlined" size="small" disabled={!viewData} onClick={() => handleDownloadQuotationPDF(viewData)} startIcon={<i className="fas fa-download" aria-hidden="true" />}>
+            <Button variant="outlined" size="small" disabled={!viewData} onClick={() => handleDownloadQuotationPDF(viewData)} startIcon={<Iconify icon="fa6-solid:download" width={16} />}>
               Download
             </Button>
             <IconButton size="small" onClick={() => setViewShow(false)} aria-label="Close">
-              <i className="fas fa-times" style={{ fontSize: 14 }} aria-hidden="true" />
+              <Iconify icon="fa6-solid:xmark" width={14} />
             </IconButton>
           </Stack>
         </DialogTitle>
@@ -872,20 +873,20 @@ export default function Quotations() {
                 <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
                   {viewData.status === 'draft' && canEdit("quotations") && (
                     <>
-                      <Button variant="outlined" size="small" onClick={async () => { await api.put(`/quotations/${viewData.id}`, {...viewData, status: 'sent'}); setReloadKey(k => k + 1); setViewShow(false); toast.success("Marked as Sent"); }} startIcon={<i className="fas fa-paper-plane" aria-hidden="true" />}>
+                      <Button variant="outlined" size="small" onClick={async () => { await api.put(`/quotations/${viewData.id}`, {...viewData, status: 'sent'}); setReloadKey(k => k + 1); setViewShow(false); toast.success("Marked as Sent"); }} startIcon={<Iconify icon="fa6-solid:paper-plane" width={16} />}>
                         Mark as Sent
                       </Button>
-                      <Button variant="outlined" size="small" color="success" onClick={async () => { await api.put(`/quotations/${viewData.id}`, {...viewData, status: 'accepted'}); setReloadKey(k => k + 1); setViewShow(false); toast.success("Marked as Accepted"); }} startIcon={<i className="fas fa-check" aria-hidden="true" />}>
+                      <Button variant="outlined" size="small" color="success" onClick={async () => { await api.put(`/quotations/${viewData.id}`, {...viewData, status: 'accepted'}); setReloadKey(k => k + 1); setViewShow(false); toast.success("Marked as Accepted"); }} startIcon={<Iconify icon="fa6-solid:check" width={16} />}>
                         Mark as Accepted
                       </Button>
                     </>
                   )}
                   {viewData.status === 'sent' && canEdit("quotations") && (
                     <>
-                      <Button variant="outlined" size="small" color="success" onClick={async () => { await api.put(`/quotations/${viewData.id}`, {...viewData, status: 'accepted'}); setReloadKey(k => k + 1); setViewShow(false); toast.success("Marked as Accepted"); }} startIcon={<i className="fas fa-check" aria-hidden="true" />}>
+                      <Button variant="outlined" size="small" color="success" onClick={async () => { await api.put(`/quotations/${viewData.id}`, {...viewData, status: 'accepted'}); setReloadKey(k => k + 1); setViewShow(false); toast.success("Marked as Accepted"); }} startIcon={<Iconify icon="fa6-solid:check" width={16} />}>
                         Mark as Accepted
                       </Button>
-                      <Button variant="outlined" size="small" color="error" onClick={async () => { await api.put(`/quotations/${viewData.id}`, {...viewData, status: 'rejected'}); setReloadKey(k => k + 1); setViewShow(false); toast.success("Marked as Rejected"); }} startIcon={<i className="fas fa-times" aria-hidden="true" />}>
+                      <Button variant="outlined" size="small" color="error" onClick={async () => { await api.put(`/quotations/${viewData.id}`, {...viewData, status: 'rejected'}); setReloadKey(k => k + 1); setViewShow(false); toast.success("Marked as Rejected"); }} startIcon={<Iconify icon="fa6-solid:xmark" width={16} />}>
                         Mark as Rejected
                       </Button>
                     </>
@@ -897,7 +898,7 @@ export default function Quotations() {
                 <TableContainer sx={{ overflowX: 'auto' }}>
                   <Table size="small">
                     <TableHead>
-                      <TableRow sx={{ bgcolor: '#f8fafc' }}>
+                      <TableRow sx={{ bgcolor: 'background.neutral' }}>
                         <TableCell sx={{ ...headerCellSx, ...borderedCellSx }}>Item</TableCell>
                         <TableCell sx={{ ...headerCellSx, ...borderedCellSx }}>Qty</TableCell>
                         <TableCell sx={{ ...headerCellSx, ...borderedCellSx }}>Price</TableCell>
@@ -948,7 +949,7 @@ export default function Quotations() {
               </Box>
 
               {viewData.notes && (
-                <Box sx={{ mt: 2, p: 2, bgcolor: '#f8fafc', borderRadius: 2 }}>
+                <Box sx={{ mt: 2, p: 2, bgcolor: 'background.neutral', borderRadius: 2 }}>
                   <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 700 }}>Notes:</Typography>
                   <Typography variant="body2" sx={{ mb: 0 }}>{viewData.notes}</Typography>
                 </Box>
@@ -956,7 +957,7 @@ export default function Quotations() {
               {viewData.converted_sale && (
                 <Box sx={{ mt: 2, p: 2, bgcolor: 'success.main', color: '#fff', borderRadius: 2 }}>
                   <Typography variant="body2" sx={{ fontWeight: 700 }}>
-                    <i className="fas fa-check-circle" style={{ marginRight: 8 }} aria-hidden="true" />
+                    <Iconify icon="fa6-solid:circle-check" width={16} />
                     Converted to Invoice: {viewData.converted_sale.invoice_number}
                   </Typography>
                 </Box>

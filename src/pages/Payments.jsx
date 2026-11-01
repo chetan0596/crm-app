@@ -40,6 +40,7 @@ import { toast } from "react-toastify";
 import api from "../api";
 import { canCreate, canEdit, canDelete, canView } from "../utils/permissions";
 import WhatsAppSendModal from "../components/WhatsAppSendModal";
+import { Iconify } from "../components/iconify";
 
 const tableReducer = (state, action) => {
   switch (action.type) {
@@ -440,21 +441,21 @@ export default function Payments() {
           {canEdit("payments") && (
             <Tooltip title="Edit">
               <IconButton size="small" color="primary" onClick={() => openEdit(row)} aria-label="Edit payment" sx={{ border: '1px solid', borderColor: 'divider' }}>
-                <i className="fas fa-edit" style={{ fontSize: 12 }} aria-hidden="true" />
+                <Iconify icon="fa6-solid:pen-to-square" width={12} />
               </IconButton>
             </Tooltip>
           )}
           {canDelete("payments") && (
             <Tooltip title="Delete">
               <IconButton size="small" color="error" onClick={() => deletePayment(row)} aria-label="Delete payment" sx={{ border: '1px solid', borderColor: 'divider' }}>
-                <i className="fas fa-trash" style={{ fontSize: 12 }} aria-hidden="true" />
+                <Iconify icon="fa6-solid:trash-can" width={12} />
               </IconButton>
             </Tooltip>
           )}
           {(row.sale?.customer?.phone || row.purchase?.vendor?.phone) && (
             <Tooltip title="Send WhatsApp">
               <IconButton size="small" color="success" onClick={() => { setWaTarget(row); setWaShow(true); }} aria-label="Send WhatsApp" sx={{ border: '1px solid', borderColor: 'divider' }}>
-                <i className="fab fa-whatsapp" style={{ fontSize: 12 }} aria-hidden="true" />
+                <Iconify icon="fa6-brands:whatsapp" width={12} />
               </IconButton>
             </Tooltip>
           )}
@@ -494,12 +495,12 @@ export default function Payments() {
       key: 'action', label: 'Action', minWidth: 130, align: 'right',
       render: (row) => (
         row.outstanding > 0 && canCreate("payments") ? (
-          <Button variant="contained" size="small" onClick={() => openPaymentFor(row, row.type)} startIcon={<i className="fas fa-plus" aria-hidden="true" />}>
+          <Button variant="contained" size="small" onClick={() => openPaymentFor(row, row.type)} startIcon={<Iconify icon="fa6-solid:plus" width={16} />}>
             Pay
           </Button>
         ) : (
           <Typography variant="body2" sx={{ color: 'success.main', display: 'inline-flex', alignItems: 'center', gap: .75 }}>
-            <i className="fas fa-check-circle" aria-hidden="true" /> Paid
+            <Iconify icon="fa6-solid:circle-check" width={16} /> Paid
           </Typography>
         )
       ),
@@ -592,23 +593,23 @@ export default function Payments() {
                 input: {
                   startAdornment: (
                     <InputAdornment position="start">
-                      <i className="fas fa-search" style={{ fontSize: 13 }} aria-hidden="true" />
+                      <Iconify icon="fa6-solid:magnifying-glass" width={13} />
                     </InputAdornment>
                   ),
                 },
               }}
             />
             {activeTab === "payments" && canCreate("payments") && (
-              <Button variant="contained" onClick={openAdd} startIcon={<i className="fas fa-plus" aria-hidden="true" />}>
+              <Button variant="contained" onClick={openAdd} startIcon={<Iconify icon="fa6-solid:plus" width={16} />}>
                 Record Payment
               </Button>
             )}
             {activeTab !== "payments" && (
               <>
-                <Button variant="contained" color="success" onClick={downloadOutstandingExcel} disabled={loading} startIcon={<i className="fas fa-file-excel" aria-hidden="true" />}>
+                <Button variant="contained" color="success" onClick={downloadOutstandingExcel} disabled={loading} startIcon={<Iconify icon="fa6-solid:file-excel" width={16} />}>
                   Excel
                 </Button>
-                <Button variant="contained" color="error" onClick={downloadOutstandingPDF} disabled={loading} startIcon={<i className="fas fa-file-pdf" aria-hidden="true" />}>
+                <Button variant="contained" color="error" onClick={downloadOutstandingPDF} disabled={loading} startIcon={<Iconify icon="fa6-solid:file-pdf" width={16} />}>
                   PDF
                 </Button>
               </>
@@ -617,7 +618,7 @@ export default function Payments() {
         </Box>
 
         {activeTab !== "payments" && (
-          <Box sx={{ px: 3, py: 2, borderBottom: '1px solid', borderColor: 'divider', bgcolor: '#f8fafc' }}>
+          <Box sx={{ px: 3, py: 2, borderBottom: '1px solid', borderColor: 'divider', bgcolor: 'background.neutral' }}>
             <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', lg: 'repeat(5, 1fr)' }, gap: 2 }}>
               <TextField
                 size="small"
@@ -700,7 +701,7 @@ export default function Payments() {
         <TableContainer sx={{ overflowX: 'auto' }}>
           <Table sx={{ minWidth: 1000 }} size="small">
             <TableHead>
-              <TableRow sx={{ bgcolor: '#f8fafc' }}>
+              <TableRow sx={{ bgcolor: 'background.neutral' }}>
                 {activeColumns.map((column) => (
                   <TableCell
                     key={column.key}
@@ -724,7 +725,7 @@ export default function Payments() {
               {sortedRows.length === 0 && !loading ? (
                 <TableRow>
                   <TableCell colSpan={Math.max(activeColumns.length, 1)} align="center" sx={{ py: 7 }}>
-                    <i className="fas fa-folder-open" style={{ color: '#637381', fontSize: 42, opacity: .4 }} aria-hidden="true" />
+                    <Iconify icon="fa6-solid:folder-open" width={42} />
                     <Typography variant="subtitle2" sx={{ color: 'text.secondary', mt: 1.5 }}>
                       No data found
                     </Typography>
@@ -785,7 +786,7 @@ export default function Payments() {
         <DialogTitle sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 2 }}>
           <Typography variant="h6" sx={{ fontWeight: 700 }}>{editingId ? "Edit Payment" : "Record Payment"}</Typography>
           <IconButton size="small" onClick={() => setShow(false)} aria-label="Close">
-            <i className="fas fa-times" style={{ fontSize: 14 }} aria-hidden="true" />
+            <Iconify icon="fa6-solid:xmark" width={14} />
           </IconButton>
         </DialogTitle>
         <DialogContent dividers>

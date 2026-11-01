@@ -35,6 +35,7 @@ import Swal from "sweetalert2";
 import { toast } from "react-toastify";
 import api from "../api";
 import { canCreate, canDelete, canEdit, canView } from "../utils/permissions";
+import { Iconify } from "../components/iconify";
 
 function getNum(v, d) {
   const n = Number(v);
@@ -305,14 +306,14 @@ export default function LeadSources() {
                   input: {
                     startAdornment: (
                       <InputAdornment position="start">
-                        <i className="fas fa-search" style={{ fontSize: 13 }} aria-hidden="true" />
+                        <Iconify icon="fa6-solid:magnifying-glass" width={13} />
                       </InputAdornment>
                     ),
                   },
                 }}
               />
               {canCreate("leads") && (
-                <Button variant="contained" onClick={openAdd} startIcon={<i className="fas fa-plus" aria-hidden="true" />}>
+                <Button variant="contained" onClick={openAdd} startIcon={<Iconify icon="fa6-solid:plus" width={16} />}>
                   New
                 </Button>
               )}
@@ -324,7 +325,7 @@ export default function LeadSources() {
         <TableContainer sx={{ overflowX: 'auto' }}>
           <Table sx={{ minWidth: 720 }} size="small">
             <TableHead>
-              <TableRow sx={{ bgcolor: '#f8fafc' }}>
+              <TableRow sx={{ bgcolor: 'background.neutral' }}>
                 <TableCell sx={{ ...headCellSx, width: 80 }}>ID</TableCell>
                 <TableCell sx={headCellSx}>
                   <TableSortLabel
@@ -344,7 +345,7 @@ export default function LeadSources() {
               {displayRows.length === 0 && !loading ? (
                 <TableRow>
                   <TableCell colSpan={5} align="center" sx={{ py: 7 }}>
-                    <i className="fas fa-folder-open" style={{ color: '#637381', fontSize: 42, opacity: .4 }} aria-hidden="true" />
+                    <Iconify icon="fa6-solid:folder-open" width={42} />
                     <Typography variant="subtitle2" sx={{ color: 'text.secondary', mt: 1.5 }}>
                       No data found
                     </Typography>
@@ -375,7 +376,7 @@ export default function LeadSources() {
                             disabled={rows.findIndex((x) => x.id === r.id) <= 0}
                             sx={{ border: '1px solid', borderColor: 'divider' }}
                           >
-                            <i className="fas fa-arrow-up" style={{ fontSize: 11 }} aria-hidden="true" />
+                            <Iconify icon="fa6-solid:arrow-up" width={11} />
                           </IconButton>
                           <IconButton
                             size="small"
@@ -387,7 +388,7 @@ export default function LeadSources() {
                             })()}
                             sx={{ border: '1px solid', borderColor: 'divider' }}
                           >
-                            <i className="fas fa-arrow-down" style={{ fontSize: 11 }} aria-hidden="true" />
+                            <Iconify icon="fa6-solid:arrow-down" width={11} />
                           </IconButton>
                         </Stack>
                       )}
@@ -407,14 +408,14 @@ export default function LeadSources() {
                       {canEdit("leads") && (
                         <Tooltip title="Edit">
                           <IconButton size="small" color="primary" onClick={() => openEdit(r)} sx={{ border: '1px solid', borderColor: 'divider' }} aria-label="Edit">
-                            <i className="fas fa-edit" style={{ fontSize: 13 }} aria-hidden="true" />
+                            <Iconify icon="fa6-solid:pen-to-square" width={13} />
                           </IconButton>
                         </Tooltip>
                       )}
                       {canDelete("leads") && (
                         <Tooltip title="Delete">
                           <IconButton size="small" color="error" onClick={() => remove(r)} sx={{ border: '1px solid', borderColor: 'divider' }} aria-label="Delete">
-                            <i className="fas fa-trash" style={{ fontSize: 13 }} aria-hidden="true" />
+                            <Iconify icon="fa6-solid:trash-can" width={13} />
                           </IconButton>
                         </Tooltip>
                       )}
@@ -453,13 +454,13 @@ export default function LeadSources() {
       >
         <DialogTitle sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 2, py: 2 }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25 }}>
-            <i className={`fas ${edit ? 'fa-edit' : 'fa-plus'}`} style={{ color: '#062849', fontSize: 15 }} aria-hidden="true" />
+            <Iconify icon={edit ? 'fa6-solid:pen-to-square' : 'fa6-solid:plus'} width={15} sx={{ color: '#062849' }} />
             <Typography variant="h6" sx={{ fontWeight: 700 }}>
               {edit ? "Edit" : "Create"} Lead Source
             </Typography>
           </Box>
           <IconButton size="small" onClick={() => setShow(false)} aria-label="Close">
-            <i className="fas fa-times" style={{ fontSize: 14 }} aria-hidden="true" />
+            <Iconify icon="fa6-solid:xmark" width={14} />
           </IconButton>
         </DialogTitle>
 

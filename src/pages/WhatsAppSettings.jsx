@@ -24,6 +24,7 @@ import {
 } from "@mui/material";
 import { toast } from "react-toastify";
 import { whatsappApi } from "../services/whatsapp";
+import { Iconify } from "../components/iconify";
 
 const toArray = (value) => {
   if (Array.isArray(value)) return value;
@@ -156,7 +157,7 @@ export default function WhatsAppSettings() {
                 variant="outlined"
                 onClick={test}
                 disabled={testing}
-                startIcon={testing ? <CircularProgress size={16} color="inherit" /> : <i className="fas fa-plug" aria-hidden="true" />}
+                startIcon={testing ? <CircularProgress size={16} color="inherit" /> : <Iconify icon="fa6-solid:plug" width={16} />}
               >
                 Test Connection
               </Button>
@@ -164,7 +165,7 @@ export default function WhatsAppSettings() {
                 variant="contained"
                 onClick={save}
                 disabled={saving}
-                startIcon={saving ? <CircularProgress size={16} color="inherit" /> : <i className="fas fa-save" aria-hidden="true" />}
+                startIcon={saving ? <CircularProgress size={16} color="inherit" /> : <Iconify icon="fa6-solid:floppy-disk" width={16} />}
               >
                 Save
               </Button>
@@ -255,7 +256,7 @@ export default function WhatsAppSettings() {
                           aria-label="Copy webhook URL"
                           sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 2, height: 40, width: 40, alignSelf: 'flex-start' }}
                         >
-                          <i className="fas fa-copy" style={{ fontSize: 13 }} aria-hidden="true" />
+                          <Iconify icon="fa6-solid:copy" width={13} />
                         </IconButton>
                       </Tooltip>
                     </Box>
@@ -324,7 +325,7 @@ export default function WhatsAppSettings() {
               <TableContainer sx={{ overflowX: 'auto', mt: 1 }}>
                 <Table size="small" sx={{ minWidth: 640 }}>
                   <TableHead>
-                    <TableRow sx={{ bgcolor: '#f8fafc' }}>
+                    <TableRow sx={{ bgcolor: 'background.neutral' }}>
                       <TableCell sx={headCellSx}>Name</TableCell>
                       <TableCell sx={headCellSx}>Category</TableCell>
                       <TableCell sx={headCellSx}>Language</TableCell>

@@ -31,6 +31,7 @@ import { toast } from "react-toastify";
 import api from "../api";
 import { canEdit, canView, getUserData } from "../utils/permissions";
 import WhatsAppSendModal from "../components/WhatsAppSendModal";
+import { Iconify } from "../components/iconify";
 
 const typeLabels = {
   call: "Call",
@@ -42,12 +43,12 @@ const typeLabels = {
 };
 
 const typeIcons = {
-  call: "fas fa-phone",
-  message: "fas fa-comment-dots",
-  meeting: "fas fa-handshake",
-  site_visit: "fas fa-map-marker-alt",
-  follow_up: "fas fa-bell",
-  system: "fas fa-robot",
+  call: "fa6-solid:phone",
+  message: "fa6-solid:comment-dots",
+  meeting: "fa6-solid:handshake",
+  site_visit: "fa6-solid:location-dot",
+  follow_up: "fa6-solid:bell",
+  system: "fa6-solid:robot",
 };
 
 const stageChipSx = (stage) => {
@@ -113,7 +114,7 @@ function EditIconButton({ onClick }) {
         aria-label="Edit"
         sx={{ border: '1px solid', borderColor: 'divider', width: 28, height: 28, flexShrink: 0 }}
       >
-        <i className="fas fa-edit" style={{ fontSize: 11 }} aria-hidden="true" />
+        <Iconify icon="fa6-solid:pen-to-square" width={11} />
       </IconButton>
     </Tooltip>
   );
@@ -131,7 +132,7 @@ function SaveCancelButtons({ field, saving, onSave, onCancel }) {
             aria-label="Save"
             sx={{ border: '1px solid', borderColor: 'success.main', color: 'success.dark', width: 28, height: 28 }}
           >
-            {saving ? <CircularProgress size={12} color="inherit" /> : <i className="fas fa-check" style={{ fontSize: 11 }} aria-hidden="true" />}
+            {saving ? <CircularProgress size={12} color="inherit" /> : <Iconify icon="fa6-solid:check" width={11} />}
           </IconButton>
         </span>
       </Tooltip>
@@ -144,7 +145,7 @@ function SaveCancelButtons({ field, saving, onSave, onCancel }) {
             aria-label="Cancel"
             sx={{ border: '1px solid', borderColor: 'divider', width: 28, height: 28 }}
           >
-            <i className="fas fa-times" style={{ fontSize: 11 }} aria-hidden="true" />
+            <Iconify icon="fa6-solid:xmark" width={11} />
           </IconButton>
         </span>
       </Tooltip>
@@ -379,7 +380,7 @@ export default function LeadDetails() {
           <Button
             variant="outlined"
             onClick={() => navigate(-1)}
-            startIcon={<i className="fas fa-arrow-left" aria-hidden="true" />}
+            startIcon={<Iconify icon="fa6-solid:arrow-left" width={16} />}
           >
             Back
           </Button>
@@ -388,7 +389,7 @@ export default function LeadDetails() {
               variant="contained"
               color="success"
               onClick={() => setShowWhatsApp(true)}
-              startIcon={<i className="fab fa-whatsapp" aria-hidden="true" />}
+              startIcon={<Iconify icon="fa6-brands:whatsapp" width={16} />}
             >
               Send WhatsApp
             </Button>
@@ -398,7 +399,7 @@ export default function LeadDetails() {
               variant="contained"
               onClick={claim}
               disabled={loading}
-              startIcon={<i className="fas fa-user-check" aria-hidden="true" />}
+              startIcon={<Iconify icon="fa6-solid:user-check" width={16} />}
             >
               Assign to me
             </Button>
@@ -409,7 +410,7 @@ export default function LeadDetails() {
               color="secondary"
               onClick={openActivityDialog}
               disabled={loading}
-              startIcon={<i className="fas fa-plus" aria-hidden="true" />}
+              startIcon={<Iconify icon="fa6-solid:plus" width={16} />}
             >
               Add Activity
             </Button>
@@ -445,7 +446,7 @@ export default function LeadDetails() {
                     variant="outlined"
                     onClick={openActivityDialog}
                     disabled={loading}
-                    startIcon={<i className="fas fa-plus" aria-hidden="true" />}
+                    startIcon={<Iconify icon="fa6-solid:plus" width={16} />}
                   >
                     Add Activity
                   </Button>
@@ -482,7 +483,7 @@ export default function LeadDetails() {
                             zIndex: 1,
                           }}
                         >
-                          <i className={typeIcons[a.type] || "fas fa-sticky-note"} style={{ fontSize: 12 }} aria-hidden="true" />
+                          <Iconify icon={typeIcons[a.type] || "fa6-solid:note-sticky"} width={12} />
                         </Avatar>
                         <Box sx={{ flex: 1, minWidth: 0 }}>
                           <Typography variant="body2" sx={{ fontWeight: 700, color: 'text.primary' }}>
@@ -707,7 +708,7 @@ export default function LeadDetails() {
                             color="success"
                             onClick={() => saveInlineEdit('description')}
                             disabled={saving}
-                            startIcon={saving ? <CircularProgress size={12} color="inherit" /> : <i className="fas fa-check" aria-hidden="true" />}
+                            startIcon={saving ? <CircularProgress size={12} color="inherit" /> : <Iconify icon="fa6-solid:check" width={16} />}
                           >
                             Save
                           </Button>
@@ -716,7 +717,7 @@ export default function LeadDetails() {
                             variant="outlined"
                             onClick={cancelEdit}
                             disabled={saving}
-                            startIcon={<i className="fas fa-times" aria-hidden="true" />}
+                            startIcon={<Iconify icon="fa6-solid:xmark" width={16} />}
                           >
                             Cancel
                           </Button>
@@ -797,7 +798,7 @@ export default function LeadDetails() {
                             color="success"
                             onClick={() => saveInlineEdit('tags')}
                             disabled={saving}
-                            startIcon={saving ? <CircularProgress size={12} color="inherit" /> : <i className="fas fa-check" aria-hidden="true" />}
+                            startIcon={saving ? <CircularProgress size={12} color="inherit" /> : <Iconify icon="fa6-solid:check" width={16} />}
                           >
                             Save
                           </Button>
@@ -806,7 +807,7 @@ export default function LeadDetails() {
                             variant="outlined"
                             onClick={cancelEdit}
                             disabled={saving}
-                            startIcon={<i className="fas fa-times" aria-hidden="true" />}
+                            startIcon={<Iconify icon="fa6-solid:xmark" width={16} />}
                           >
                             Cancel
                           </Button>
@@ -847,7 +848,7 @@ export default function LeadDetails() {
                       border: '1px solid',
                       borderColor: 'divider',
                       borderRadius: 2,
-                      bgcolor: '#f8fafc',
+                      bgcolor: 'background.neutral',
                       p: 1.5,
                       mb: 1.5,
                       '&:last-of-type': { mb: 0 },
@@ -893,7 +894,7 @@ export default function LeadDetails() {
         <DialogTitle sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 2, py: 2 }}>
           <Typography variant="h6" sx={{ fontWeight: 700 }}>Add Activity</Typography>
           <IconButton size="small" onClick={() => setShowActivity(false)} aria-label="Close">
-            <i className="fas fa-times" style={{ fontSize: 14 }} aria-hidden="true" />
+            <Iconify icon="fa6-solid:xmark" width={14} />
           </IconButton>
         </DialogTitle>
 
@@ -970,7 +971,7 @@ export default function LeadDetails() {
             variant="contained"
             onClick={addActivity}
             disabled={saving || !assignedToMe}
-            startIcon={saving ? <CircularProgress size={14} color="inherit" /> : <i className="fas fa-save" aria-hidden="true" />}
+            startIcon={saving ? <CircularProgress size={14} color="inherit" /> : <Iconify icon="fa6-solid:floppy-disk" width={16} />}
             sx={{ minWidth: 140 }}
           >
             {saving ? "Saving..." : "Save"}

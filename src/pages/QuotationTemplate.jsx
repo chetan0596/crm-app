@@ -16,6 +16,7 @@ import {
 } from "@mui/material";
 import { toast } from "react-toastify";
 import api from "../api";
+import { Iconify } from "../components/iconify";
 
 const COVER_VARIABLES = [
   { key: "{company_name}", label: "Company Name" },
@@ -175,7 +176,7 @@ const RichTextEditor = forwardRef(function RichTextEditor(
           onClick={() => exec(command)}
           aria-label={title}
         >
-          <i className={`fas ${icon}`} aria-hidden="true" />
+          <Iconify icon={icon} width={16} />
         </IconButton>
       </span>
     </Tooltip>
@@ -184,13 +185,13 @@ const RichTextEditor = forwardRef(function RichTextEditor(
   return (
     <Box sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 1.5, bgcolor: '#fff', overflow: 'hidden' }}>
       <style>{`.rte-area:empty::before{content:attr(data-placeholder);color:#9ca3af;}`}</style>
-      <Box sx={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: .5, borderBottom: '1px solid', borderColor: 'divider', px: 1, py: .75, bgcolor: '#f8fafc' }}>
-        {btn("bold", "fa-bold", "Bold")}
-        {btn("italic", "fa-italic", "Italic")}
-        {btn("underline", "fa-underline", "Underline")}
-        {btn("strikeThrough", "fa-strikethrough", "Strikethrough")}
-        {btn("insertUnorderedList", "fa-list-ul", "Bullet list")}
-        {btn("insertOrderedList", "fa-list-ol", "Numbered list")}
+      <Box sx={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: .5, borderBottom: '1px solid', borderColor: 'divider', px: 1, py: .75, bgcolor: 'background.neutral' }}>
+        {btn("bold", "fa6-solid:bold", "Bold")}
+        {btn("italic", "fa6-solid:italic", "Italic")}
+        {btn("underline", "fa6-solid:underline", "Underline")}
+        {btn("strikeThrough", "fa6-solid:strikethrough", "Strikethrough")}
+        {btn("insertUnorderedList", "fa6-solid:list-ul", "Bullet list")}
+        {btn("insertOrderedList", "fa6-solid:list-ol", "Numbered list")}
         <Box
           component="input"
           type="color"
@@ -209,7 +210,7 @@ const RichTextEditor = forwardRef(function RichTextEditor(
               onClick={insertTable}
               aria-label="Insert table"
             >
-              <i className="fas fa-table" aria-hidden="true" />
+              <Iconify icon="fa6-solid:table" width={16} />
             </IconButton>
           </span>
         </Tooltip>
@@ -222,7 +223,7 @@ const RichTextEditor = forwardRef(function RichTextEditor(
             onMouseDown={(e) => e.preventDefault()}
             aria-label="Insert image"
           >
-            <i className="fas fa-image" aria-hidden="true" />
+            <Iconify icon="fa6-solid:image" width={16} />
             <input
               type="file"
               accept="image/*"
@@ -246,11 +247,11 @@ const RichTextEditor = forwardRef(function RichTextEditor(
               onClick={insertPageBreak}
               aria-label="Insert page break"
             >
-              <i className="fas fa-file-export" aria-hidden="true" />
+              <Iconify icon="fa6-solid:file-export" width={16} />
             </IconButton>
           </span>
         </Tooltip>
-        {btn("removeFormat", "fa-eraser", "Clear formatting")}
+        {btn("removeFormat", "fa6-solid:eraser", "Clear formatting")}
       </Box>
       <Box
         component="div"
@@ -912,18 +913,18 @@ export default function QuotationTemplate() {
                 </Typography>
               </Box>
               <Stack direction="row" spacing={1.5}>
-                <Button variant="outlined" onClick={resetDefaults} disabled={saving} startIcon={<i className="fas fa-undo" aria-hidden="true" />}>
+                <Button variant="outlined" onClick={resetDefaults} disabled={saving} startIcon={<Iconify icon="fa6-solid:arrow-rotate-left" width={16} />}>
                   Reset
                 </Button>
-                <Button variant="contained" onClick={save} disabled={saving} startIcon={saving ? <CircularProgress size={14} color="inherit" /> : <i className="fas fa-save" aria-hidden="true" />}>
+                <Button variant="contained" onClick={save} disabled={saving} startIcon={saving ? <CircularProgress size={14} color="inherit" /> : <Iconify icon="fa6-solid:floppy-disk" width={16} />}>
                   Save Template
                 </Button>
               </Stack>
             </Box>
             <Divider />
-            <Box sx={{ bgcolor: '#f8fafc', px: 3, py: 1.5, borderBottom: '1px solid', borderColor: 'divider' }}>
+            <Box sx={{ bgcolor: 'background.neutral', px: 3, py: 1.5, borderBottom: '1px solid', borderColor: 'divider' }}>
               <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-                <i className="fas fa-info-circle" style={{ marginRight: 6 }} aria-hidden="true" />
+                <Iconify icon="fa6-solid:circle-info" width={16} />
                 The order below is the order in the PDF. Cover &amp; Thank You titles are optional.
               </Typography>
             </Box>
@@ -941,13 +942,13 @@ export default function QuotationTemplate() {
             <Box>
               {sections.map((section, index) => {
                 const icon = {
-                  cover: "fa-file",
-                  about: "fa-building",
-                  photos: "fa-images",
-                  details: "fa-list-alt",
-                  terms: "fa-file-signature",
-                  testimonials: "fa-quote-right",
-                  thanks: "fa-hand-holding-heart",
+                  cover: "fa6-solid:file",
+                  about: "fa6-solid:building",
+                  photos: "fa6-solid:images",
+                  details: "fa6-solid:rectangle-list",
+                  terms: "fa6-solid:file-signature",
+                  testimonials: "fa6-solid:quote-right",
+                  thanks: "fa6-solid:hand-holding-heart",
                 }[section.key];
 
                 const disabled = !section.enabled;
@@ -978,7 +979,7 @@ export default function QuotationTemplate() {
                     }}
                   >
                     <Box sx={{ color: 'text.secondary', fontSize: 18, pt: .5 }}>
-                      <i className="fas fa-grip-vertical" aria-hidden="true" />
+                      <Iconify icon="fa6-solid:grip-vertical" width={16} />
                     </Box>
                     <Box
                       sx={{
@@ -995,7 +996,7 @@ export default function QuotationTemplate() {
                         flexShrink: 0,
                       }}
                     >
-                      <i className={`fas ${icon}`} aria-hidden="true" />
+                      <Iconify icon={icon} width={16} />
                     </Box>
                     <Box sx={{ flexGrow: 1, minWidth: 0 }}>
                       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
@@ -1030,7 +1031,7 @@ export default function QuotationTemplate() {
                             variant="outlined"
                             size="small"
                             disabled={disabled}
-                            startIcon={<i className="fas fa-upload" aria-hidden="true" />}
+                            startIcon={<Iconify icon="fa6-solid:upload" width={16} />}
                           >
                             Choose image
                             <input
@@ -1104,7 +1105,7 @@ export default function QuotationTemplate() {
                                         disabled={disabled}
                                         aria-label={`Remove photo ${slot + 1}`}
                                       >
-                                        <i className="fas fa-times" aria-hidden="true" />
+                                        <Iconify icon="fa6-solid:xmark" width={16} />
                                       </IconButton>
                                     </Box>
                                   ) : (
@@ -1125,7 +1126,7 @@ export default function QuotationTemplate() {
                                         '&:hover': disabled ? {} : { bgcolor: 'rgba(145,158,171,.08)' },
                                       }}
                                     >
-                                      <i className="fas fa-plus" style={{ marginBottom: 4 }} aria-hidden="true" />
+                                      <Iconify icon="fa6-solid:plus" width={16} />
                                       Photo {slot + 1}
                                       <input
                                         type="file"
@@ -1168,7 +1169,7 @@ export default function QuotationTemplate() {
                       {isCover && (
                         <Box sx={{ mt: 2.5 }}>
                           <Typography sx={sectionHeadingSx}>
-                            <i className="fas fa-palette" aria-hidden="true" />Colors
+                            <Iconify icon="fa6-solid:palette" width={16} />Colors
                           </Typography>
                           <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 1.5, mb: 2.5 }}>
                             <ColorField
@@ -1201,7 +1202,7 @@ export default function QuotationTemplate() {
                             />
                           </Box>
                           <Typography sx={sectionHeadingSx}>
-                            <i className="fas fa-image" aria-hidden="true" />Cover image
+                            <Iconify icon="fa6-solid:image" width={16} />Cover image
                           </Typography>
                           <Box sx={{ mb: 2.5 }}>
                             <Button
@@ -1209,7 +1210,7 @@ export default function QuotationTemplate() {
                               variant="outlined"
                               size="small"
                               disabled={disabled}
-                              startIcon={<i className="fas fa-upload" aria-hidden="true" />}
+                              startIcon={<Iconify icon="fa6-solid:upload" width={16} />}
                             >
                               Choose image
                               <input
@@ -1292,7 +1293,7 @@ export default function QuotationTemplate() {
                             </Box>
                           </Box>
                           <Typography sx={sectionHeadingSx}>
-                            <i className="fas fa-eye" aria-hidden="true" />Show on cover
+                            <Iconify icon="fa6-solid:eye" width={16} />Show on cover
                           </Typography>
                           <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2 }}>
                             <FormControlLabel
@@ -1349,7 +1350,7 @@ export default function QuotationTemplate() {
                 <Typography variant="body2" sx={{ color: 'text.secondary' }}>Cover page updates as you type</Typography>
               </Box>
               <Divider />
-              <CardContent sx={{ display: 'flex', justifyContent: 'center', bgcolor: '#f8fafc', py: 4 }}>
+              <CardContent sx={{ display: 'flex', justifyContent: 'center', bgcolor: 'background.neutral', py: 4 }}>
                 <CoverPreview section={sections[coverIndex]} settings={invoiceSettings} />
               </CardContent>
             </Card>

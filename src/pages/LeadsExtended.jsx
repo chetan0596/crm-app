@@ -41,6 +41,7 @@ import Swal from "sweetalert2";
 import { toast } from "react-toastify";
 import api from "../api";
 import { canCreate, canDelete, canEdit, canView } from "../utils/permissions";
+import { Iconify } from "../components/iconify";
 
 const toArray = (value) => {
   if (Array.isArray(value)) return value;
@@ -436,14 +437,14 @@ export default function LeadsExtended() {
           {canEdit("leads") && (
             <Tooltip title="Edit">
               <IconButton size="small" color="primary" onClick={() => openEdit(row)} sx={{ border: '1px solid', borderColor: 'divider' }} aria-label="Edit">
-                <i className="fas fa-edit" style={{ fontSize: 13 }} aria-hidden="true" />
+                <Iconify icon="fa6-solid:pen-to-square" width={13} />
               </IconButton>
             </Tooltip>
           )}
           {canDelete("leads") && (
             <Tooltip title="Delete">
               <IconButton size="small" color="error" onClick={() => remove(row)} sx={{ border: '1px solid', borderColor: 'divider' }} aria-label="Delete">
-                <i className="fas fa-trash" style={{ fontSize: 13 }} aria-hidden="true" />
+                <Iconify icon="fa6-solid:trash-can" width={13} />
               </IconButton>
             </Tooltip>
           )}
@@ -484,14 +485,14 @@ export default function LeadsExtended() {
                   input: {
                     startAdornment: (
                       <InputAdornment position="start">
-                        <i className="fas fa-search" style={{ fontSize: 13 }} aria-hidden="true" />
+                        <Iconify icon="fa6-solid:magnifying-glass" width={13} />
                       </InputAdornment>
                     ),
                   },
                 }}
               />
               {canCreate("leads") && (
-                <Button variant="contained" onClick={openAdd} startIcon={<i className="fas fa-plus" aria-hidden="true" />}>
+                <Button variant="contained" onClick={openAdd} startIcon={<Iconify icon="fa6-solid:plus" width={16} />}>
                   New Lead
                 </Button>
               )}
@@ -503,7 +504,7 @@ export default function LeadsExtended() {
         <TableContainer sx={{ overflowX: 'auto' }}>
           <Table sx={{ minWidth: 1100 }} size="small">
             <TableHead>
-              <TableRow sx={{ bgcolor: '#f8fafc' }}>
+              <TableRow sx={{ bgcolor: 'background.neutral' }}>
                 {columns.map((column) => (
                   <TableCell
                     key={column.key}
@@ -527,7 +528,7 @@ export default function LeadsExtended() {
               {displayRows.length === 0 && !loading ? (
                 <TableRow>
                   <TableCell colSpan={columns.length} align="center" sx={{ py: 7 }}>
-                    <i className="fas fa-folder-open" style={{ color: '#637381', fontSize: 42, opacity: .4 }} aria-hidden="true" />
+                    <Iconify icon="fa6-solid:folder-open" width={42} />
                     <Typography variant="subtitle2" sx={{ color: 'text.secondary', mt: 1.5 }}>
                       No data found
                     </Typography>
@@ -585,13 +586,13 @@ export default function LeadsExtended() {
       >
         <DialogTitle sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 2, py: 2 }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25 }}>
-            <i className={`fas ${form.editId ? 'fa-edit' : 'fa-plus'}`} style={{ color: '#062849', fontSize: 15 }} aria-hidden="true" />
+            <Iconify icon={form.editId ? 'fa6-solid:pen-to-square' : 'fa6-solid:plus'} width={15} sx={{ color: '#062849' }} />
             <Typography variant="h6" sx={{ fontWeight: 700 }}>
               {form.editId ? "Edit" : "Create"} Lead (Extended)
             </Typography>
           </Box>
           <IconButton size="small" onClick={() => setShow(false)} aria-label="Close">
-            <i className="fas fa-times" style={{ fontSize: 14 }} aria-hidden="true" />
+            <Iconify icon="fa6-solid:xmark" width={14} />
           </IconButton>
         </DialogTitle>
 

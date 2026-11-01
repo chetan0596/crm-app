@@ -21,6 +21,7 @@ import {
 } from "@mui/material";
 import { toast } from "react-toastify";
 import { whatsappApi } from "../services/whatsapp";
+import { Iconify } from "./iconify";
 
 const toArray = (value) => {
   if (Array.isArray(value)) return value;
@@ -134,13 +135,13 @@ export default function WhatsAppSendModal({ show, onHide, toNumber, toName, cont
     >
       <DialogTitle sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 2, py: 2 }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25 }}>
-          <i className="fab fa-whatsapp" style={{ color: '#22c55e', fontSize: 18 }} aria-hidden="true" />
+          <Iconify icon="fa6-brands:whatsapp" width={18} />
           <Typography variant="h6" sx={{ fontWeight: 700 }}>
             Send WhatsApp{toName ? ` to ${toName}` : ""}
           </Typography>
         </Box>
         <IconButton size="small" onClick={onHide} aria-label="Close">
-          <i className="fas fa-times" style={{ fontSize: 14 }} aria-hidden="true" />
+          <Iconify icon="fa6-solid:xmark" width={14} />
         </IconButton>
       </DialogTitle>
 
@@ -199,7 +200,7 @@ export default function WhatsAppSendModal({ show, onHide, toNumber, toName, cont
                 <Box
                   sx={{
                     p: 2,
-                    bgcolor: '#f8fafc',
+                    bgcolor: 'background.neutral',
                     borderRadius: 2,
                     border: '1px solid',
                     borderColor: 'divider',
@@ -273,7 +274,7 @@ export default function WhatsAppSendModal({ show, onHide, toNumber, toName, cont
           color="success"
           onClick={handleSend}
           disabled={sending || (messageType === "template" && !selectedTemplate) || (messageType === "freeform" && !freeText.trim())}
-          startIcon={sending ? <CircularProgress size={16} color="inherit" /> : <i className="fab fa-whatsapp" aria-hidden="true" />}
+          startIcon={sending ? <CircularProgress size={16} color="inherit" /> : <Iconify icon="fa6-brands:whatsapp" width={16} />}
         >
           Send
         </Button>

@@ -38,6 +38,7 @@ import {
 import Swal from "sweetalert2";
 import { toast } from "react-toastify";
 import api from "../api";
+import { Iconify } from "../components/iconify";
 
 const tableReducer = (state, action) => {
   switch (action.type) {
@@ -329,7 +330,7 @@ export default function ItemMaster() {
           <Typography variant="body2">{row.current_stock || 0}</Typography>
           <Tooltip title="View Godown-wise Stock">
             <IconButton size="small" onClick={(e) => { e.stopPropagation(); openWarehouseStock(row); }} sx={{ color: 'secondary.main' }} aria-label="View warehouse stock">
-              <i className="fas fa-warehouse" style={{ fontSize: 13 }} aria-hidden="true" />
+              <Iconify icon="fa6-solid:warehouse" width={13} />
             </IconButton>
           </Tooltip>
         </Stack>
@@ -345,12 +346,12 @@ export default function ItemMaster() {
         <Stack direction="row" spacing={0.5} justifyContent="flex-end">
           <Tooltip title="Edit">
             <IconButton size="small" onClick={() => openEdit(row)} sx={actionBtnSx} aria-label="Edit item">
-              <i className="fas fa-edit" style={{ fontSize: 13 }} aria-hidden="true" />
+              <Iconify icon="fa6-solid:pen-to-square" width={13} />
             </IconButton>
           </Tooltip>
           <Tooltip title="Delete">
             <IconButton size="small" onClick={() => remove(row)} sx={{ ...actionBtnSx, color: 'error.main' }} aria-label="Delete item">
-              <i className="fas fa-trash" style={{ fontSize: 13 }} aria-hidden="true" />
+              <Iconify icon="fa6-solid:trash-can" width={13} />
             </IconButton>
           </Tooltip>
         </Stack>
@@ -389,13 +390,13 @@ export default function ItemMaster() {
                   input: {
                     startAdornment: (
                       <InputAdornment position="start">
-                        <i className="fas fa-search" style={{ fontSize: 13 }} aria-hidden="true" />
+                        <Iconify icon="fa6-solid:magnifying-glass" width={13} />
                       </InputAdornment>
                     ),
                   },
                 }}
               />
-              <Button variant="contained" onClick={openAdd} startIcon={<i className="fas fa-plus" aria-hidden="true" />}>
+              <Button variant="contained" onClick={openAdd} startIcon={<Iconify icon="fa6-solid:plus" width={16} />}>
                 Add Item
               </Button>
             </Stack>
@@ -412,7 +413,7 @@ export default function ItemMaster() {
               variant="text"
               size="small"
               onClick={(event) => setColumnAnchorEl(event.currentTarget)}
-              startIcon={<i className="fas fa-columns" aria-hidden="true" />}
+              startIcon={<Iconify icon="fa6-solid:table-columns" width={16} />}
             >
               {shownColumnCount === 0 ? 'No columns' : shownColumnCount === visibleColumnOptions.length ? `All columns (${visibleColumnOptions.length})` : `${shownColumnCount} of ${visibleColumnOptions.length} columns`}
             </Button>
@@ -430,7 +431,7 @@ export default function ItemMaster() {
             size="small"
             onClick={() => setReloadKey(k => k + 1)}
             disabled={loading}
-            startIcon={<i className="fas fa-sync-alt" aria-hidden="true" />}
+            startIcon={<Iconify icon="fa6-solid:arrows-rotate" width={16} />}
           >
             Refresh
           </Button>
@@ -440,7 +441,7 @@ export default function ItemMaster() {
         <TableContainer sx={{ overflowX: 'auto' }}>
           <Table sx={{ minWidth: 960 }} size="small">
             <TableHead>
-              <TableRow sx={{ bgcolor: '#f8fafc' }}>
+              <TableRow sx={{ bgcolor: 'background.neutral' }}>
                 {columns.map((column) => (
                   <TableCell
                     key={column.key}
@@ -464,7 +465,7 @@ export default function ItemMaster() {
               {rows.length === 0 && !loading ? (
                 <TableRow>
                   <TableCell colSpan={Math.max(columns.length, 1)} align="center" sx={{ py: 7 }}>
-                    <i className="fas fa-folder-open" style={{ color: '#637381', fontSize: 42, opacity: .4 }} aria-hidden="true" />
+                    <Iconify icon="fa6-solid:folder-open" width={42} />
                     <Typography variant="subtitle2" sx={{ color: 'text.secondary', mt: 1.5 }}>
                       No data found
                     </Typography>
@@ -524,13 +525,13 @@ export default function ItemMaster() {
       >
         <DialogTitle sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 2, py: 2 }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25 }}>
-            <i className={`fas ${editRow ? 'fa-edit' : 'fa-plus'}`} style={{ color: '#062849', fontSize: 15 }} aria-hidden="true" />
+            <Iconify icon={editRow ? 'fa6-solid:pen-to-square' : 'fa6-solid:plus'} width={15} sx={{ color: '#062849' }} />
             <Typography variant="h6" sx={{ fontWeight: 700 }}>
               {editRow ? "Edit Item" : "Add Item"}
             </Typography>
           </Box>
           <IconButton size="small" onClick={() => setShow(false)} aria-label="Close">
-            <i className="fas fa-times" style={{ fontSize: 14 }} aria-hidden="true" />
+            <Iconify icon="fa6-solid:xmark" width={14} />
           </IconButton>
         </DialogTitle>
 
@@ -645,7 +646,7 @@ export default function ItemMaster() {
             Warehouse-wise Stock - {selectedItem?.name}
           </Typography>
           <IconButton size="small" onClick={() => setShowStockModal(false)} aria-label="Close">
-            <i className="fas fa-times" style={{ fontSize: 14 }} aria-hidden="true" />
+            <Iconify icon="fa6-solid:xmark" width={14} />
           </IconButton>
         </DialogTitle>
 
@@ -665,7 +666,7 @@ export default function ItemMaster() {
               <TableContainer sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 2 }}>
                 <Table size="small">
                   <TableHead>
-                    <TableRow sx={{ bgcolor: '#f8fafc' }}>
+                    <TableRow sx={{ bgcolor: 'background.neutral' }}>
                       <TableCell sx={headCellSx}>Warehouse (Godown)</TableCell>
                       <TableCell align="right" sx={headCellSx}>Quantity</TableCell>
                       <TableCell sx={headCellSx}>Status</TableCell>

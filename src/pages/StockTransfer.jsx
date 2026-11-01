@@ -32,6 +32,7 @@ import {
 } from "@mui/material";
 import { canCreate, canDelete, canEdit, canView } from "../utils/permissions";
 import api from "../api";
+import { Iconify } from "../components/iconify";
 
 const toArray = (value) => {
   if (Array.isArray(value)) return value;
@@ -335,19 +336,19 @@ export default function StockTransfer() {
         <Stack direction="row" spacing={0.5} justifyContent="flex-end">
           <Tooltip title="View">
             <IconButton size="small" onClick={() => handleView(row)} sx={{ ...actionBtnSx, color: 'info.main' }} aria-label="View transfer">
-              <i className="fas fa-eye" style={{ fontSize: 13 }} aria-hidden="true" />
+              <Iconify icon="fa6-solid:eye" width={13} />
             </IconButton>
           </Tooltip>
           {row.status === "draft" && canEditTransfer && (
             <>
               <Tooltip title="Complete Transfer">
                 <IconButton size="small" onClick={() => handleComplete(row)} sx={{ ...actionBtnSx, color: 'success.main' }} aria-label="Complete transfer">
-                  <i className="fas fa-check" style={{ fontSize: 13 }} aria-hidden="true" />
+                  <Iconify icon="fa6-solid:check" width={13} />
                 </IconButton>
               </Tooltip>
               <Tooltip title="Cancel Transfer">
                 <IconButton size="small" onClick={() => handleCancel(row)} sx={{ ...actionBtnSx, color: 'warning.main' }} aria-label="Cancel transfer">
-                  <i className="fas fa-times" style={{ fontSize: 13 }} aria-hidden="true" />
+                  <Iconify icon="fa6-solid:xmark" width={13} />
                 </IconButton>
               </Tooltip>
             </>
@@ -355,7 +356,7 @@ export default function StockTransfer() {
           {row.status === "draft" && canDeleteTransfer && (
             <Tooltip title="Delete">
               <IconButton size="small" onClick={() => handleDelete(row)} sx={{ ...actionBtnSx, color: 'error.main' }} aria-label="Delete transfer">
-                <i className="fas fa-trash" style={{ fontSize: 13 }} aria-hidden="true" />
+                <Iconify icon="fa6-solid:trash-can" width={13} />
               </IconButton>
             </Tooltip>
           )}
@@ -392,7 +393,7 @@ export default function StockTransfer() {
               setFormData((d) => ({ ...d, transfer_number: generateTransferNumber() }));
               setShowModal(true);
             }}
-            startIcon={<i className="fas fa-plus" aria-hidden="true" />}
+            startIcon={<Iconify icon="fa6-solid:plus" width={16} />}
           >
             New Transfer
           </Button>
@@ -414,7 +415,7 @@ export default function StockTransfer() {
         <TableContainer sx={{ overflowX: 'auto' }}>
           <Table sx={{ minWidth: 960 }} size="small">
             <TableHead>
-              <TableRow sx={{ bgcolor: '#f8fafc' }}>
+              <TableRow sx={{ bgcolor: 'background.neutral' }}>
                 {columns.map((column) => (
                   <TableCell
                     key={column.key}
@@ -438,7 +439,7 @@ export default function StockTransfer() {
               {sortedTransfers.length === 0 && !loading ? (
                 <TableRow>
                   <TableCell colSpan={columns.length} align="center" sx={{ py: 7 }}>
-                    <i className="fas fa-folder-open" style={{ color: '#637381', fontSize: 42, opacity: .4 }} aria-hidden="true" />
+                    <Iconify icon="fa6-solid:folder-open" width={42} />
                     <Typography variant="subtitle2" sx={{ color: 'text.secondary', mt: 1.5 }}>
                       No data found
                     </Typography>
@@ -493,13 +494,13 @@ export default function StockTransfer() {
       >
         <DialogTitle sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 2, py: 2 }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25 }}>
-            <i className="fas fa-plus" style={{ color: '#062849', fontSize: 15 }} aria-hidden="true" />
+            <Iconify icon="fa6-solid:plus" width={15} />
             <Typography variant="h6" sx={{ fontWeight: 700 }}>
               New Stock Transfer
             </Typography>
           </Box>
           <IconButton size="small" onClick={() => setShowModal(false)} aria-label="Close">
-            <i className="fas fa-times" style={{ fontSize: 14 }} aria-hidden="true" />
+            <Iconify icon="fa6-solid:xmark" width={14} />
           </IconButton>
         </DialogTitle>
 
@@ -585,7 +586,7 @@ export default function StockTransfer() {
             <Typography variant="subtitle1" sx={{ color: 'text.primary', fontWeight: 700 }}>
               Items to Transfer
             </Typography>
-            <Button variant="outlined" size="small" onClick={addItemRow} startIcon={<i className="fas fa-plus" aria-hidden="true" />}>
+            <Button variant="outlined" size="small" onClick={addItemRow} startIcon={<Iconify icon="fa6-solid:plus" width={16} />}>
               Add Item
             </Button>
           </Box>
@@ -599,7 +600,7 @@ export default function StockTransfer() {
           <TableContainer sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 2 }}>
             <Table size="small">
               <TableHead>
-                <TableRow sx={{ bgcolor: '#f8fafc' }}>
+                <TableRow sx={{ bgcolor: 'background.neutral' }}>
                   <TableCell sx={{ ...headCellSx, width: '40%' }}>Item</TableCell>
                   <TableCell sx={{ ...headCellSx, width: '25%' }}>Quantity</TableCell>
                   <TableCell sx={{ ...headCellSx, width: '25%' }}>Available Stock</TableCell>
@@ -649,7 +650,7 @@ export default function StockTransfer() {
                       {formData.items.length > 1 && (
                         <Tooltip title="Remove item">
                           <IconButton size="small" onClick={() => removeItemRow(index)} sx={{ ...actionBtnSx, color: 'error.main' }} aria-label="Remove item">
-                            <i className="fas fa-trash" style={{ fontSize: 13 }} aria-hidden="true" />
+                            <Iconify icon="fa6-solid:trash-can" width={13} />
                           </IconButton>
                         </Tooltip>
                       )}
@@ -684,7 +685,7 @@ export default function StockTransfer() {
             Transfer Details - {selectedTransfer?.transfer_number}
           </Typography>
           <IconButton size="small" onClick={() => setShowDetailModal(false)} aria-label="Close">
-            <i className="fas fa-times" style={{ fontSize: 14 }} aria-hidden="true" />
+            <Iconify icon="fa6-solid:xmark" width={14} />
           </IconButton>
         </DialogTitle>
 
@@ -736,7 +737,7 @@ export default function StockTransfer() {
               <TableContainer sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 2 }}>
                 <Table size="small">
                   <TableHead>
-                    <TableRow sx={{ bgcolor: '#f8fafc' }}>
+                    <TableRow sx={{ bgcolor: 'background.neutral' }}>
                       <TableCell sx={headCellSx}>Item</TableCell>
                       <TableCell sx={headCellSx}>SKU</TableCell>
                       <TableCell sx={headCellSx}>Quantity</TableCell>

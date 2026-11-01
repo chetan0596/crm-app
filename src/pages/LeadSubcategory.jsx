@@ -37,6 +37,7 @@ import {
 import Swal from "sweetalert2";
 import { toast } from "react-toastify";
 import api from "../api";
+import { Iconify } from "../components/iconify";
 
 function getNum(v, d) {
   const n = Number(v);
@@ -402,10 +403,10 @@ export default function LeadSubcategory() {
       render: (r) => (
         <Stack direction="row" spacing={0.5} justifyContent="flex-end">
           <IconButton size="small" color="primary" onClick={() => openEdit(r)} sx={{ border: '1px solid', borderColor: 'divider' }} aria-label="Edit">
-            <i className="fas fa-edit" style={{ fontSize: 13 }} aria-hidden="true" />
+            <Iconify icon="fa6-solid:pen-to-square" width={13} />
           </IconButton>
           <IconButton size="small" color="error" onClick={() => del(r)} sx={{ border: '1px solid', borderColor: 'divider' }} aria-label="Delete">
-            <i className="fas fa-trash" style={{ fontSize: 13 }} aria-hidden="true" />
+            <Iconify icon="fa6-solid:trash-can" width={13} />
           </IconButton>
         </Stack>
       ),
@@ -435,13 +436,13 @@ export default function LeadSubcategory() {
                   input: {
                     startAdornment: (
                       <InputAdornment position="start">
-                        <i className="fas fa-search" style={{ fontSize: 13 }} aria-hidden="true" />
+                        <Iconify icon="fa6-solid:magnifying-glass" width={13} />
                       </InputAdornment>
                     ),
                   },
                 }}
               />
-              <Button variant="contained" onClick={openAdd} startIcon={<i className="fas fa-plus" aria-hidden="true" />}>
+              <Button variant="contained" onClick={openAdd} startIcon={<Iconify icon="fa6-solid:plus" width={16} />}>
                 Add
               </Button>
             </Stack>
@@ -457,7 +458,7 @@ export default function LeadSubcategory() {
             variant="text"
             size="small"
             onClick={(event) => setColumnAnchorEl(event.currentTarget)}
-            startIcon={<i className="fas fa-columns" aria-hidden="true" />}
+            startIcon={<Iconify icon="fa6-solid:table-columns" width={16} />}
           >
             {shownColumnLabel}
           </Button>
@@ -475,7 +476,7 @@ export default function LeadSubcategory() {
         <TableContainer sx={{ overflowX: 'auto' }}>
           <Table sx={{ minWidth: 640 }} size="small">
             <TableHead>
-              <TableRow sx={{ bgcolor: '#f8fafc' }}>
+              <TableRow sx={{ bgcolor: 'background.neutral' }}>
                 {columns.map((column) => (
                   <TableCell
                     key={column.key}
@@ -499,7 +500,7 @@ export default function LeadSubcategory() {
               {displayRows.length === 0 && !loading ? (
                 <TableRow>
                   <TableCell colSpan={Math.max(columns.length, 1)} align="center" sx={{ py: 7 }}>
-                    <i className="fas fa-folder-open" style={{ color: '#637381', fontSize: 42, opacity: .4 }} aria-hidden="true" />
+                    <Iconify icon="fa6-solid:folder-open" width={42} />
                     <Typography variant="subtitle2" sx={{ color: 'text.secondary', mt: 1.5 }}>
                       No data found
                     </Typography>
@@ -565,7 +566,7 @@ export default function LeadSubcategory() {
             {edit ? "Edit" : "Add"} Subcategory
           </Typography>
           <IconButton size="small" onClick={() => setShow(false)} aria-label="Close">
-            <i className="fas fa-times" style={{ fontSize: 14 }} aria-hidden="true" />
+            <Iconify icon="fa6-solid:xmark" width={14} />
           </IconButton>
         </DialogTitle>
 

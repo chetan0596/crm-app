@@ -31,6 +31,7 @@ import {
 import Swal from "sweetalert2";
 import { toast } from "react-toastify";
 import api from "../api";
+import { Iconify } from "../components/iconify";
 
 function getNum(v, d) {
   const n = Number(v);
@@ -319,10 +320,10 @@ export default function LeadSubcategoryPage() {
       render: (row) => (
         <Stack direction="row" spacing={0.5} justifyContent="flex-end">
           <IconButton size="small" color="primary" onClick={() => openEdit(row)} sx={{ border: '1px solid', borderColor: 'divider' }} aria-label="Edit">
-            <i className="fas fa-edit" style={{ fontSize: 13 }} aria-hidden="true" />
+            <Iconify icon="fa6-solid:pen-to-square" width={13} />
           </IconButton>
           <IconButton size="small" color="error" onClick={() => remove(row)} sx={{ border: '1px solid', borderColor: 'divider' }} aria-label="Delete">
-            <i className="fas fa-trash" style={{ fontSize: 13 }} aria-hidden="true" />
+            <Iconify icon="fa6-solid:trash-can" width={13} />
           </IconButton>
         </Stack>
       ),
@@ -351,7 +352,7 @@ export default function LeadSubcategoryPage() {
                   input: {
                     startAdornment: (
                       <InputAdornment position="start">
-                        <i className="fas fa-search" style={{ fontSize: 13 }} aria-hidden="true" />
+                        <Iconify icon="fa6-solid:magnifying-glass" width={13} />
                       </InputAdornment>
                     ),
                   },
@@ -361,7 +362,7 @@ export default function LeadSubcategoryPage() {
                 variant="contained"
                 onClick={openAdd}
                 disabled={!id}
-                startIcon={<i className="fas fa-plus" aria-hidden="true" />}
+                startIcon={<Iconify icon="fa6-solid:plus" width={16} />}
               >
                 Add
               </Button>
@@ -400,7 +401,7 @@ export default function LeadSubcategoryPage() {
         <TableContainer sx={{ overflowX: 'auto' }}>
           <Table sx={{ minWidth: 560 }} size="small">
             <TableHead>
-              <TableRow sx={{ bgcolor: '#f8fafc' }}>
+              <TableRow sx={{ bgcolor: 'background.neutral' }}>
                 {columns.map((column) => (
                   <TableCell
                     key={column.key}
@@ -424,7 +425,7 @@ export default function LeadSubcategoryPage() {
               {displayRows.length === 0 && !loading ? (
                 <TableRow>
                   <TableCell colSpan={Math.max(columns.length, 1)} align="center" sx={{ py: 7 }}>
-                    <i className="fas fa-folder-open" style={{ color: '#637381', fontSize: 42, opacity: .4 }} aria-hidden="true" />
+                    <Iconify icon="fa6-solid:folder-open" width={42} />
                     <Typography variant="subtitle2" sx={{ color: 'text.secondary', mt: 1.5 }}>
                       No data found
                     </Typography>
@@ -488,7 +489,7 @@ export default function LeadSubcategoryPage() {
             {editRow ? "Edit Subcategory" : "Add Subcategory"}
           </Typography>
           <IconButton size="small" onClick={() => setShow(false)} aria-label="Close">
-            <i className="fas fa-times" style={{ fontSize: 14 }} aria-hidden="true" />
+            <Iconify icon="fa6-solid:xmark" width={14} />
           </IconButton>
         </DialogTitle>
 

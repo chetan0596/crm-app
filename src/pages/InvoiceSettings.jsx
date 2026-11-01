@@ -13,6 +13,7 @@ import {
 } from "@mui/material";
 import { toast } from "react-toastify";
 import api from "../api";
+import { Iconify } from "../components/iconify";
 
 const DEFAULTS = {
   company_name: "",
@@ -63,7 +64,7 @@ function SectionCard({ icon, title, children, contentSx }) {
     <Card sx={cardSx}>
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, px: 3, py: 2.5 }}>
         <Box sx={iconBoxSx}>
-          <i className={icon} style={{ fontSize: 16 }} aria-hidden="true" />
+          <Iconify icon={icon} width={16} />
         </Box>
         <Typography variant="subtitle1" sx={{ color: 'text.primary', fontWeight: 700 }}>
           {title}
@@ -174,7 +175,7 @@ export default function InvoiceSettings() {
           <Typography variant="h4" sx={{ color: 'text.primary', fontWeight: 700, mb: .5 }}>Invoice Settings</Typography>
           <Typography variant="body2" sx={{ color: 'text.secondary' }}>Configure company details, branding, and PDF invoice output</Typography>
         </Box>
-        <Button variant="contained" onClick={save} disabled={saving} startIcon={saving ? <CircularProgress size={14} color="inherit" /> : <i className="fas fa-save" aria-hidden="true" />}>
+        <Button variant="contained" onClick={save} disabled={saving} startIcon={saving ? <CircularProgress size={14} color="inherit" /> : <Iconify icon="fa6-solid:floppy-disk" width={16} />}>
           Save Settings
         </Button>
       </Box>
@@ -186,7 +187,7 @@ export default function InvoiceSettings() {
       <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(2, 1fr)' }, gap: 2.5 }}>
         {/* Company Information */}
         <Box sx={{ gridColumn: '1 / -1' }}>
-          <SectionCard icon="fas fa-building" title="Company Information">
+          <SectionCard icon="fa6-solid:building" title="Company Information">
             <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)' }, gap: 2.5 }}>
               <TextField
                 size="small"
@@ -234,7 +235,7 @@ export default function InvoiceSettings() {
         </Box>
 
         {/* Logo & Branding */}
-        <SectionCard icon="fas fa-image" title="Logo & Branding">
+        <SectionCard icon="fa6-solid:image" title="Logo & Branding">
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
             <Box>
               <Typography variant="caption" sx={{ display: 'block', color: 'text.secondary', fontWeight: 700, mb: 1 }}>
@@ -250,12 +251,12 @@ export default function InvoiceSettings() {
                     hidden
                     onChange={e => handleFileUpload("logo", e.target.files?.[0])}
                   />
-                  <Button variant="outlined" size="small" onClick={() => logoRef.current?.click()} startIcon={<i className="fas fa-upload" aria-hidden="true" />}>
+                  <Button variant="outlined" size="small" onClick={() => logoRef.current?.click()} startIcon={<Iconify icon="fa6-solid:upload" width={16} />}>
                     Upload
                   </Button>
                   {settings.logo && (
                     <IconButton size="small" color="error" sx={{ ml: .5, border: '1px solid', borderColor: 'divider' }} onClick={() => update("logo", "")} aria-label="Remove logo">
-                      <i className="fas fa-times" style={{ fontSize: 12 }} aria-hidden="true" />
+                      <Iconify icon="fa6-solid:xmark" width={12} />
                     </IconButton>
                   )}
                 </Box>
@@ -312,7 +313,7 @@ export default function InvoiceSettings() {
         </SectionCard>
 
         {/* Bank Details */}
-        <SectionCard icon="fas fa-university" title="Bank Details">
+        <SectionCard icon="fa6-solid:building-columns" title="Bank Details">
           <TextField
             size="small"
             label="Bank Account Information"
@@ -327,7 +328,7 @@ export default function InvoiceSettings() {
         </SectionCard>
 
         {/* Signature & Stamp */}
-        <SectionCard icon="fas fa-stamp" title="Authorized Signatory & Stamp">
+        <SectionCard icon="fa6-solid:stamp" title="Authorized Signatory & Stamp">
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
             <TextField
               size="small"
@@ -350,12 +351,12 @@ export default function InvoiceSettings() {
                     hidden
                     onChange={e => handleFileUpload("stamp", e.target.files?.[0])}
                   />
-                  <Button variant="outlined" size="small" onClick={() => stampRef.current?.click()} startIcon={<i className="fas fa-upload" aria-hidden="true" />}>
+                  <Button variant="outlined" size="small" onClick={() => stampRef.current?.click()} startIcon={<Iconify icon="fa6-solid:upload" width={16} />}>
                     Upload
                   </Button>
                   {settings.stamp && (
                     <IconButton size="small" color="error" sx={{ ml: .5, border: '1px solid', borderColor: 'divider' }} onClick={() => update("stamp", "")} aria-label="Remove stamp">
-                      <i className="fas fa-times" style={{ fontSize: 12 }} aria-hidden="true" />
+                      <Iconify icon="fa6-solid:xmark" width={12} />
                     </IconButton>
                   )}
                 </Box>
@@ -366,7 +367,7 @@ export default function InvoiceSettings() {
         </SectionCard>
 
         {/* Terms, Notes & Footer */}
-        <SectionCard icon="fas fa-file-contract" title="Terms, Notes & Footer">
+        <SectionCard icon="fa6-solid:file-contract" title="Terms, Notes & Footer">
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
             <TextField
               size="small"
@@ -401,7 +402,7 @@ export default function InvoiceSettings() {
       </Box>
 
       <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 3 }}>
-        <Button variant="contained" onClick={save} disabled={saving} startIcon={saving ? <CircularProgress size={14} color="inherit" /> : <i className="fas fa-save" aria-hidden="true" />}>
+        <Button variant="contained" onClick={save} disabled={saving} startIcon={saving ? <CircularProgress size={14} color="inherit" /> : <Iconify icon="fa6-solid:floppy-disk" width={16} />}>
           Save Settings
         </Button>
       </Box>

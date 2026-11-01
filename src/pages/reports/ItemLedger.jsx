@@ -25,6 +25,7 @@ import {
 } from "@mui/material";
 import api from "../../api";
 import { canView } from "../../utils/permissions";
+import { Iconify } from "../../components/iconify";
 
 const formatMoney = (v) => {
   const n = Number(v || 0);
@@ -75,7 +76,7 @@ function StatCard({ label, value, icon, color, background }) {
       <CardContent sx={{ p: 2.5 }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
           <Box sx={{ width: 44, height: 44, borderRadius: 2, display: 'grid', placeItems: 'center', bgcolor: background, color, flexShrink: 0 }}>
-            <i className={icon} style={{ fontSize: 18 }} aria-hidden="true" />
+            <Iconify icon={icon} width={18} />
           </Box>
           <Box sx={{ minWidth: 0 }}>
             <Typography variant="body2" sx={{ color: 'text.secondary', mb: .25 }}>
@@ -190,7 +191,7 @@ export default function ItemLedger() {
     const runningBalance = { value: Number(firstSummary?.opening_stock || 0) };
 
     rows.push(
-      <TableRow key="opening" sx={{ bgcolor: '#f8fafc' }}>
+      <TableRow key="opening" sx={{ bgcolor: 'background.neutral' }}>
         <TableCell sx={{ px: 2, fontWeight: 700 }}>{firstSummary?.date || '-'}</TableCell>
         <TableCell sx={{ px: 2 }}>
           <Chip label="Opening Balance" size="small" sx={{ bgcolor: '#f1f5f9', color: '#475569', fontWeight: 700 }} />
@@ -321,7 +322,7 @@ export default function ItemLedger() {
                 color="error"
                 onClick={handleDownloadPDF}
                 disabled={!selectedItem || loading}
-                startIcon={<i className="fas fa-file-pdf" aria-hidden="true" />}
+                startIcon={<Iconify icon="fa6-solid:file-pdf" width={16} />}
               >
                 Download PDF
               </Button>
@@ -351,10 +352,10 @@ export default function ItemLedger() {
       </Card>
 
       <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', lg: 'repeat(4, 1fr)' }, gap: 2.5, mb: 2.5 }}>
-        <StatCard label="Total In (Purchases)" value={Number(summary.total_in || 0).toFixed(3)} icon="fas fa-arrow-down" color="#118d57" background="#dbf5e9" />
-        <StatCard label="Total Out (Sales)" value={Number(summary.total_out || 0).toFixed(3)} icon="fas fa-arrow-up" color="#b71d18" background="#ffe4de" />
-        <StatCard label="Net Movement" value={netMovement.toFixed(3)} icon="fas fa-arrow-right-arrow-left" color={netMovement >= 0 ? "#118d57" : "#b71d18"} background={netMovement >= 0 ? "#dbf5e9" : "#ffe4de"} />
-        <StatCard label="Closing Balance" value={Number(summary.closing_balance || 0).toFixed(3)} icon="fas fa-box" color="#006c9c" background="#caf4ff" />
+        <StatCard label="Total In (Purchases)" value={Number(summary.total_in || 0).toFixed(3)} icon="fa6-solid:arrow-down" color="#118d57" background="#dbf5e9" />
+        <StatCard label="Total Out (Sales)" value={Number(summary.total_out || 0).toFixed(3)} icon="fa6-solid:arrow-up" color="#b71d18" background="#ffe4de" />
+        <StatCard label="Net Movement" value={netMovement.toFixed(3)} icon="fa6-solid:arrow-right-arrow-left" color={netMovement >= 0 ? "#118d57" : "#b71d18"} background={netMovement >= 0 ? "#dbf5e9" : "#ffe4de"} />
+        <StatCard label="Closing Balance" value={Number(summary.closing_balance || 0).toFixed(3)} icon="fa6-solid:box" color="#006c9c" background="#caf4ff" />
       </Box>
 
       <Card sx={cardSx}>
@@ -368,7 +369,7 @@ export default function ItemLedger() {
         <TableContainer sx={{ overflowX: 'auto' }}>
           <Table size="small" sx={{ minWidth: 1000 }}>
             <TableHead>
-              <TableRow sx={{ bgcolor: '#f8fafc' }}>
+              <TableRow sx={{ bgcolor: 'background.neutral' }}>
                 <TableCell sx={headCellSx}>Date</TableCell>
                 <TableCell sx={headCellSx}>Type</TableCell>
                 <TableCell sx={headCellSx}>Reference</TableCell>

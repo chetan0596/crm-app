@@ -25,6 +25,7 @@ import {
 } from "@mui/material";
 import api from "../../api";
 import { canView } from "../../utils/permissions";
+import { Iconify } from "../../components/iconify";
 
 const formatMoney = (v) => {
   const n = Number(v || 0);
@@ -139,7 +140,7 @@ function StatCard({ label, value, icon, color, background }) {
       <CardContent sx={{ p: 2.5 }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
           <Box sx={{ width: 44, height: 44, borderRadius: 2, display: 'grid', placeItems: 'center', bgcolor: background, color, flexShrink: 0 }}>
-            <i className={icon} style={{ fontSize: 18 }} aria-hidden="true" />
+            <Iconify icon={icon} width={18} />
           </Box>
           <Box sx={{ minWidth: 0 }}>
             <Typography variant="body2" sx={{ color: 'text.secondary', mb: .25 }}>
@@ -314,8 +315,8 @@ export default function QuotationsReport() {
       </Card>
 
       <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', lg: 'repeat(4, 1fr)' }, gap: 2.5, mb: 2.5 }}>
-        <StatCard label="Total Quotations" value={summary.count} icon="fas fa-file-signature" color="#062849" background="#eaf0f6" />
-        <StatCard label="Grand Total" value={`₹${formatMoney(summary.grand_total)}`} icon="fas fa-coins" color="#6528e8" background="#f1ebfd" />
+        <StatCard label="Total Quotations" value={summary.count} icon="fa6-solid:file-signature" color="#062849" background="#eaf0f6" />
+        <StatCard label="Grand Total" value={`₹${formatMoney(summary.grand_total)}`} icon="fa6-solid:coins" color="#6528e8" background="#f1ebfd" />
         <Card sx={{ ...cardSx, gridColumn: { lg: 'span 2' } }}>
           <CardContent sx={{ p: 2.5 }}>
             <Typography variant="body2" sx={{ color: 'text.secondary', mb: 1.5 }}>
@@ -341,7 +342,7 @@ export default function QuotationsReport() {
               size="small"
               disabled={loading || data.length === 0 || csvLoading}
               onClick={handleDownloadCSV}
-              startIcon={<i className="fas fa-download" aria-hidden="true" />}
+              startIcon={<Iconify icon="fa6-solid:download" width={16} />}
             >
               {csvLoading ? "Exporting..." : "Export CSV"}
             </Button>
@@ -351,7 +352,7 @@ export default function QuotationsReport() {
               size="small"
               disabled={loading || data.length === 0 || pdfLoading}
               onClick={handleDownloadPDF}
-              startIcon={<i className="fas fa-file-pdf" aria-hidden="true" />}
+              startIcon={<Iconify icon="fa6-solid:file-pdf" width={16} />}
             >
               {pdfLoading ? "Downloading..." : "Download PDF"}
             </Button>
@@ -362,7 +363,7 @@ export default function QuotationsReport() {
         <TableContainer sx={{ overflowX: 'auto' }}>
           <Table size="small" sx={{ minWidth: 900 }}>
             <TableHead>
-              <TableRow sx={{ bgcolor: '#f8fafc' }}>
+              <TableRow sx={{ bgcolor: 'background.neutral' }}>
                 <TableCell sx={headCellSx}>Date</TableCell>
                 <TableCell sx={headCellSx}>Quotation #</TableCell>
                 <TableCell sx={headCellSx}>Customer</TableCell>

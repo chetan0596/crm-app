@@ -42,6 +42,7 @@ import Swal from "sweetalert2";
 import { toast } from "react-toastify";
 import api from "../api";
 import WhatsAppSendModal from "../components/WhatsAppSendModal";
+import { Iconify } from "../components/iconify";
 
 const tableReducer = (state, action) => {
   switch (action.type) {
@@ -97,7 +98,7 @@ const bodyCellSx = {
 
 const sectionBoxSx = {
   p: 2.5,
-  bgcolor: '#f8fafc',
+  bgcolor: 'background.neutral',
   border: '1px solid',
   borderColor: 'divider',
   borderRadius: 2,
@@ -677,7 +678,7 @@ export default function Sales() {
             aria-haspopup="true"
             sx={{ border: '1px solid', borderColor: 'divider' }}
           >
-            <i className="fas fa-ellipsis-vertical" style={{ fontSize: 13 }} aria-hidden="true" />
+            <Iconify icon="fa6-solid:ellipsis-vertical" width={13} />
           </IconButton>
         </Tooltip>
       ),
@@ -725,13 +726,13 @@ export default function Sales() {
                   input: {
                     startAdornment: (
                       <InputAdornment position="start">
-                        <i className="fas fa-search" style={{ fontSize: 13 }} aria-hidden="true" />
+                        <Iconify icon="fa6-solid:magnifying-glass" width={13} />
                       </InputAdornment>
                     ),
                   },
                 }}
               />
-              <Button variant="contained" onClick={openAdd} startIcon={<i className="fas fa-plus" aria-hidden="true" />}>
+              <Button variant="contained" onClick={openAdd} startIcon={<Iconify icon="fa6-solid:plus" width={16} />}>
                 New Sale
               </Button>
             </Stack>
@@ -748,7 +749,7 @@ export default function Sales() {
               variant="text"
               size="small"
               onClick={(event) => setColumnAnchorEl(event.currentTarget)}
-              startIcon={<i className="fas fa-columns" aria-hidden="true" />}
+              startIcon={<Iconify icon="fa6-solid:table-columns" width={16} />}
             >
               {shownColumnCount === 0 ? 'No columns' : shownColumnCount === visibleColumnOptions.length ? `All columns (${visibleColumnOptions.length})` : `${shownColumnCount} of ${visibleColumnOptions.length} columns`}
             </Button>
@@ -766,7 +767,7 @@ export default function Sales() {
             size="small"
             onClick={() => setReloadKey(k => k + 1)}
             disabled={loading}
-            startIcon={<i className="fas fa-sync-alt" aria-hidden="true" />}
+            startIcon={<Iconify icon="fa6-solid:arrows-rotate" width={16} />}
           >
             Refresh
           </Button>
@@ -776,7 +777,7 @@ export default function Sales() {
         <TableContainer sx={{ overflowX: 'auto' }}>
           <Table sx={{ minWidth: 960 }} size="small">
             <TableHead>
-              <TableRow sx={{ bgcolor: '#f8fafc' }}>
+              <TableRow sx={{ bgcolor: 'background.neutral' }}>
                 {columns.map((column) => (
                   <TableCell
                     key={column.key}
@@ -800,7 +801,7 @@ export default function Sales() {
               {rows.length === 0 && !loading ? (
                 <TableRow>
                   <TableCell colSpan={Math.max(columns.length, 1)} align="center" sx={{ py: 7 }}>
-                    <i className="fas fa-folder-open" style={{ color: '#637381', fontSize: 42, opacity: .4 }} aria-hidden="true" />
+                    <Iconify icon="fa6-solid:folder-open" width={42} />
                     <Typography variant="subtitle2" sx={{ color: 'text.secondary', mt: 1.5 }}>
                       No data found
                     </Typography>
@@ -842,26 +843,26 @@ export default function Sales() {
           slotProps={{ paper: { sx: menuPaperSx } }}
         >
           <MenuItem onClick={runRowAction(viewSale)}>
-            <ListItemIcon><i className="fas fa-eye" aria-hidden="true" /></ListItemIcon>
+            <ListItemIcon><Iconify icon="fa6-solid:eye" width={16} /></ListItemIcon>
             <ListItemText primary="View" />
           </MenuItem>
           <MenuItem onClick={runRowAction(handleDownloadPDF)}>
-            <ListItemIcon><i className="fas fa-file-pdf" aria-hidden="true" /></ListItemIcon>
+            <ListItemIcon><Iconify icon="fa6-solid:file-pdf" width={16} /></ListItemIcon>
             <ListItemText primary="Download PDF" />
           </MenuItem>
           {actionRow?.customer?.phone && (
             <MenuItem onClick={runRowAction((row) => { setWaTarget(row); setWaShow(true); })}>
-              <ListItemIcon sx={{ color: 'success.main' }}><i className="fab fa-whatsapp" aria-hidden="true" /></ListItemIcon>
+              <ListItemIcon sx={{ color: 'success.main' }}><Iconify icon="fa6-brands:whatsapp" width={16} /></ListItemIcon>
               <ListItemText primary="Send WhatsApp" />
             </MenuItem>
           )}
           <MenuItem onClick={runRowAction(openEdit)}>
-            <ListItemIcon><i className="fas fa-edit" aria-hidden="true" /></ListItemIcon>
+            <ListItemIcon><Iconify icon="fa6-solid:pen-to-square" width={16} /></ListItemIcon>
             <ListItemText primary="Edit" />
           </MenuItem>
           <Divider />
           <MenuItem onClick={runRowAction(deleteSale)} sx={{ color: 'error.main' }}>
-            <ListItemIcon sx={{ color: 'error.main' }}><i className="fas fa-trash" aria-hidden="true" /></ListItemIcon>
+            <ListItemIcon sx={{ color: 'error.main' }}><Iconify icon="fa6-solid:trash-can" width={16} /></ListItemIcon>
             <ListItemText primary="Delete" />
           </MenuItem>
         </Menu>
@@ -894,7 +895,7 @@ export default function Sales() {
         <DialogTitle sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 2 }}>
           <Typography variant="h6" sx={{ fontWeight: 700 }}>{editingId ? 'Edit Sale' : 'New Sale'}</Typography>
           <IconButton size="small" onClick={() => setShow(false)} aria-label="Close">
-            <i className="fas fa-times" style={{ fontSize: 14 }} aria-hidden="true" />
+            <Iconify icon="fa6-solid:xmark" width={14} />
           </IconButton>
         </DialogTitle>
         <DialogContent dividers>
@@ -903,7 +904,7 @@ export default function Sales() {
             {/* Customer Info */}
             <Box sx={sectionBoxSx}>
               <Typography sx={sectionTitleSx}>
-                <i className="fas fa-user" aria-hidden="true" />Customer Info
+                <Iconify icon="fa6-solid:user" width={16} />Customer Info
               </Typography>
               <FormControl size="small" fullWidth required sx={{ mb: 2 }}>
                 <InputLabel>Customer Name</InputLabel>
@@ -939,7 +940,7 @@ export default function Sales() {
             {/* Invoice Info */}
             <Box sx={sectionBoxSx}>
               <Typography sx={sectionTitleSx}>
-                <i className="fas fa-file-invoice" aria-hidden="true" />Invoice Info
+                <Iconify icon="fa6-solid:file-lines" width={16} />Invoice Info
               </Typography>
               <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)' }, gap: 2, mb: 2 }}>
                 <TextField
@@ -1024,13 +1025,13 @@ export default function Sales() {
           {/* Item Info Section */}
           <Box sx={{ ...sectionBoxSx, p: 2, mb: 3 }}>
             <Typography sx={{ ...sectionTitleSx, borderBottom: 0, pb: 0, mb: 1.5 }}>
-              <i className="fas fa-box" aria-hidden="true" />Item Info
+              <Iconify icon="fa6-solid:box" width={16} />Item Info
             </Typography>
             <Box sx={borderedTableSx}>
               <TableContainer sx={{ overflowX: 'auto' }}>
                 <Table size="small" sx={{ minWidth: 860 }}>
                   <TableHead>
-                    <TableRow sx={{ bgcolor: '#f8fafc' }}>
+                    <TableRow sx={{ bgcolor: 'background.neutral' }}>
                       <TableCell align="center" sx={{ ...headerCellSx, ...borderedCellSx, width: 40 }}>#</TableCell>
                       <TableCell sx={{ ...headerCellSx, ...borderedCellSx, minWidth: 220 }}>Item</TableCell>
                       <TableCell sx={{ ...headerCellSx, ...borderedCellSx, width: 80 }}>Qty</TableCell>
@@ -1086,7 +1087,7 @@ export default function Sales() {
                           <TableCell align="right" sx={{ ...borderedCellSx, color: 'text.secondary' }}>{taxInfo.taxAmount > 0 ? `₹${taxInfo.taxAmount.toFixed(2)}` : '-'}</TableCell>
                           <TableCell align="center" sx={borderedCellSx}>
                             <IconButton size="small" color="error" onClick={() => removeItemRow(idx)} aria-label="Remove item">
-                              <i className="fas fa-trash" style={{ fontSize: 13 }} aria-hidden="true" />
+                              <Iconify icon="fa6-solid:trash-can" width={13} />
                             </IconButton>
                           </TableCell>
                         </TableRow>
@@ -1097,7 +1098,7 @@ export default function Sales() {
               </TableContainer>
             </Box>
             <Box sx={{ mt: 1.5 }}>
-              <Button variant="outlined" size="small" onClick={addItemRow} startIcon={<i className="fas fa-plus" aria-hidden="true" />}>
+              <Button variant="outlined" size="small" onClick={addItemRow} startIcon={<Iconify icon="fa6-solid:plus" width={16} />}>
                 Add Item
               </Button>
             </Box>
@@ -1107,7 +1108,7 @@ export default function Sales() {
           <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '7fr 5fr' }, gap: 2.5 }}>
             <Box sx={sectionBoxSx}>
               <Typography sx={sectionTitleSx}>
-                <i className="fas fa-edit" aria-hidden="true" />Additional Details
+                <Iconify icon="fa6-solid:pen-to-square" width={16} />Additional Details
               </Typography>
               <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)' }, gap: 2, mb: 2 }}>
                 <TextField
@@ -1139,7 +1140,7 @@ export default function Sales() {
 
             <Box sx={sectionBoxSx}>
               <Typography sx={sectionTitleSx}>
-                <i className="fas fa-calculator" aria-hidden="true" />Summary
+                <Iconify icon="fa6-solid:calculator" width={16} />Summary
               </Typography>
               <Box sx={borderedTableSx}>
                 <Table size="small">
@@ -1196,7 +1197,7 @@ export default function Sales() {
         <DialogTitle sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 2 }}>
           <Typography variant="h6" sx={{ fontWeight: 700 }}>Sale Details</Typography>
           <IconButton size="small" onClick={() => setViewShow(false)} aria-label="Close">
-            <i className="fas fa-times" style={{ fontSize: 14 }} aria-hidden="true" />
+            <Iconify icon="fa6-solid:xmark" width={14} />
           </IconButton>
         </DialogTitle>
         <DialogContent dividers>
@@ -1249,7 +1250,7 @@ export default function Sales() {
                 <TableContainer sx={{ overflowX: 'auto' }}>
                   <Table size="small">
                     <TableHead>
-                      <TableRow sx={{ bgcolor: '#f8fafc' }}>
+                      <TableRow sx={{ bgcolor: 'background.neutral' }}>
                         <TableCell align="center" sx={{ ...headerCellSx, ...borderedCellSx }}>#</TableCell>
                         <TableCell sx={{ ...headerCellSx, ...borderedCellSx }}>Item</TableCell>
                         <TableCell align="center" sx={{ ...headerCellSx, ...borderedCellSx }}>Qty</TableCell>
@@ -1325,7 +1326,7 @@ export default function Sales() {
               </Box>
 
               {viewData.notes && (
-                <Box sx={{ mt: 2, p: 2, bgcolor: '#f8fafc', borderRadius: 2 }}>
+                <Box sx={{ mt: 2, p: 2, bgcolor: 'background.neutral', borderRadius: 2 }}>
                   <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 700 }}>Notes:</Typography>
                   <Typography variant="body2" sx={{ mb: 0 }}>{viewData.notes}</Typography>
                 </Box>

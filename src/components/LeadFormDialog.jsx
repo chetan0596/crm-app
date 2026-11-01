@@ -1,3 +1,4 @@
+import { Iconify } from "./iconify";
 import {
   Alert,
   Box,
@@ -87,13 +88,13 @@ export default function LeadFormDialog({
       >
         <DialogTitle sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 2, py: 2 }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25 }}>
-            <i className={`fas ${edit ? 'fa-edit' : 'fa-plus'}`} style={{ color: '#062849', fontSize: 15 }} aria-hidden="true" />
+            <Iconify icon={edit ? 'fa6-solid:pen-to-square' : 'fa6-solid:plus'} width={15} sx={{ color: '#062849' }} />
             <Typography variant="h6" sx={{ fontWeight: 700 }}>
               {edit ? "Edit Lead" : "Add Lead"}
             </Typography>
           </Box>
           <IconButton size="small" onClick={onClose} aria-label="Close">
-            <i className="fas fa-times" style={{ fontSize: 14 }} aria-hidden="true" />
+            <Iconify icon="fa6-solid:xmark" width={14} />
           </IconButton>
         </DialogTitle>
 
@@ -472,7 +473,7 @@ export default function LeadFormDialog({
             Add City
           </Typography>
           <IconButton size="small" onClick={onCloseAddCity} aria-label="Close">
-            <i className="fas fa-times" style={{ fontSize: 14 }} aria-hidden="true" />
+            <Iconify icon="fa6-solid:xmark" width={14} />
           </IconButton>
         </DialogTitle>
         <DialogContent dividers sx={{ p: 3 }}>

@@ -26,6 +26,7 @@ import {
 } from "@mui/material";
 import api from "../../api";
 import { canView } from "../../utils/permissions";
+import { Iconify } from "../../components/iconify";
 
 const formatMoney = (v) => {
   const n = Number(v || 0);
@@ -82,7 +83,7 @@ function StatCard({ label, value, icon, color, background }) {
       <CardContent sx={{ p: 2.5 }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
           <Box sx={{ width: 44, height: 44, borderRadius: 2, display: 'grid', placeItems: 'center', bgcolor: background, color, flexShrink: 0 }}>
-            <i className={icon} style={{ fontSize: 18 }} aria-hidden="true" />
+            <Iconify icon={icon} width={18} />
           </Box>
           <Box sx={{ minWidth: 0 }}>
             <Typography variant="body2" sx={{ color: 'text.secondary', mb: .25 }}>
@@ -268,7 +269,7 @@ export default function VendorReport() {
                 color="error"
                 onClick={handleDownloadPDF}
                 disabled={loading}
-                startIcon={<i className="fas fa-file-pdf" aria-hidden="true" />}
+                startIcon={<Iconify icon="fa6-solid:file-pdf" width={16} />}
               >
                 PDF
               </Button>
@@ -278,10 +279,10 @@ export default function VendorReport() {
       </Card>
 
       <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', lg: 'repeat(4, 1fr)' }, gap: 2.5, mb: 2.5 }}>
-        <StatCard label="Total Vendors" value={summary.total_vendors} icon="fas fa-truck" color="#062849" background="#eaf0f6" />
-        <StatCard label="Total Purchases" value={`₹${formatMoney(summary.total_purchases)}`} icon="fas fa-cart-shopping" color="#118d57" background="#dbf5e9" />
-        <StatCard label="Total Transactions" value={summary.total_transactions} icon="fas fa-receipt" color="#006c9c" background="#caf4ff" />
-        <StatCard label="Avg Transaction" value={`₹${formatMoney(summary.avg_transaction_value)}`} icon="fas fa-chart-line" color="#6528e8" background="#f1ebfd" />
+        <StatCard label="Total Vendors" value={summary.total_vendors} icon="fa6-solid:truck" color="#062849" background="#eaf0f6" />
+        <StatCard label="Total Purchases" value={`₹${formatMoney(summary.total_purchases)}`} icon="fa6-solid:cart-shopping" color="#118d57" background="#dbf5e9" />
+        <StatCard label="Total Transactions" value={summary.total_transactions} icon="fa6-solid:receipt" color="#006c9c" background="#caf4ff" />
+        <StatCard label="Avg Transaction" value={`₹${formatMoney(summary.avg_transaction_value)}`} icon="fa6-solid:chart-line" color="#6528e8" background="#f1ebfd" />
       </Box>
 
       <Card sx={cardSx}>
@@ -295,7 +296,7 @@ export default function VendorReport() {
         <TableContainer sx={{ overflowX: 'auto' }}>
           <Table size="small" sx={{ minWidth: 900 }}>
             <TableHead>
-              <TableRow sx={{ bgcolor: '#f8fafc' }}>
+              <TableRow sx={{ bgcolor: 'background.neutral' }}>
                 <TableCell sx={headCellSx}>Vendor</TableCell>
                 <TableCell sx={headCellSx}>Contact</TableCell>
                 <TableCell align="center" sx={headCellSx}>Transactions</TableCell>

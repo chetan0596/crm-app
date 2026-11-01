@@ -40,6 +40,15 @@ import api from "../api";
 import LeadFormDialog from "../components/LeadFormDialog";
 import { canCreate, canDelete, canEdit, canView } from "../utils/permissions";
 import { getUserData } from "../utils/permissions";
+import { Iconify } from "../components/iconify";
+import {
+  useReactTable,
+  getCoreRowModel,
+  getFilteredRowModel,
+  getPaginationRowModel,
+  getSortedRowModel,
+  flexRender,
+} from '@tanstack/react-table';
 
 function getNum(v, d) {
   const n = Number(v);
@@ -326,6 +335,8 @@ export default function Leads() {
       const r = await api.get('/leads', {
         params: {
           ...table,
+          sort: table.sortField,
+          dir: table.sortDir,
           stage: table.filters.stage,
           source: table.filters.source,
           product_name: table.filters.product_name,
@@ -451,58 +462,6 @@ export default function Leads() {
     };
     loadCities();
   }, [form.state_id]);
-
-  const clientRows = useMemo(() => {
-    if (serverMode) return [];
-
-    let data = rawRows;
-    const q = table.search.trim().toLowerCase();
-    if (q) {
-      data = data.filter(r => 
-        (r?.name ?? "").toLowerCase().includes(q) ||
-        (r?.phone ?? "").toLowerCase().includes(q) ||
-        (r?.email ?? "").toLowerCase().includes(q)
-      );
-    }
-
-    const dir = table.sortDir === "asc" ? 1 : -1;
-    const field = table.sortField;
-
-    const sorted = [...data].sort((a, b) => {
-      const av = a?.[field];
-      const bv = b?.[field];
-
-      if (av == null && bv == null) return 0;
-      if (av == null) return 1;
-      if (bv == null) return -1;
-
-      if (typeof av === "number" && typeof bv === "number") {
-        return (av - bv) * dir;
-      }
-
-      return String(av).localeCompare(String(bv)) * dir;
-    });
-
-    const start = (table.page - 1) * table.perPage;
-    const end = start + table.perPage;
-    return sorted.slice(start, end);
-  }, [rawRows, serverMode, table.page, table.perPage, table.search, table.sortDir, table.sortField]);
-
-  useEffect(() => {
-    if (serverMode) return;
-
-    const q = table.search.trim().toLowerCase();
-    const filtered = q
-      ? rawRows.filter(r => 
-          (r?.name ?? "").toLowerCase().includes(q) ||
-          (r?.phone ?? "").toLowerCase().includes(q) ||
-          (r?.email ?? "").toLowerCase().includes(q)
-        )
-      : rawRows;
-
-    setTotal(filtered.length);
-    setRows(clientRows);
-  }, [clientRows, rawRows, serverMode, table.search]);
 
   // ================= MODAL =================
 
@@ -722,7 +681,7 @@ export default function Leads() {
 
   // ================= TABLE =================
 
-  const columns = [
+  const columns = useMemo(() => [
     visibleCols.id && {
       key: 'id', label: 'ID', sortField: 'id', width: 80,
       render: (row) => <Typography variant="body2" sx={{ fontWeight: 700 }}>#{row.id}</Typography>,
@@ -823,12 +782,12 @@ export default function Leads() {
             aria-haspopup="true"
             sx={{ border: '1px solid', borderColor: 'divider' }}
           >
-            <i className="fas fa-ellipsis-vertical" style={{ fontSize: 13 }} aria-hidden="true" />
+            <Iconify icon="fa6-solid:ellipsis-vertical" width={13} />
           </IconButton>
         </Tooltip>
       ),
     },
-  ].filter(Boolean);
+  ].filter(Boolean), [visibleCols]);
 
   const visibleColumnOptions = [
     ['id', 'ID'],
@@ -855,10 +814,75 @@ export default function Leads() {
     if (row) callback(row);
   };
 
-  const handleSort = (field) => {
-    const isAsc = table.sortField === field && table.sortDir === 'asc';
-    dispatch({ type: 'SORT', field, dir: isAsc ? 'desc' : 'asc' });
-  };
+  // ================= TANSTACK TABLE =================
+  // Server mode: rows come pre-paginated/sorted from the API (manual* flags).
+  // Client fallback: TanStack paginates/sorts/filters `rawRows` itself.
+
+  const tanColumns = useMemo(() => columns.map((column) => ({
+    id: column.key,
+    header: column.label,
+    enableSorting: Boolean(column.sortField),
+    accessorFn: column.sortField ? (row) => row[column.sortField] : undefined,
+    meta: {
+      sortField: column.sortField,
+      align: column.align,
+      minWidth: column.minWidth,
+      width: column.width,
+    },
+    cell: ({ row }) => column.render(row.original),
+  })), [columns]);
+
+  const sorting = useMemo(() => {
+    const columnId = tanColumns.find((c) => c.meta?.sortField === table.sortField)?.id || table.sortField;
+    return [{ id: columnId, desc: table.sortDir === 'desc' }];
+  }, [tanColumns, table.sortField, table.sortDir]);
+
+  const pagination = useMemo(
+    () => ({ pageIndex: table.page - 1, pageSize: table.perPage }),
+    [table.page, table.perPage]
+  );
+
+  const dataTable = useReactTable({
+    data: serverMode ? rows : rawRows,
+    columns: tanColumns,
+    state: {
+      sorting,
+      pagination,
+      columnVisibility: visibleCols,
+      globalFilter: table.search,
+    },
+    onSortingChange: (updater) => {
+      const next = typeof updater === 'function' ? updater(sorting) : updater;
+      const first = next[0];
+      if (!first) return;
+      const field = tanColumns.find((c) => c.id === first.id)?.meta?.sortField || first.id;
+      dispatch({ type: 'SORT', field, dir: first.desc ? 'desc' : 'asc' });
+    },
+    onPaginationChange: (updater) => {
+      const next = typeof updater === 'function' ? updater(pagination) : updater;
+      if (next.pageSize !== table.perPage) dispatch({ type: 'PER_PAGE', perPage: next.pageSize });
+      if (next.pageIndex + 1 !== table.page) dispatch({ type: 'PAGE', page: next.pageIndex + 1 });
+    },
+    onColumnVisibilityChange: (updater) =>
+      setVisibleCols((prev) => (typeof updater === 'function' ? updater(prev) : updater)),
+    getRowId: (row) => String(row.id),
+    getCoreRowModel: getCoreRowModel(),
+    getPaginationRowModel: getPaginationRowModel(),
+    getSortedRowModel: getSortedRowModel(),
+    getFilteredRowModel: getFilteredRowModel(),
+    manualPagination: serverMode,
+    manualSorting: serverMode,
+    manualFiltering: serverMode,
+    enableSortingRemoval: false,
+    pageCount: serverMode ? Math.max(Math.ceil(total / table.perPage), 1) : -1,
+    globalFilterFn: (row, _columnId, value) => {
+      const q = String(value || '').trim().toLowerCase();
+      if (!q) return true;
+      return ['name', 'phone', 'email'].some((key) =>
+        String(row.original?.[key] ?? '').toLowerCase().includes(q)
+      );
+    },
+  });
 
   // ================= UI =================
 
@@ -895,7 +919,7 @@ export default function Leads() {
                   input: {
                     startAdornment: (
                       <InputAdornment position="start">
-                        <i className="fas fa-search" style={{ fontSize: 13 }} aria-hidden="true" />
+                        <Iconify icon="fa6-solid:magnifying-glass" width={13} />
                       </InputAdornment>
                     ),
                   },
@@ -906,7 +930,7 @@ export default function Leads() {
               <Button
                 variant="outlined"
                 onClick={() => setShowFilters(open => !open)}
-                startIcon={<i className="fas fa-filter" aria-hidden="true" />}
+                startIcon={<Iconify icon="fa6-solid:filter" width={16} />}
                 endIcon={hasActiveFilters ? <Box component="span" sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: 'secondary.main' }} /> : null}
                 sx={{ whiteSpace: 'nowrap' }}
               >
@@ -914,7 +938,7 @@ export default function Leads() {
               </Button>
 
               {canCreate("leads") && (
-                <Button variant="contained" onClick={openAdd} startIcon={<i className="fas fa-plus" aria-hidden="true" />}>
+                <Button variant="contained" onClick={openAdd} startIcon={<Iconify icon="fa6-solid:plus" width={16} />}>
                   Add Lead
                 </Button>
               )}
@@ -924,7 +948,7 @@ export default function Leads() {
 
         <Collapse in={showFilters} unmountOnExit>
           <Divider />
-          <Box sx={{ px: 3, py: 2.5, bgcolor: '#f8fafc' }}>
+          <Box sx={{ px: 3, py: 2.5, bgcolor: 'background.neutral' }}>
             <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 2, mb: 2.5 }}>
               <Box>
                 <Typography variant="subtitle2" sx={{ color: 'text.primary', fontWeight: 700 }}>
@@ -935,7 +959,7 @@ export default function Leads() {
                 </Typography>
               </Box>
               {hasActiveFilters && (
-                <Button variant="text" size="small" onClick={clearFilters} startIcon={<i className="fas fa-times" aria-hidden="true" />}>
+                <Button variant="text" size="small" onClick={clearFilters} startIcon={<Iconify icon="fa6-solid:xmark" width={16} />}>
                   Clear filters
                 </Button>
               )}
@@ -1024,7 +1048,7 @@ export default function Leads() {
               variant="text"
               size="small"
               onClick={(event) => setColumnAnchorEl(event.currentTarget)}
-              startIcon={<i className="fas fa-columns" aria-hidden="true" />}
+              startIcon={<Iconify icon="fa6-solid:table-columns" width={16} />}
             >
               {shownColumnCount === 0 ? 'No columns' : shownColumnCount === visibleColumnOptions.length ? `All columns (${visibleColumnOptions.length})` : `${shownColumnCount} of ${visibleColumnOptions.length} columns`}
             </Button>
@@ -1042,7 +1066,7 @@ export default function Leads() {
             size="small"
             onClick={() => setReloadKey(k => k + 1)}
             disabled={loading}
-            startIcon={<i className="fas fa-sync-alt" aria-hidden="true" />}
+            startIcon={<Iconify icon="fa6-solid:arrows-rotate" width={16} />}
           >
             Refresh
           </Button>
@@ -1052,43 +1076,50 @@ export default function Leads() {
         <TableContainer sx={{ overflowX: 'auto' }}>
           <Table sx={{ minWidth: 1100 }} size="small">
             <TableHead>
-              <TableRow sx={{ bgcolor: '#f8fafc' }}>
-                {columns.map((column) => (
-                  <TableCell
-                    key={column.key}
-                    align={column.align || 'left'}
-                    sx={{
-                      minWidth: column.minWidth,
-                      width: column.width,
-                      color: 'text.secondary',
-                      fontSize: 12,
-                      fontWeight: 700,
-                      textTransform: 'uppercase',
-                      letterSpacing: '.04em',
-                      px: 2,
-                      py: 1.5,
-                      borderBottom: '1px solid',
-                      borderColor: 'divider',
-                    }}
-                  >
-                    {column.sortField ? (
-                      <TableSortLabel
-                        active={table.sortField === column.sortField}
-                        direction={table.sortField === column.sortField ? table.sortDir : 'asc'}
-                        onClick={() => handleSort(column.sortField)}
+              {dataTable.getHeaderGroups().map((headerGroup) => (
+                <TableRow key={headerGroup.id} sx={{ bgcolor: 'background.neutral' }}>
+                  {headerGroup.headers.map((header) => {
+                    const meta = header.column.columnDef.meta || {};
+                    return (
+                      <TableCell
+                        key={header.id}
+                        align={meta.align || 'left'}
+                        sx={{
+                          minWidth: meta.minWidth,
+                          width: meta.width,
+                          color: 'text.secondary',
+                          fontSize: 12,
+                          fontWeight: 700,
+                          textTransform: 'uppercase',
+                          letterSpacing: '.04em',
+                          px: 2,
+                          py: 1.5,
+                          borderBottom: '1px solid',
+                          borderColor: 'divider',
+                        }}
                       >
-                        {column.label}
-                      </TableSortLabel>
-                    ) : column.label}
-                  </TableCell>
-                ))}
-              </TableRow>
+                        {header.column.getCanSort() ? (
+                          <TableSortLabel
+                            active={header.column.getIsSorted() !== false}
+                            direction={header.column.getIsSorted() === 'desc' ? 'desc' : 'asc'}
+                            onClick={header.column.getToggleSortingHandler()}
+                          >
+                            {flexRender(header.column.columnDef.header, header.getContext())}
+                          </TableSortLabel>
+                        ) : (
+                          flexRender(header.column.columnDef.header, header.getContext())
+                        )}
+                      </TableCell>
+                    );
+                  })}
+                </TableRow>
+              ))}
             </TableHead>
             <TableBody>
-              {rows.length === 0 && !loading ? (
+              {dataTable.getRowModel().rows.length === 0 && !loading ? (
                 <TableRow>
-                  <TableCell colSpan={Math.max(columns.length, 1)} align="center" sx={{ py: 7 }}>
-                    <i className="fas fa-folder-open" style={{ color: '#637381', fontSize: 42, opacity: .4 }} aria-hidden="true" />
+                  <TableCell colSpan={Math.max(dataTable.getVisibleLeafColumns().length, 1)} align="center" sx={{ py: 7 }}>
+                    <Iconify icon="fa6-solid:folder-open" width={42} />
                     <Typography variant="subtitle2" sx={{ color: 'text.secondary', mt: 1.5 }}>
                       No leads found
                     </Typography>
@@ -1097,7 +1128,7 @@ export default function Leads() {
                     </Typography>
                   </TableCell>
                 </TableRow>
-              ) : rows.map((row) => (
+              ) : dataTable.getRowModel().rows.map((row) => (
                 <TableRow
                   key={row.id}
                   hover
@@ -1106,15 +1137,18 @@ export default function Leads() {
                     '&:last-child td': { borderBottom: 0 },
                   }}
                 >
-                  {columns.map((column) => (
-                    <TableCell
-                      key={`${row.id}-${column.key}`}
-                      align={column.align || 'left'}
-                      sx={{ verticalAlign: 'middle', px: 2, py: 1.5, borderBottom: '1px solid #f1f5f9' }}
-                    >
-                      {column.render(row)}
-                    </TableCell>
-                  ))}
+                  {row.getVisibleCells().map((cell) => {
+                    const meta = cell.column.columnDef.meta || {};
+                    return (
+                      <TableCell
+                        key={cell.id}
+                        align={meta.align || 'left'}
+                        sx={{ verticalAlign: 'middle', px: 2, py: 1.5, borderBottom: '1px solid #f1f5f9' }}
+                      >
+                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                      </TableCell>
+                    );
+                  })}
                 </TableRow>
               ))}
             </TableBody>
@@ -1141,23 +1175,23 @@ export default function Leads() {
           }}
         >
           <MenuItem onClick={runRowAction((row) => navigate(`/leads/${row.id}`))}>
-            <ListItemIcon><i className="fas fa-eye" aria-hidden="true" /></ListItemIcon>
+            <ListItemIcon><Iconify icon="fa6-solid:eye" width={16} /></ListItemIcon>
             <ListItemText primary="View" />
           </MenuItem>
           <MenuItem onClick={runRowAction(openEdit)}>
-            <ListItemIcon><i className="fas fa-edit" aria-hidden="true" /></ListItemIcon>
+            <ListItemIcon><Iconify icon="fa6-solid:pen-to-square" width={16} /></ListItemIcon>
             <ListItemText primary="Edit" />
           </MenuItem>
           {actionRow && canEdit("leads") && (!actionRow.assigned_to || (currentUserId && Number(actionRow.assigned_to) !== Number(currentUserId))) && (
             <MenuItem onClick={runRowAction(claim)}>
-              <ListItemIcon sx={{ color: 'success.main' }}><i className="fas fa-user-check" aria-hidden="true" /></ListItemIcon>
+              <ListItemIcon sx={{ color: 'success.main' }}><Iconify icon="fa6-solid:user-check" width={16} /></ListItemIcon>
               <ListItemText primary="Assign to me" />
             </MenuItem>
           )}
           {actionRow && canDelete("leads") && <Divider />}
           {actionRow && canDelete("leads") && (
             <MenuItem onClick={runRowAction(del)} sx={{ color: 'error.main' }}>
-              <ListItemIcon sx={{ color: 'error.main' }}><i className="fas fa-trash" aria-hidden="true" /></ListItemIcon>
+              <ListItemIcon sx={{ color: 'error.main' }}><Iconify icon="fa6-solid:trash-can" width={16} /></ListItemIcon>
               <ListItemText primary="Delete" />
             </MenuItem>
           )}
@@ -1165,18 +1199,12 @@ export default function Leads() {
 
         <TablePagination
           component="div"
-          count={total}
+          count={serverMode ? total : (dataTable.getFilteredRowModel()?.rows.length ?? 0)}
           page={Math.max(table.page - 1, 0)}
           rowsPerPage={table.perPage}
           rowsPerPageOptions={[10, 20, 50, 100, 200]}
-          onPageChange={(event, page) => {
-            const nextPage = page + 1;
-            if (nextPage !== table.page) dispatch({ type: 'PAGE', page: nextPage });
-          }}
-          onRowsPerPageChange={(event) => {
-            const nextSize = Number(event.target.value);
-            if (nextSize !== table.perPage) dispatch({ type: 'PER_PAGE', perPage: nextSize });
-          }}
+          onPageChange={(event, page) => dataTable.setPageIndex(page)}
+          onRowsPerPageChange={(event) => dataTable.setPageSize(Number(event.target.value))}
           sx={{ borderTop: '1px solid', borderColor: 'divider' }}
         />
       </Card>

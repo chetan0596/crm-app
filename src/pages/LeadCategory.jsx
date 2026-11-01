@@ -35,6 +35,7 @@ import {
 import api from "../api";
 import Swal from "sweetalert2";
 import { toast } from "react-toastify";
+import { Iconify } from "../components/iconify";
 
 
 // ================= HELPERS =================
@@ -345,7 +346,7 @@ export default function LeadCategory() {
           aria-haspopup="true"
           sx={{ border: '1px solid', borderColor: 'divider' }}
         >
-          <i className="fas fa-ellipsis-v" style={{ fontSize: 13 }} aria-hidden="true" />
+          <Iconify icon="fa6-solid:ellipsis-vertical" width={13} />
         </IconButton>
       ),
     },
@@ -376,13 +377,13 @@ export default function LeadCategory() {
                   input: {
                     startAdornment: (
                       <InputAdornment position="start">
-                        <i className="fas fa-search" style={{ fontSize: 13 }} aria-hidden="true" />
+                        <Iconify icon="fa6-solid:magnifying-glass" width={13} />
                       </InputAdornment>
                     ),
                   },
                 }}
               />
-              <Button variant="contained" onClick={openAdd} startIcon={<i className="fas fa-plus" aria-hidden="true" />}>
+              <Button variant="contained" onClick={openAdd} startIcon={<Iconify icon="fa6-solid:plus" width={16} />}>
                 Add
               </Button>
             </Stack>
@@ -399,7 +400,7 @@ export default function LeadCategory() {
             variant="text"
             size="small"
             onClick={(event) => setColumnAnchorEl(event.currentTarget)}
-            startIcon={<i className="fas fa-columns" aria-hidden="true" />}
+            startIcon={<Iconify icon="fa6-solid:table-columns" width={16} />}
           >
             {shownColumnLabel}
           </Button>
@@ -418,7 +419,7 @@ export default function LeadCategory() {
         <TableContainer sx={{ overflowX: 'auto' }}>
           <Table sx={{ minWidth: 560 }} size="small">
             <TableHead>
-              <TableRow sx={{ bgcolor: '#f8fafc' }}>
+              <TableRow sx={{ bgcolor: 'background.neutral' }}>
                 {columns.map((column) => (
                   <TableCell
                     key={column.key}
@@ -442,7 +443,7 @@ export default function LeadCategory() {
               {rows.length === 0 && !loading ? (
                 <TableRow>
                   <TableCell colSpan={Math.max(columns.length, 1)} align="center" sx={{ py: 7 }}>
-                    <i className="fas fa-folder-open" style={{ color: '#637381', fontSize: 42, opacity: .4 }} aria-hidden="true" />
+                    <Iconify icon="fa6-solid:folder-open" width={42} />
                     <Typography variant="subtitle2" sx={{ color: 'text.secondary', mt: 1.5 }}>
                       No data found
                     </Typography>
@@ -496,20 +497,20 @@ export default function LeadCategory() {
           }}
         >
           <MenuItem onClick={runRowAction((row) => nav(`/lead-categories/${row.id}/subcategories`))}>
-            <ListItemIcon><i className="fas fa-sitemap" style={{ color: '#062849' }} aria-hidden="true" /></ListItemIcon>
+            <ListItemIcon><Iconify icon="fa6-solid:sitemap" width={16} /></ListItemIcon>
             <ListItemText primary="Subcategories" />
           </MenuItem>
           <MenuItem onClick={runRowAction((row) => nav(`/lead-categories/${row.id}/activity`))}>
-            <ListItemIcon><i className="fas fa-history" style={{ color: '#00b8d9' }} aria-hidden="true" /></ListItemIcon>
+            <ListItemIcon><Iconify icon="fa6-solid:clock-rotate-left" width={16} /></ListItemIcon>
             <ListItemText primary="Activity" />
           </MenuItem>
           <Divider />
           <MenuItem onClick={runRowAction(openEdit)}>
-            <ListItemIcon><i className="fas fa-edit" aria-hidden="true" /></ListItemIcon>
+            <ListItemIcon><Iconify icon="fa6-solid:pen-to-square" width={16} /></ListItemIcon>
             <ListItemText primary="Edit" />
           </MenuItem>
           <MenuItem onClick={runRowAction(remove)} sx={{ color: 'error.main' }}>
-            <ListItemIcon sx={{ color: 'error.main' }}><i className="fas fa-trash" aria-hidden="true" /></ListItemIcon>
+            <ListItemIcon sx={{ color: 'error.main' }}><Iconify icon="fa6-solid:trash-can" width={16} /></ListItemIcon>
             <ListItemText primary="Delete" />
           </MenuItem>
         </Menu>
@@ -548,7 +549,7 @@ export default function LeadCategory() {
             {editRow ? "Edit Category" : "Add Category"}
           </Typography>
           <IconButton size="small" onClick={() => setShow(false)} aria-label="Close">
-            <i className="fas fa-times" style={{ fontSize: 14 }} aria-hidden="true" />
+            <Iconify icon="fa6-solid:xmark" width={14} />
           </IconButton>
         </DialogTitle>
 

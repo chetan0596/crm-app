@@ -29,6 +29,7 @@ import {
   Typography,
 } from "@mui/material";
 import api from "../api";
+import { Iconify } from "../components/iconify";
 
 const tableReducer = (state, action) => {
   switch (action.type) {
@@ -97,7 +98,7 @@ function MetricCard({ label, value, icon, color, background }) {
       <CardContent sx={{ p: 3 }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
           <Box sx={iconBoxSx(background, color)}>
-            <i className={icon} style={{ fontSize: 20 }} aria-hidden="true" />
+            <Iconify icon={icon} width={20} />
           </Box>
           <Box sx={{ minWidth: 0 }}>
             <Typography variant="body2" sx={{ color: 'text.secondary', mb: .5 }}>
@@ -258,11 +259,11 @@ export default function InventoryDashboard() {
   };
 
   const metrics = [
-    { label: 'Total Items', value: stats.totalItems, icon: 'fas fa-boxes-stacked', color: '#062849', background: '#eaf0f6' },
-    { label: 'Total Stock', value: stats.totalStock, icon: 'fas fa-layer-group', color: '#118d57', background: '#dbf5e9' },
-    { label: 'Low Stock', value: stats.lowStock, icon: 'fas fa-triangle-exclamation', color: '#b76e00', background: '#fff4d6' },
-    { label: 'Out of Stock', value: stats.outOfStock, icon: 'fas fa-ban', color: '#b71d18', background: '#ffe4de' },
-    { label: 'Total Stock Value', value: `₹${stats.stockValue?.toFixed(2)}`, icon: 'fas fa-coins', color: '#006c9c', background: '#caf4ff' },
+    { label: 'Total Items', value: stats.totalItems, icon: 'fa6-solid:boxes-stacked', color: '#062849', background: '#eaf0f6' },
+    { label: 'Total Stock', value: stats.totalStock, icon: 'fa6-solid:layer-group', color: '#118d57', background: '#dbf5e9' },
+    { label: 'Low Stock', value: stats.lowStock, icon: 'fa6-solid:triangle-exclamation', color: '#b76e00', background: '#fff4d6' },
+    { label: 'Out of Stock', value: stats.outOfStock, icon: 'fa6-solid:ban', color: '#b71d18', background: '#ffe4de' },
+    { label: 'Total Stock Value', value: `₹${stats.stockValue?.toFixed(2)}`, icon: 'fa6-solid:coins', color: '#006c9c', background: '#caf4ff' },
   ];
 
   return (
@@ -309,7 +310,7 @@ export default function InventoryDashboard() {
                   input: {
                     startAdornment: (
                       <InputAdornment position="start">
-                        <i className="fas fa-search" style={{ fontSize: 13 }} aria-hidden="true" />
+                        <Iconify icon="fa6-solid:magnifying-glass" width={13} />
                       </InputAdornment>
                     ),
                   },
@@ -329,7 +330,7 @@ export default function InventoryDashboard() {
               variant="text"
               size="small"
               onClick={(event) => setColumnAnchorEl(event.currentTarget)}
-              startIcon={<i className="fas fa-columns" aria-hidden="true" />}
+              startIcon={<Iconify icon="fa6-solid:table-columns" width={16} />}
             >
               {shownColumnCount === 0 ? 'No columns' : shownColumnCount === visibleColumnOptions.length ? `All columns (${visibleColumnOptions.length})` : `${shownColumnCount} of ${visibleColumnOptions.length} columns`}
             </Button>
@@ -348,7 +349,7 @@ export default function InventoryDashboard() {
         <TableContainer sx={{ overflowX: 'auto' }}>
           <Table sx={{ minWidth: 1000 }} size="small">
             <TableHead>
-              <TableRow sx={{ bgcolor: '#f8fafc' }}>
+              <TableRow sx={{ bgcolor: 'background.neutral' }}>
                 {columns.map((column) => (
                   <TableCell
                     key={column.key}
@@ -372,7 +373,7 @@ export default function InventoryDashboard() {
               {rows.length === 0 && !loading ? (
                 <TableRow>
                   <TableCell colSpan={Math.max(columns.length, 1)} align="center" sx={{ py: 7 }}>
-                    <i className="fas fa-folder-open" style={{ color: '#637381', fontSize: 42, opacity: .4 }} aria-hidden="true" />
+                    <Iconify icon="fa6-solid:folder-open" width={42} />
                     <Typography variant="subtitle2" sx={{ color: 'text.secondary', mt: 1.5 }}>
                       No data found
                     </Typography>

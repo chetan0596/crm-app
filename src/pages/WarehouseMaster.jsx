@@ -31,6 +31,7 @@ import {
 } from "@mui/material";
 import { canCreate, canDelete, canEdit, canView } from "../utils/permissions";
 import api from "../api";
+import { Iconify } from "../components/iconify";
 
 const toArray = (value) => {
   if (Array.isArray(value)) return value;
@@ -263,14 +264,14 @@ export default function WarehouseMaster() {
           {canEditWarehouse && (
             <Tooltip title="Edit">
               <IconButton size="small" onClick={() => handleEdit(row)} sx={actionBtnSx} aria-label="Edit warehouse">
-                <i className="fas fa-edit" style={{ fontSize: 13 }} aria-hidden="true" />
+                <Iconify icon="fa6-solid:pen-to-square" width={13} />
               </IconButton>
             </Tooltip>
           )}
           {canDeleteWarehouse && (
             <Tooltip title="Delete">
               <IconButton size="small" onClick={() => handleDelete(row)} sx={{ ...actionBtnSx, color: 'error.main' }} aria-label="Delete warehouse">
-                <i className="fas fa-trash" style={{ fontSize: 13 }} aria-hidden="true" />
+                <Iconify icon="fa6-solid:trash-can" width={13} />
               </IconButton>
             </Tooltip>
           )}
@@ -306,7 +307,7 @@ export default function WarehouseMaster() {
               resetForm();
               setShowModal(true);
             }}
-            startIcon={<i className="fas fa-plus" aria-hidden="true" />}
+            startIcon={<Iconify icon="fa6-solid:plus" width={16} />}
           >
             New Warehouse
           </Button>
@@ -325,7 +326,7 @@ export default function WarehouseMaster() {
               input: {
                 startAdornment: (
                   <InputAdornment position="start">
-                    <i className="fas fa-search" style={{ fontSize: 13 }} aria-hidden="true" />
+                    <Iconify icon="fa6-solid:magnifying-glass" width={13} />
                   </InputAdornment>
                 ),
               },
@@ -341,7 +342,7 @@ export default function WarehouseMaster() {
         <TableContainer sx={{ overflowX: 'auto' }}>
           <Table sx={{ minWidth: 860 }} size="small">
             <TableHead>
-              <TableRow sx={{ bgcolor: '#f8fafc' }}>
+              <TableRow sx={{ bgcolor: 'background.neutral' }}>
                 {columns.map((column) => (
                   <TableCell
                     key={column.key}
@@ -365,7 +366,7 @@ export default function WarehouseMaster() {
               {sortedWarehouses.length === 0 && !loading ? (
                 <TableRow>
                   <TableCell colSpan={columns.length} align="center" sx={{ py: 7 }}>
-                    <i className="fas fa-folder-open" style={{ color: '#637381', fontSize: 42, opacity: .4 }} aria-hidden="true" />
+                    <Iconify icon="fa6-solid:folder-open" width={42} />
                     <Typography variant="subtitle2" sx={{ color: 'text.secondary', mt: 1.5 }}>
                       No data found
                     </Typography>
@@ -420,13 +421,13 @@ export default function WarehouseMaster() {
       >
         <DialogTitle sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 2, py: 2 }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25 }}>
-            <i className={`fas ${editingId ? 'fa-edit' : 'fa-plus'}`} style={{ color: '#062849', fontSize: 15 }} aria-hidden="true" />
+            <Iconify icon={editingId ? 'fa6-solid:pen-to-square' : 'fa6-solid:plus'} width={15} sx={{ color: '#062849' }} />
             <Typography variant="h6" sx={{ fontWeight: 700 }}>
               {editingId ? "Edit Warehouse" : "New Warehouse"}
             </Typography>
           </Box>
           <IconButton size="small" onClick={() => setShowModal(false)} aria-label="Close">
-            <i className="fas fa-times" style={{ fontSize: 14 }} aria-hidden="true" />
+            <Iconify icon="fa6-solid:xmark" width={14} />
           </IconButton>
         </DialogTitle>
 
@@ -512,7 +513,7 @@ export default function WarehouseMaster() {
           <Button
             variant="contained"
             onClick={handleSave}
-            startIcon={<i className={`fas ${editingId ? 'fa-check' : 'fa-plus'}`} aria-hidden="true" />}
+            startIcon={<Iconify icon={editingId ? 'fa6-solid:check' : 'fa6-solid:plus'} width={16} />}
           >
             {editingId ? "Update" : "Create"} Warehouse
           </Button>

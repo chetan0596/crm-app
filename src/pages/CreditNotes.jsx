@@ -37,6 +37,7 @@ import Swal from "sweetalert2";
 import { toast } from "react-toastify";
 import api from "../api";
 import { canCreate, canEdit, canDelete, canView } from "../utils/permissions";
+import { Iconify } from "../components/iconify";
 
 const tableReducer = (state, action) => {
   switch (action.type) {
@@ -105,7 +106,7 @@ const bodyCellSx = {
 
 const sectionBoxSx = {
   p: 2,
-  bgcolor: '#f8fafc',
+  bgcolor: 'background.neutral',
   border: '1px solid',
   borderColor: 'divider',
   borderRadius: 2,
@@ -329,20 +330,20 @@ export default function CreditNotes() {
         <Stack direction="row" spacing={0.5} justifyContent="flex-end">
           <Tooltip title="View">
             <IconButton size="small" color="info" onClick={() => { setViewData(row); setViewShow(true); }} aria-label="View credit note" sx={{ border: '1px solid', borderColor: 'divider' }}>
-              <i className="fas fa-eye" style={{ fontSize: 12 }} aria-hidden="true" />
+              <Iconify icon="fa6-solid:eye" width={12} />
             </IconButton>
           </Tooltip>
           {row.status === 'draft' && canEdit("credit-notes") && (
             <Tooltip title="Post">
               <IconButton size="small" color="success" onClick={() => postNote(row)} aria-label="Post credit note" sx={{ border: '1px solid', borderColor: 'divider' }}>
-                <i className="fas fa-check" style={{ fontSize: 12 }} aria-hidden="true" />
+                <Iconify icon="fa6-solid:check" width={12} />
               </IconButton>
             </Tooltip>
           )}
           {row.status === 'draft' && canDelete("credit-notes") && (
             <Tooltip title="Delete">
               <IconButton size="small" color="error" onClick={() => deleteNote(row)} aria-label="Delete credit note" sx={{ border: '1px solid', borderColor: 'divider' }}>
-                <i className="fas fa-trash" style={{ fontSize: 12 }} aria-hidden="true" />
+                <Iconify icon="fa6-solid:trash-can" width={12} />
               </IconButton>
             </Tooltip>
           )}
@@ -407,14 +408,14 @@ export default function CreditNotes() {
                   input: {
                     startAdornment: (
                       <InputAdornment position="start">
-                        <i className="fas fa-search" style={{ fontSize: 13 }} aria-hidden="true" />
+                        <Iconify icon="fa6-solid:magnifying-glass" width={13} />
                       </InputAdornment>
                     ),
                   },
                 }}
               />
               {canCreate("credit-notes") && (
-                <Button variant="contained" onClick={openAdd} startIcon={<i className="fas fa-plus" aria-hidden="true" />}>
+                <Button variant="contained" onClick={openAdd} startIcon={<Iconify icon="fa6-solid:plus" width={16} />}>
                   New Credit Note
                 </Button>
               )}
@@ -426,7 +427,7 @@ export default function CreditNotes() {
         <TableContainer sx={{ overflowX: 'auto' }}>
           <Table sx={{ minWidth: 960 }} size="small">
             <TableHead>
-              <TableRow sx={{ bgcolor: '#f8fafc' }}>
+              <TableRow sx={{ bgcolor: 'background.neutral' }}>
                 {columns.map((column) => (
                   <TableCell
                     key={column.key}
@@ -450,7 +451,7 @@ export default function CreditNotes() {
               {sortedRows.length === 0 && !loading ? (
                 <TableRow>
                   <TableCell colSpan={Math.max(columns.length, 1)} align="center" sx={{ py: 7 }}>
-                    <i className="fas fa-folder-open" style={{ color: '#637381', fontSize: 42, opacity: .4 }} aria-hidden="true" />
+                    <Iconify icon="fa6-solid:folder-open" width={42} />
                     <Typography variant="subtitle2" sx={{ color: 'text.secondary', mt: 1.5 }}>
                       No data found
                     </Typography>
@@ -511,7 +512,7 @@ export default function CreditNotes() {
         <DialogTitle sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 2 }}>
           <Typography variant="h6" sx={{ fontWeight: 700 }}>New Credit Note</Typography>
           <IconButton size="small" onClick={() => setShow(false)} aria-label="Close">
-            <i className="fas fa-times" style={{ fontSize: 14 }} aria-hidden="true" />
+            <Iconify icon="fa6-solid:xmark" width={14} />
           </IconButton>
         </DialogTitle>
         <DialogContent dividers>
@@ -570,7 +571,7 @@ export default function CreditNotes() {
                 <TableContainer sx={{ overflowX: 'auto' }}>
                   <Table size="small" sx={{ minWidth: 640 }}>
                     <TableHead>
-                      <TableRow sx={{ bgcolor: '#f8fafc' }}>
+                      <TableRow sx={{ bgcolor: 'background.neutral' }}>
                         <TableCell sx={{ ...headerCellSx, ...borderedCellSx }}>Item</TableCell>
                         <TableCell sx={{ ...headerCellSx, ...borderedCellSx, width: 110 }}>Original Qty</TableCell>
                         <TableCell sx={{ ...headerCellSx, ...borderedCellSx, width: 110 }}>Credit Qty</TableCell>
@@ -648,7 +649,7 @@ export default function CreditNotes() {
         <DialogTitle sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 2 }}>
           <Typography variant="h6" sx={{ fontWeight: 700 }}>Credit Note #{viewData?.credit_note_number}</Typography>
           <IconButton size="small" onClick={() => setViewShow(false)} aria-label="Close">
-            <i className="fas fa-times" style={{ fontSize: 14 }} aria-hidden="true" />
+            <Iconify icon="fa6-solid:xmark" width={14} />
           </IconButton>
         </DialogTitle>
         <DialogContent dividers>
@@ -673,7 +674,7 @@ export default function CreditNotes() {
               <TableContainer sx={{ overflowX: 'auto' }}>
                 <Table size="small">
                   <TableHead>
-                    <TableRow sx={{ bgcolor: '#f8fafc' }}>
+                    <TableRow sx={{ bgcolor: 'background.neutral' }}>
                       <TableCell sx={{ ...headerCellSx, ...borderedCellSx }}>Item</TableCell>
                       <TableCell sx={{ ...headerCellSx, ...borderedCellSx }}>Qty</TableCell>
                       <TableCell sx={{ ...headerCellSx, ...borderedCellSx }}>Price</TableCell>

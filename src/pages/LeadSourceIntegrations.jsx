@@ -35,15 +35,16 @@ import {
 import { toast } from "react-toastify";
 import api from "../api";
 import { canEdit } from "../utils/permissions";
+import { Iconify } from "../components/iconify";
 
 const SOURCES = [
-  { key: "indiamart", name: "IndiaMART", color: "primary", icon: "fa-globe" },
-  { key: "aajjo", name: "Aajjo", color: "success", icon: "fa-building" },
-  { key: "tradeindia", name: "TradeIndia", color: "warning", icon: "fa-handshake" },
-  { key: "justdial", name: "JustDial", color: "danger", icon: "fa-phone" },
-  { key: "google-sheets", name: "Google Sheets", color: "info", icon: "fa-table" },
-  { key: "google-form", name: "Google Form", color: "secondary", icon: "fa-wpforms" },
-  { key: "wordpress", name: "WordPress", color: "dark", icon: "fa-wordpress" },
+  { key: "indiamart", name: "IndiaMART", color: "primary", icon: "fa6-solid:globe" },
+  { key: "aajjo", name: "Aajjo", color: "success", icon: "fa6-solid:building" },
+  { key: "tradeindia", name: "TradeIndia", color: "warning", icon: "fa6-solid:handshake" },
+  { key: "justdial", name: "JustDial", color: "danger", icon: "fa6-solid:phone" },
+  { key: "google-sheets", name: "Google Sheets", color: "info", icon: "fa6-solid:table" },
+  { key: "google-form", name: "Google Form", color: "secondary", icon: "fa6-brands:wpforms" },
+  { key: "wordpress", name: "WordPress", color: "dark", icon: "fa6-brands:wordpress" },
 ];
 
 const ASSIGNMENT_MODES = [
@@ -81,7 +82,7 @@ const cardHeaderSx = {
   py: 2,
   borderBottom: '1px solid',
   borderColor: 'divider',
-  bgcolor: '#f8fafc',
+  bgcolor: 'background.neutral',
 };
 
 const headCellSx = {
@@ -141,7 +142,7 @@ function WebhookUrlField({ url }) {
             <InputAdornment position="end">
               <Tooltip title="Copy webhook URL">
                 <IconButton size="small" onClick={() => copyWebhookUrl(url)} aria-label="Copy webhook URL" edge="end">
-                  <i className="fas fa-copy" style={{ fontSize: 13 }} aria-hidden="true" />
+                  <Iconify icon="fa6-solid:copy" width={13} />
                 </IconButton>
               </Tooltip>
             </InputAdornment>
@@ -750,7 +751,7 @@ function crm_capture_wpforms_lead($fields, $entry, $form_id, $form_data) {
           variant="outlined"
           onClick={loadData}
           disabled={loading}
-          startIcon={loading ? <CircularProgress size={16} color="inherit" /> : <i className="fas fa-sync-alt" aria-hidden="true" />}
+          startIcon={loading ? <CircularProgress size={16} color="inherit" /> : <Iconify icon="fa6-solid:arrows-rotate" width={16} />}
         >
           {loading ? "Loading..." : "Refresh"}
         </Button>
@@ -769,7 +770,7 @@ function crm_capture_wpforms_lead($fields, $entry, $form_id, $form_data) {
             <Card key={source.key} sx={{ ...cardSx, height: '100%', display: 'flex', flexDirection: 'column' }}>
               <Box sx={cardHeaderSx}>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25 }}>
-                  <i className={`fas ${source.icon}`} style={{ color: '#062849', fontSize: 15 }} aria-hidden="true" />
+                  <Iconify icon={source.icon} width={15} sx={{ color: '#062849' }} />
                   <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
                     {source.name}
                   </Typography>
@@ -843,7 +844,7 @@ function crm_capture_wpforms_lead($fields, $entry, $form_id, $form_data) {
                     variant="contained"
                     size="small"
                     onClick={() => openEditModal(source.key)}
-                    startIcon={<i className="fas fa-edit" aria-hidden="true" />}
+                    startIcon={<Iconify icon="fa6-solid:pen-to-square" width={16} />}
                     sx={{ flexGrow: 1 }}
                   >
                     Configure
@@ -861,7 +862,7 @@ function crm_capture_wpforms_lead($fields, $entry, $form_id, $form_data) {
                         >
                           {syncing
                             ? <CircularProgress size={14} color="inherit" />
-                            : <i className="fas fa-sync" style={{ fontSize: 13 }} aria-hidden="true" />}
+                            : <Iconify icon="fa6-solid:arrows-rotate" width={13} />}
                         </Button>
                       </span>
                     </Tooltip>
@@ -875,7 +876,7 @@ function crm_capture_wpforms_lead($fields, $entry, $form_id, $form_data) {
                         onClick={() => toggleStatus(source.key)}
                         sx={{ minWidth: 40, px: 1 }}
                       >
-                        <i className={`fas fa-${isActive ? "pause" : "play"}`} style={{ fontSize: 13 }} aria-hidden="true" />
+                        <Iconify icon={isActive ? 'fa6-solid:pause' : 'fa6-solid:play'} width={13} />
                       </Button>
                     </Tooltip>
                   )}
@@ -890,7 +891,7 @@ function crm_capture_wpforms_lead($fields, $entry, $form_id, $form_data) {
       <Card sx={{ ...cardSx, mt: 3 }}>
         <Box sx={cardHeaderSx}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25 }}>
-            <i className="fab fa-facebook" style={{ color: '#062849', fontSize: 15 }} aria-hidden="true" />
+            <Iconify icon="fa6-brands:facebook" width={15} />
             <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
               Meta (Facebook) Lead Ads
             </Typography>
@@ -912,7 +913,7 @@ function crm_capture_wpforms_lead($fields, $entry, $form_id, $form_data) {
               size="small"
               onClick={() => loadMeta(metaSelectedPageId)}
               disabled={metaLoading}
-              startIcon={metaLoading ? <CircularProgress size={14} color="inherit" /> : <i className="fas fa-sync" aria-hidden="true" />}
+              startIcon={metaLoading ? <CircularProgress size={14} color="inherit" /> : <Iconify icon="fa6-solid:arrows-rotate" width={16} />}
             >
               Refresh
             </Button>
@@ -929,7 +930,7 @@ function crm_capture_wpforms_lead($fields, $entry, $form_id, $form_data) {
                   Connect your Meta account, then enable the forms you want to sync.
                 </Typography>
               </Box>
-              <Button variant="contained" onClick={connectMeta} disabled={!canEditIntegrations} startIcon={<i className="fas fa-link" aria-hidden="true" />}>
+              <Button variant="contained" onClick={connectMeta} disabled={!canEditIntegrations} startIcon={<Iconify icon="fa6-solid:link" width={16} />}>
                 Connect Meta Account
               </Button>
             </Box>
@@ -969,7 +970,7 @@ function crm_capture_wpforms_lead($fields, $entry, $form_id, $form_data) {
             <TableContainer sx={{ overflowX: 'auto', border: '1px solid', borderColor: 'divider', borderRadius: 2 }}>
               <Table size="small" sx={{ minWidth: 720 }}>
                 <TableHead>
-                  <TableRow sx={{ bgcolor: '#f8fafc' }}>
+                  <TableRow sx={{ bgcolor: 'background.neutral' }}>
                     <TableCell sx={{ ...headCellSx, width: 70 }}>Enabled</TableCell>
                     <TableCell sx={headCellSx}>Form</TableCell>
                     <TableCell sx={{ ...headCellSx, width: 220 }}>Assigned Users (Round Robin)</TableCell>
@@ -1053,7 +1054,7 @@ function crm_capture_wpforms_lead($fields, $entry, $form_id, $form_data) {
       <Card sx={{ ...cardSx, mt: 3 }}>
         <Box sx={cardHeaderSx}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25 }}>
-            <i className="fab fa-google" style={{ color: '#062849', fontSize: 15 }} aria-hidden="true" />
+            <Iconify icon="fa6-brands:google" width={15} />
             <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
               Google Sheets
             </Typography>
@@ -1069,7 +1070,7 @@ function crm_capture_wpforms_lead($fields, $entry, $form_id, $form_data) {
               size="small"
               onClick={() => openEditModal("google-sheets")}
               disabled={!canEditIntegrations}
-              startIcon={<i className="fas fa-edit" aria-hidden="true" />}
+              startIcon={<Iconify icon="fa6-solid:pen-to-square" width={16} />}
             >
               Configure
             </Button>
@@ -1122,7 +1123,7 @@ function crm_capture_wpforms_lead($fields, $entry, $form_id, $form_data) {
                 variant="outlined"
                 size="small"
                 onClick={copyGoogleScript}
-                startIcon={<i className={`fas fa-${gsScriptCopied ? "check" : "copy"}`} aria-hidden="true" />}
+                startIcon={<Iconify icon={gsScriptCopied ? 'fa6-solid:check' : 'fa6-solid:copy'} width={16} />}
               >
                 {gsScriptCopied ? "Copied" : "Copy Script"}
               </Button>
@@ -1135,7 +1136,7 @@ function crm_capture_wpforms_lead($fields, $entry, $form_id, $form_data) {
                 borderRadius: 2,
                 border: '1px solid',
                 borderColor: 'divider',
-                bgcolor: '#f8fafc',
+                bgcolor: 'background.neutral',
                 maxHeight: 320,
                 overflow: 'auto',
                 fontSize: '0.8rem',
@@ -1152,7 +1153,7 @@ function crm_capture_wpforms_lead($fields, $entry, $form_id, $form_data) {
               size="small"
               onClick={testGoogleSheetsWebhook}
               disabled={gsTestLoading || !webhookUrls["google-sheets"]?.webhook_url}
-              startIcon={gsTestLoading ? <CircularProgress size={14} color="inherit" /> : <i className="fas fa-vial" aria-hidden="true" />}
+              startIcon={gsTestLoading ? <CircularProgress size={14} color="inherit" /> : <Iconify icon="fa6-solid:vial" width={16} />}
             >
               {gsTestLoading ? "Testing…" : "Send Test Lead"}
             </Button>
@@ -1164,7 +1165,7 @@ function crm_capture_wpforms_lead($fields, $entry, $form_id, $form_data) {
       <Card sx={{ ...cardSx, mt: 3 }}>
         <Box sx={cardHeaderSx}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25 }}>
-            <i className="fab fa-wpforms" style={{ color: '#062849', fontSize: 15 }} aria-hidden="true" />
+            <Iconify icon="fa6-brands:wpforms" width={15} />
             <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
               Google Form
             </Typography>
@@ -1180,7 +1181,7 @@ function crm_capture_wpforms_lead($fields, $entry, $form_id, $form_data) {
               size="small"
               onClick={() => openEditModal("google-form")}
               disabled={!canEditIntegrations}
-              startIcon={<i className="fas fa-edit" aria-hidden="true" />}
+              startIcon={<Iconify icon="fa6-solid:pen-to-square" width={16} />}
             >
               Configure
             </Button>
@@ -1233,7 +1234,7 @@ function crm_capture_wpforms_lead($fields, $entry, $form_id, $form_data) {
                 variant="outlined"
                 size="small"
                 onClick={copyGoogleFormScript}
-                startIcon={<i className={`fas fa-${gfScriptCopied ? "check" : "copy"}`} aria-hidden="true" />}
+                startIcon={<Iconify icon={gfScriptCopied ? 'fa6-solid:check' : 'fa6-solid:copy'} width={16} />}
               >
                 {gfScriptCopied ? "Copied" : "Copy Script"}
               </Button>
@@ -1246,7 +1247,7 @@ function crm_capture_wpforms_lead($fields, $entry, $form_id, $form_data) {
                 borderRadius: 2,
                 border: '1px solid',
                 borderColor: 'divider',
-                bgcolor: '#f8fafc',
+                bgcolor: 'background.neutral',
                 maxHeight: 320,
                 overflow: 'auto',
                 fontSize: '0.8rem',
@@ -1263,7 +1264,7 @@ function crm_capture_wpforms_lead($fields, $entry, $form_id, $form_data) {
               size="small"
               onClick={testGoogleFormWebhook}
               disabled={gfTestLoading || !webhookUrls["google-form"]?.webhook_url}
-              startIcon={gfTestLoading ? <CircularProgress size={14} color="inherit" /> : <i className="fas fa-vial" aria-hidden="true" />}
+              startIcon={gfTestLoading ? <CircularProgress size={14} color="inherit" /> : <Iconify icon="fa6-solid:vial" width={16} />}
             >
               {gfTestLoading ? "Testing…" : "Send Test Lead"}
             </Button>
@@ -1275,7 +1276,7 @@ function crm_capture_wpforms_lead($fields, $entry, $form_id, $form_data) {
       <Card sx={{ ...cardSx, mt: 3 }}>
         <Box sx={cardHeaderSx}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25 }}>
-            <i className="fab fa-wordpress" style={{ color: '#062849', fontSize: 15 }} aria-hidden="true" />
+            <Iconify icon="fa6-brands:wordpress" width={15} />
             <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
               WordPress
             </Typography>
@@ -1291,7 +1292,7 @@ function crm_capture_wpforms_lead($fields, $entry, $form_id, $form_data) {
               size="small"
               onClick={() => openEditModal("wordpress")}
               disabled={!canEditIntegrations}
-              startIcon={<i className="fas fa-edit" aria-hidden="true" />}
+              startIcon={<Iconify icon="fa6-solid:pen-to-square" width={16} />}
             >
               Configure
             </Button>
@@ -1340,7 +1341,7 @@ function crm_capture_wpforms_lead($fields, $entry, $form_id, $form_data) {
                 variant="outlined"
                 size="small"
                 onClick={copyWordPressSnippet}
-                startIcon={<i className={`fas fa-${wpScriptCopied ? "check" : "copy"}`} aria-hidden="true" />}
+                startIcon={<Iconify icon={wpScriptCopied ? 'fa6-solid:check' : 'fa6-solid:copy'} width={16} />}
               >
                 {wpScriptCopied ? "Copied" : "Copy Snippet"}
               </Button>
@@ -1353,7 +1354,7 @@ function crm_capture_wpforms_lead($fields, $entry, $form_id, $form_data) {
                 borderRadius: 2,
                 border: '1px solid',
                 borderColor: 'divider',
-                bgcolor: '#f8fafc',
+                bgcolor: 'background.neutral',
                 maxHeight: 320,
                 overflow: 'auto',
                 fontSize: '0.8rem',
@@ -1370,7 +1371,7 @@ function crm_capture_wpforms_lead($fields, $entry, $form_id, $form_data) {
               size="small"
               onClick={testWordPressWebhook}
               disabled={wpTestLoading || !webhookUrls["wordpress"]?.webhook_url}
-              startIcon={wpTestLoading ? <CircularProgress size={14} color="inherit" /> : <i className="fas fa-vial" aria-hidden="true" />}
+              startIcon={wpTestLoading ? <CircularProgress size={14} color="inherit" /> : <Iconify icon="fa6-solid:vial" width={16} />}
             >
               {wpTestLoading ? "Testing…" : "Send Test Lead"}
             </Button>
@@ -1389,14 +1390,14 @@ function crm_capture_wpforms_lead($fields, $entry, $form_id, $form_data) {
       >
         <DialogTitle sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 2, py: 2 }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25 }}>
-            <i className="fas fa-cog" style={{ color: '#062849', fontSize: 15 }} aria-hidden="true" />
+            <Iconify icon="fa6-solid:gear" width={15} />
             <Typography variant="h6" sx={{ fontWeight: 700 }}>
               Configure{" "}
               {SOURCES.find((s) => s.key === selectedSource)?.name || "Integration"}
             </Typography>
           </Box>
           <IconButton size="small" onClick={() => setShowModal(false)} aria-label="Close">
-            <i className="fas fa-times" style={{ fontSize: 14 }} aria-hidden="true" />
+            <Iconify icon="fa6-solid:xmark" width={14} />
           </IconButton>
         </DialogTitle>
 
@@ -1678,7 +1679,7 @@ function crm_capture_wpforms_lead($fields, $entry, $form_id, $form_data) {
                       variant="outlined"
                       size="small"
                       onClick={() => resetRoundRobin(selectedSource)}
-                      startIcon={<i className="fas fa-undo" aria-hidden="true" />}
+                      startIcon={<Iconify icon="fa6-solid:arrow-rotate-left" width={16} />}
                     >
                       Reset Counter
                     </Button>
@@ -1735,7 +1736,7 @@ function crm_capture_wpforms_lead($fields, $entry, $form_id, $form_data) {
             variant="contained"
             onClick={saveIntegration}
             disabled={saving}
-            startIcon={saving ? <CircularProgress size={16} color="inherit" /> : <i className="fas fa-save" aria-hidden="true" />}
+            startIcon={saving ? <CircularProgress size={16} color="inherit" /> : <Iconify icon="fa6-solid:floppy-disk" width={16} />}
           >
             {saving ? "Saving..." : "Save Settings"}
           </Button>
@@ -1755,7 +1756,7 @@ function crm_capture_wpforms_lead($fields, $entry, $form_id, $form_data) {
             Assign Users (Form Round Robin)
           </Typography>
           <IconButton size="small" onClick={() => setShowMetaUsersModal(false)} aria-label="Close">
-            <i className="fas fa-times" style={{ fontSize: 14 }} aria-hidden="true" />
+            <Iconify icon="fa6-solid:xmark" width={14} />
           </IconButton>
         </DialogTitle>
         <DialogContent dividers sx={{ p: 3 }}>

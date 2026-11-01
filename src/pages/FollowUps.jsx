@@ -35,6 +35,7 @@ import { toast } from "react-toastify";
 import Swal from "sweetalert2";
 import api from "../api";
 import { canView, canDelete, canEdit, getUserData } from "../utils/permissions";
+import { Iconify } from "../components/iconify";
 
 const getIndiamartQueryTypeBadge = (queryType) => {
   const types = {
@@ -539,25 +540,25 @@ export default function FollowUps() {
           <Stack direction="row" spacing={0.5}>
             <Tooltip title="View">
               <IconButton size="small" color="primary" onClick={() => viewLead(r)} sx={{ border: '1px solid', borderColor: 'divider' }} aria-label="View">
-                <i className="fas fa-eye" style={{ fontSize: 13 }} aria-hidden="true" />
+                <Iconify icon="fa6-solid:eye" width={13} />
               </IconButton>
             </Tooltip>
             <Tooltip title="Edit">
               <IconButton size="small" color="info" onClick={() => editLead(r)} sx={{ border: '1px solid', borderColor: 'divider' }} aria-label="Edit">
-                <i className="fas fa-edit" style={{ fontSize: 13 }} aria-hidden="true" />
+                <Iconify icon="fa6-solid:pen-to-square" width={13} />
               </IconButton>
             </Tooltip>
             {canEditLeads && (!r.assigned_to || currentUserId !== Number(r.assigned_to)) && (
               <Tooltip title="Claim">
                 <IconButton size="small" color="success" onClick={() => claimLead(r)} sx={{ border: '1px solid', borderColor: 'divider' }} aria-label="Claim">
-                  <i className="fas fa-user-check" style={{ fontSize: 13 }} aria-hidden="true" />
+                  <Iconify icon="fa6-solid:user-check" width={13} />
                 </IconButton>
               </Tooltip>
             )}
             {canDeleteLeads && (
               <Tooltip title="Delete">
                 <IconButton size="small" color="error" onClick={() => deleteLead(r)} sx={{ border: '1px solid', borderColor: 'divider' }} aria-label="Delete">
-                  <i className="fas fa-trash" style={{ fontSize: 13 }} aria-hidden="true" />
+                  <Iconify icon="fa6-solid:trash-can" width={13} />
                 </IconButton>
               </Tooltip>
             )}
@@ -569,11 +570,11 @@ export default function FollowUps() {
   );
 
   const bucketCards = [
-    { key: "today", label: "Today", value: summary.today, icon: "fa-calendar-day", color: "#3b82f6", bg: "rgba(59,130,246,0.08)" },
-    { key: "upcoming", label: `Upcoming (${upcomingDays}d)`, value: summary.upcoming, icon: "fa-calendar-week", color: "#06b6d4", bg: "rgba(6,182,212,0.08)" },
-    { key: "overdue", label: "Overdue", value: summary.overdue, icon: "fa-exclamation-circle", color: "#ef4444", bg: "rgba(239,68,68,0.08)" },
-    { key: "not_scheduled", label: "Not Scheduled", value: summary.not_scheduled, icon: "fa-calendar-xmark", color: "#64748b", bg: "rgba(100,116,139,0.08)" },
-    { key: "never_follow_up", label: "Never Follow-up", value: summary.never_follow_up, icon: "fa-ban", color: "#f59e0b", bg: "rgba(245,158,11,0.08)" },
+    { key: "today", label: "Today", value: summary.today, icon: "fa6-solid:calendar-day", color: "#3b82f6", bg: "rgba(59,130,246,0.08)" },
+    { key: "upcoming", label: `Upcoming (${upcomingDays}d)`, value: summary.upcoming, icon: "fa6-solid:calendar-week", color: "#06b6d4", bg: "rgba(6,182,212,0.08)" },
+    { key: "overdue", label: "Overdue", value: summary.overdue, icon: "fa6-solid:circle-exclamation", color: "#ef4444", bg: "rgba(239,68,68,0.08)" },
+    { key: "not_scheduled", label: "Not Scheduled", value: summary.not_scheduled, icon: "fa6-solid:calendar-xmark", color: "#64748b", bg: "rgba(100,116,139,0.08)" },
+    { key: "never_follow_up", label: "Never Follow-up", value: summary.never_follow_up, icon: "fa6-solid:ban", color: "#f59e0b", bg: "rgba(245,158,11,0.08)" },
   ];
 
   const titleByBucket = {
@@ -625,7 +626,7 @@ export default function FollowUps() {
             variant="outlined"
             onClick={() => setReloadKey(k => k + 1)}
             disabled={loading}
-            startIcon={<i className="fas fa-sync-alt" aria-hidden="true" />}
+            startIcon={<Iconify icon="fa6-solid:arrows-rotate" width={16} />}
           >
             Refresh
           </Button>
@@ -679,7 +680,7 @@ export default function FollowUps() {
                     flexShrink: 0,
                   }}
                 >
-                  <i className={`fas ${c.icon}`} aria-hidden="true" />
+                  <Iconify icon={c.icon} width={16} />
                 </Box>
               </Box>
             </CardContent>
@@ -688,9 +689,9 @@ export default function FollowUps() {
       </Box>
 
       <Card sx={cardSx}>
-        <Box sx={{ px: 3, py: 2, bgcolor: '#f8fafc', borderBottom: '1px solid', borderColor: 'divider', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 2 }}>
+        <Box sx={{ px: 3, py: 2, bgcolor: 'background.neutral', borderBottom: '1px solid', borderColor: 'divider', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 2 }}>
           <Stack direction="row" spacing={1} alignItems="center">
-            <i className="fas fa-list-ul" style={{ color: '#062849', fontSize: 13 }} aria-hidden="true" />
+            <Iconify icon="fa6-solid:list-ul" width={13} />
             <Typography variant="subtitle2" sx={{ color: 'text.primary', fontWeight: 700 }}>
               {titleByBucket[bucket] || "Follow-ups"}
             </Typography>
@@ -706,7 +707,7 @@ export default function FollowUps() {
                 input: {
                   startAdornment: (
                     <InputAdornment position="start">
-                      <i className="fas fa-search" style={{ fontSize: 12, color: '#637381' }} aria-hidden="true" />
+                      <Iconify icon="fa6-solid:magnifying-glass" width={12} />
                     </InputAdornment>
                   ),
                 },
@@ -718,7 +719,7 @@ export default function FollowUps() {
               color="success"
               onClick={exportToCSV}
               disabled={exporting}
-              startIcon={<i className={`fas ${exporting ? 'fa-spinner fa-spin' : 'fa-file-csv'}`} style={{ fontSize: 12 }} aria-hidden="true" />}
+              startIcon={<Iconify icon={exporting ? 'svg-spinners:270-ring' : 'fa6-solid:file-excel'} width={12} />}
             >
               {exporting ? "Exporting..." : "Export All"}
             </Button>
@@ -726,7 +727,7 @@ export default function FollowUps() {
             <Button
               variant="outlined"
               onClick={(event) => setColumnAnchorEl(event.currentTarget)}
-              startIcon={<i className="fas fa-columns" style={{ fontSize: 12 }} aria-hidden="true" />}
+              startIcon={<Iconify icon="fa6-solid:table-columns" width={12} />}
               sx={{ whiteSpace: 'nowrap' }}
             >
               Columns
@@ -743,7 +744,7 @@ export default function FollowUps() {
             <Button
               variant="outlined"
               onClick={() => setShowFilters(open => !open)}
-              startIcon={<i className="fas fa-filter" style={{ fontSize: 12 }} aria-hidden="true" />}
+              startIcon={<Iconify icon="fa6-solid:filter" width={12} />}
               endIcon={hasActiveFilters ? <Box component="span" sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: 'secondary.main' }} /> : null}
               sx={{ whiteSpace: 'nowrap' }}
             >
@@ -754,7 +755,7 @@ export default function FollowUps() {
 
         <Collapse in={showFilters} unmountOnExit>
           <Divider />
-          <Box sx={{ px: 3, py: 2.5, bgcolor: '#f8fafc' }}>
+          <Box sx={{ px: 3, py: 2.5, bgcolor: 'background.neutral' }}>
             <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 2, mb: 2.5 }}>
               <Box>
                 <Typography variant="subtitle2" sx={{ color: 'text.primary', fontWeight: 700 }}>
@@ -765,7 +766,7 @@ export default function FollowUps() {
                 </Typography>
               </Box>
               {hasActiveFilters ? (
-                <Button variant="text" size="small" onClick={clearFilters} startIcon={<i className="fas fa-times" aria-hidden="true" />}>
+                <Button variant="text" size="small" onClick={clearFilters} startIcon={<Iconify icon="fa6-solid:xmark" width={16} />}>
                   Clear
                 </Button>
               ) : null}
@@ -866,12 +867,12 @@ export default function FollowUps() {
             }}
           >
             <Stack direction="row" spacing={1} alignItems="center">
-              <i className="fas fa-check-circle" style={{ color: '#22c55e', fontSize: 13 }} aria-hidden="true" />
+              <Iconify icon="fa6-solid:circle-check" width={13} />
               <Typography variant="body2" sx={{ fontWeight: 700, color: 'text.primary' }}>
                 {selectedRows.length} selected
               </Typography>
             </Stack>
-            <Button variant="outlined" color="error" size="small" onClick={bulkDelete} startIcon={<i className="fas fa-trash-alt" style={{ fontSize: 11 }} aria-hidden="true" />}>
+            <Button variant="outlined" color="error" size="small" onClick={bulkDelete} startIcon={<Iconify icon="fa6-solid:trash-can" width={11} />}>
               Delete
             </Button>
           </Box>
@@ -881,7 +882,7 @@ export default function FollowUps() {
         <TableContainer sx={{ overflowX: 'auto' }}>
           <Table sx={{ minWidth: 1100 }} size="small">
             <TableHead>
-              <TableRow sx={{ bgcolor: '#f8fafc' }}>
+              <TableRow sx={{ bgcolor: 'background.neutral' }}>
                 {canDeleteLeads && (
                   <TableCell padding="checkbox" sx={{ ...headCellSx, px: 1 }}>
                     <Checkbox
@@ -915,7 +916,7 @@ export default function FollowUps() {
               {rows.length === 0 && !loading ? (
                 <TableRow>
                   <TableCell colSpan={Math.max(totalColumnCount, 1)} align="center" sx={{ py: 7 }}>
-                    <i className="fas fa-folder-open" style={{ color: '#637381', fontSize: 42, opacity: .4 }} aria-hidden="true" />
+                    <Iconify icon="fa6-solid:folder-open" width={42} />
                     <Typography variant="subtitle2" sx={{ color: 'text.secondary', mt: 1.5 }}>
                       No leads found
                     </Typography>

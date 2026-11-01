@@ -39,6 +39,7 @@ import Swal from "sweetalert2";
 import { toast } from "react-toastify";
 import api from "../api";
 import { canCreate, canEdit, canDelete } from "../utils/permissions";
+import { Iconify } from "../components/iconify";
 
 const tableReducer = (state, action) => {
   switch (action.type) {
@@ -98,7 +99,7 @@ const dialogPaperSx = {
 const sectionSx = {
   p: 2.5,
   borderRadius: 2.5,
-  bgcolor: '#f8fafc',
+  bgcolor: 'background.neutral',
   border: '1px solid',
   borderColor: 'divider',
 };
@@ -113,12 +114,12 @@ const ROLE_COLORS = {
 
 const getRoleMeta = (roleName) => {
   const meta = {
-    'Super Admin': { icon: 'fa-crown', color: 'danger', bg: '#ffebee', desc: 'Full access' },
-    'Admin': { icon: 'fa-shield-alt', color: 'primary', bg: '#e3f2fd', desc: 'Manage system' },
-    'Manager': { icon: 'fa-user-tie', color: 'warning', bg: '#fff3e0', desc: 'Manage operations' },
-    'User': { icon: 'fa-user', color: 'info', bg: '#e3f2fd', desc: 'Standard user' },
+    'Super Admin': { icon: 'fa6-solid:crown', color: 'danger', bg: '#ffebee', desc: 'Full access' },
+    'Admin': { icon: 'fa6-solid:shield-halved', color: 'primary', bg: '#e3f2fd', desc: 'Manage system' },
+    'Manager': { icon: 'fa6-solid:user-tie', color: 'warning', bg: '#fff3e0', desc: 'Manage operations' },
+    'User': { icon: 'fa6-solid:user', color: 'info', bg: '#e3f2fd', desc: 'Standard user' },
   };
-  return meta[roleName] || { icon: 'fa-user-circle', color: 'secondary', bg: '#f5f5f5', desc: 'Custom role' };
+  return meta[roleName] || { icon: 'fa6-solid:circle-user', color: 'secondary', bg: '#f5f5f5', desc: 'Custom role' };
 };
 
 const TRANSFER_OPTIONS = [
@@ -419,7 +420,7 @@ export default function Users() {
                 aria-label="Edit user"
                 sx={{ border: '1px solid', borderColor: 'divider', color: 'primary.main' }}
               >
-                <i className="fas fa-edit" style={{ fontSize: 13 }} aria-hidden="true" />
+                <Iconify icon="fa6-solid:pen-to-square" width={13} />
               </IconButton>
             </Tooltip>
           )}
@@ -431,7 +432,7 @@ export default function Users() {
                 aria-label="Transfer user data"
                 sx={{ border: '1px solid', borderColor: 'divider', color: 'warning.dark' }}
               >
-                <i className="fas fa-people-arrows" style={{ fontSize: 13 }} aria-hidden="true" />
+                <Iconify icon="fa6-solid:people-arrows-left-right" width={13} />
               </IconButton>
             </Tooltip>
           )}
@@ -443,7 +444,7 @@ export default function Users() {
                 aria-label="Delete user"
                 sx={{ border: '1px solid', borderColor: 'divider', color: 'error.main' }}
               >
-                <i className="fas fa-trash" style={{ fontSize: 13 }} aria-hidden="true" />
+                <Iconify icon="fa6-solid:trash-can" width={13} />
               </IconButton>
             </Tooltip>
           )}
@@ -476,7 +477,7 @@ export default function Users() {
                   input: {
                     startAdornment: (
                       <InputAdornment position="start">
-                        <i className="fas fa-search" style={{ fontSize: 13 }} aria-hidden="true" />
+                        <Iconify icon="fa6-solid:magnifying-glass" width={13} />
                       </InputAdornment>
                     ),
                   },
@@ -486,7 +487,7 @@ export default function Users() {
                 <Button
                   variant="contained"
                   onClick={openAdd}
-                  startIcon={<i className="fas fa-plus" aria-hidden="true" />}
+                  startIcon={<Iconify icon="fa6-solid:plus" width={16} />}
                   sx={{ whiteSpace: 'nowrap' }}
                 >
                   New User
@@ -500,7 +501,7 @@ export default function Users() {
         <TableContainer sx={{ overflowX: 'auto' }}>
           <Table sx={{ minWidth: 860 }} size="small">
             <TableHead>
-              <TableRow sx={{ bgcolor: '#f8fafc' }}>
+              <TableRow sx={{ bgcolor: 'background.neutral' }}>
                 {columns.map((column) => (
                   <TableCell
                     key={column.key}
@@ -524,7 +525,7 @@ export default function Users() {
               {rows.length === 0 && !loading ? (
                 <TableRow>
                   <TableCell colSpan={Math.max(columns.length, 1)} align="center" sx={{ py: 7 }}>
-                    <i className="fas fa-folder-open" style={{ color: '#637381', fontSize: 42, opacity: .4 }} aria-hidden="true" />
+                    <Iconify icon="fa6-solid:folder-open" width={42} />
                     <Typography variant="subtitle2" sx={{ color: 'text.secondary', mt: 1.5 }}>
                       No data found
                     </Typography>
@@ -586,13 +587,13 @@ export default function Users() {
       >
         <DialogTitle sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 2, py: 2 }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25 }}>
-            <i className={`fas ${editingId ? 'fa-edit' : 'fa-plus'}`} style={{ color: '#062849', fontSize: 15 }} aria-hidden="true" />
+            <Iconify icon={editingId ? 'fa6-solid:pen-to-square' : 'fa6-solid:plus'} width={15} sx={{ color: '#062849' }} />
             <Typography variant="h6" sx={{ fontWeight: 700 }}>
               {editingId ? 'Edit User' : 'New User'}
             </Typography>
           </Box>
           <IconButton size="small" onClick={() => setShow(false)} aria-label="Close">
-            <i className="fas fa-times" style={{ fontSize: 14 }} aria-hidden="true" />
+            <Iconify icon="fa6-solid:xmark" width={14} />
           </IconButton>
         </DialogTitle>
 
@@ -603,7 +604,7 @@ export default function Users() {
               variant="subtitle2"
               sx={{ color: 'primary.main', fontWeight: 700, mb: 2.5, pb: 1.5, borderBottom: '1px solid', borderColor: 'divider', display: 'flex', alignItems: 'center', gap: 1 }}
             >
-              <i className="fas fa-user" aria-hidden="true" />
+              <Iconify icon="fa6-solid:user" width={16} />
               User Information
             </Typography>
             <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(2, 1fr)' }, gap: 2 }}>
@@ -660,7 +661,7 @@ export default function Users() {
               variant="subtitle2"
               sx={{ color: 'primary.main', fontWeight: 700, mb: 2.5, pb: 1.5, borderBottom: '1px solid', borderColor: 'divider', display: 'flex', alignItems: 'center', gap: 1 }}
             >
-              <i className="fas fa-user-shield" aria-hidden="true" />
+              <Iconify icon="fa6-solid:user-lock" width={16} />
               Assign Roles
             </Typography>
             <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', md: 'repeat(3, 1fr)' }, gap: 2 }}>
@@ -701,7 +702,7 @@ export default function Users() {
                           borderColor: isChecked ? 'secondary.main' : 'transparent',
                         }}
                       >
-                        <i className={`fas ${meta.icon} fa-lg`} style={{ color: iconColor }} aria-hidden="true" />
+                        <Iconify icon={meta.icon} width={16} sx={{ color: iconColor }} />
                       </Box>
                       <Box sx={{ flex: 1, minWidth: 0 }}>
                         <Typography variant="subtitle2" sx={{ fontWeight: 700, color: isChecked ? 'secondary.main' : 'text.primary' }}>
@@ -712,7 +713,7 @@ export default function Users() {
                         </Typography>
                       </Box>
                       {isChecked && (
-                        <i className="fas fa-check-circle" style={{ color: '#6528e8', fontSize: 16 }} aria-hidden="true" />
+                        <Iconify icon="fa6-solid:circle-check" width={16} />
                       )}
                     </Box>
                   </Box>
@@ -746,13 +747,13 @@ export default function Users() {
       >
         <DialogTitle sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 2, py: 2 }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25 }}>
-            <i className="fas fa-people-arrows" style={{ color: '#062849', fontSize: 15 }} aria-hidden="true" />
+            <Iconify icon="fa6-solid:people-arrows-left-right" width={15} />
             <Typography variant="h6" sx={{ fontWeight: 700 }}>
               Transfer User Data
             </Typography>
           </Box>
           <IconButton size="small" onClick={() => setTransferShow(false)} aria-label="Close">
-            <i className="fas fa-times" style={{ fontSize: 14 }} aria-hidden="true" />
+            <Iconify icon="fa6-solid:xmark" width={14} />
           </IconButton>
         </DialogTitle>
 
@@ -783,7 +784,7 @@ export default function Users() {
               variant="outlined"
               onClick={loadTransferPreview}
               disabled={transferLoading || !transferToUserId}
-              startIcon={transferLoading ? <CircularProgress color="inherit" size={16} /> : <i className="fas fa-search" aria-hidden="true" />}
+              startIcon={transferLoading ? <CircularProgress color="inherit" size={16} /> : <Iconify icon="fa6-solid:magnifying-glass" width={16} />}
             >
               {transferLoading ? "Loading..." : "Preview Transfer"}
             </Button>
@@ -850,7 +851,7 @@ export default function Users() {
             color="warning"
             onClick={executeTransfer}
             disabled={transferConfirming || !transferPreview}
-            startIcon={transferConfirming ? <CircularProgress color="inherit" size={16} /> : <i className="fas fa-people-arrows" aria-hidden="true" />}
+            startIcon={transferConfirming ? <CircularProgress color="inherit" size={16} /> : <Iconify icon="fa6-solid:people-arrows-left-right" width={16} />}
           >
             {transferConfirming ? "Transferring..." : "Transfer Data"}
           </Button>

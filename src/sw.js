@@ -16,10 +16,17 @@ const firebaseApp = initializeApp({
   appId: import.meta.env.VITE_FIREBASE_APP_ID,
 });
 
-const messaging = getMessaging(firebaseApp);
+let messaging = null;
+try {
+  messaging = getMessaging(firebaseApp);
+} catch {
+  // In dev (vite-plugin-pwa dev-sw) the messaging-sw service may not be
+  // registered yet when this module executes. Skip background push there;
+  // production sw.js is bundled by injectManifest and registers correctly.
+}
 
 // Handle background (app closed / not focused) push notifications
-onBackgroundMessage(messaging, (payload) => {
+if (messaging) onBackgroundMessage(messaging, (payload) => {
   const { title, body } = payload.notification ?? {};
   const data = payload.data ?? {};
 

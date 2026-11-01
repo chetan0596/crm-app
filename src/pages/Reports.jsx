@@ -35,6 +35,7 @@ import {
   PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
   ResponsiveContainer, AreaChart, Area
 } from "recharts";
+import { Iconify } from "../components/iconify";
 
 const COLORS = {
   won: "#118d57",
@@ -115,7 +116,7 @@ function ReportTable({ columns, children }) {
     <TableContainer sx={{ overflowX: 'auto' }}>
       <Table size="small">
         <TableHead>
-          <TableRow sx={{ bgcolor: '#f8fafc' }}>
+          <TableRow sx={{ bgcolor: 'background.neutral' }}>
             {columns.map((column) => (
               <TableCell key={column.label} align={column.align || 'left'} sx={headCellSx}>
                 {column.label}
@@ -473,7 +474,7 @@ export default function Reports() {
         <Button
           variant="outlined"
           onClick={() => setShowSettings(true)}
-          startIcon={<i className="fas fa-cog" aria-hidden="true" />}
+          startIcon={<Iconify icon="fa6-solid:gear" width={16} />}
         >
           Stage Settings
         </Button>
@@ -545,7 +546,7 @@ export default function Reports() {
               onClick={() => {
                 setFilterSource(""); setFilterUser(""); setFilterStage(""); setFilterTag("");
               }}
-              startIcon={<i className="fas fa-undo" aria-hidden="true" />}
+              startIcon={<Iconify icon="fa6-solid:arrow-rotate-left" width={16} />}
             >
               Reset Filters
             </Button>
@@ -638,10 +639,10 @@ export default function Reports() {
                   contentSx={{ p: 0, '&:last-child': { pb: 0 } }}
                   action={
                     <Stack direction="row" spacing={1}>
-                      <Button variant="outlined" size="small" onClick={() => exportToCSV(pipelineData.by_stage, "pipeline_by_stage")} startIcon={<i className="fas fa-download" aria-hidden="true" />}>
+                      <Button variant="outlined" size="small" onClick={() => exportToCSV(pipelineData.by_stage, "pipeline_by_stage")} startIcon={<Iconify icon="fa6-solid:download" width={16} />}>
                         CSV
                       </Button>
-                      <Button variant="outlined" color="error" size="small" onClick={() => downloadPDF("pipeline")} startIcon={<i className="fas fa-file-pdf" aria-hidden="true" />}>
+                      <Button variant="outlined" color="error" size="small" onClick={() => downloadPDF("pipeline")} startIcon={<Iconify icon="fa6-solid:file-pdf" width={16} />}>
                         PDF
                       </Button>
                     </Stack>
@@ -705,10 +706,10 @@ export default function Reports() {
                   contentSx={{ p: 0, '&:last-child': { pb: 0 } }}
                   action={
                     <Stack direction="row" spacing={1}>
-                      <Button variant="outlined" size="small" onClick={() => exportToCSV(teamData.users, "team_performance")} startIcon={<i className="fas fa-download" aria-hidden="true" />}>
+                      <Button variant="outlined" size="small" onClick={() => exportToCSV(teamData.users, "team_performance")} startIcon={<Iconify icon="fa6-solid:download" width={16} />}>
                         CSV
                       </Button>
-                      <Button variant="outlined" color="error" size="small" onClick={() => downloadPDF("team-performance")} startIcon={<i className="fas fa-file-pdf" aria-hidden="true" />}>
+                      <Button variant="outlined" color="error" size="small" onClick={() => downloadPDF("team-performance")} startIcon={<Iconify icon="fa6-solid:file-pdf" width={16} />}>
                         PDF
                       </Button>
                     </Stack>
@@ -780,10 +781,10 @@ export default function Reports() {
                   contentSx={{ p: 0, '&:last-child': { pb: 0 } }}
                   action={
                     <Stack direction="row" spacing={1}>
-                      <Button variant="outlined" size="small" onClick={() => exportToCSV(sourceData.sources, "source_analysis")} startIcon={<i className="fas fa-download" aria-hidden="true" />}>
+                      <Button variant="outlined" size="small" onClick={() => exportToCSV(sourceData.sources, "source_analysis")} startIcon={<Iconify icon="fa6-solid:download" width={16} />}>
                         CSV
                       </Button>
-                      <Button variant="outlined" color="error" size="small" onClick={() => downloadPDF("source-analysis")} startIcon={<i className="fas fa-file-pdf" aria-hidden="true" />}>
+                      <Button variant="outlined" color="error" size="small" onClick={() => downloadPDF("source-analysis")} startIcon={<Iconify icon="fa6-solid:file-pdf" width={16} />}>
                         PDF
                       </Button>
                     </Stack>
@@ -865,7 +866,7 @@ export default function Reports() {
                               `product_analysis_${sourceGroup.source_type}`
                             )
                           }
-                          startIcon={<i className="fas fa-download" aria-hidden="true" />}
+                          startIcon={<Iconify icon="fa6-solid:download" width={16} />}
                         >
                           CSV
                         </Button>
@@ -921,7 +922,7 @@ export default function Reports() {
                   title="Activities by Type"
                   contentSx={{ p: 0, '&:last-child': { pb: 0 } }}
                   action={
-                    <Button variant="outlined" size="small" onClick={() => exportToCSV(activityData.by_type, "activities_by_type")} startIcon={<i className="fas fa-download" aria-hidden="true" />} />
+                    <Button variant="outlined" size="small" onClick={() => exportToCSV(activityData.by_type, "activities_by_type")} startIcon={<Iconify icon="fa6-solid:download" width={16} />} />
                   }
                 >
                   <ReportTable
@@ -942,7 +943,7 @@ export default function Reports() {
                   title="Activities by User"
                   contentSx={{ p: 0, '&:last-child': { pb: 0 } }}
                   action={
-                    <Button variant="outlined" size="small" onClick={() => exportToCSV(activityData.by_user, "activities_by_user")} startIcon={<i className="fas fa-download" aria-hidden="true" />} />
+                    <Button variant="outlined" size="small" onClick={() => exportToCSV(activityData.by_user, "activities_by_user")} startIcon={<Iconify icon="fa6-solid:download" width={16} />} />
                   }
                 >
                   <ReportTable
@@ -1013,7 +1014,7 @@ export default function Reports() {
               <SectionCard
                 title="Stage Conversion Funnel"
                 action={
-                  <Button variant="outlined" size="small" onClick={() => exportToCSV(funnelData.stages, "conversion_funnel")} startIcon={<i className="fas fa-download" aria-hidden="true" />}>
+                  <Button variant="outlined" size="small" onClick={() => exportToCSV(funnelData.stages, "conversion_funnel")} startIcon={<Iconify icon="fa6-solid:download" width={16} />}>
                     Export CSV
                   </Button>
                 }
@@ -1045,7 +1046,7 @@ export default function Reports() {
                       </Box>
                       {index < funnelData.stages.length - 1 && (
                         <Box sx={{ textAlign: 'center', my: 1 }}>
-                          <i className="fas fa-arrow-down" style={{ color: '#919eab', fontSize: 12 }} aria-hidden="true" />
+                          <Iconify icon="fa6-solid:arrow-down" width={12} />
                           <Typography component="span" variant="caption" sx={{ color: 'text.secondary', ml: 1 }}>
                             {stage.drop_off_count || 0} dropped off ({stage.drop_off_rate?.toFixed(1) || 0}%)
                           </Typography>
@@ -1094,7 +1095,7 @@ export default function Reports() {
                         })),
                         "followup_report"
                       )}
-                      startIcon={<i className="fas fa-download" aria-hidden="true" />}
+                      startIcon={<Iconify icon="fa6-solid:download" width={16} />}
                     >
                       Export CSV
                     </Button>
@@ -1149,10 +1150,10 @@ export default function Reports() {
                   contentSx={{ p: 0, '&:last-child': { pb: 0 } }}
                   action={
                     <Stack direction="row" spacing={1}>
-                      <Button variant="outlined" size="small" onClick={() => exportToCSV(agingData.by_stage, "lead_aging")} startIcon={<i className="fas fa-download" aria-hidden="true" />}>
+                      <Button variant="outlined" size="small" onClick={() => exportToCSV(agingData.by_stage, "lead_aging")} startIcon={<Iconify icon="fa6-solid:download" width={16} />}>
                         Export CSV
                       </Button>
-                      <Button variant="outlined" color="error" size="small" onClick={() => downloadPDF("aging")} startIcon={<i className="fas fa-file-pdf" aria-hidden="true" />}>
+                      <Button variant="outlined" color="error" size="small" onClick={() => downloadPDF("aging")} startIcon={<Iconify icon="fa6-solid:file-pdf" width={16} />}>
                         Download PDF
                       </Button>
                     </Stack>
@@ -1207,7 +1208,7 @@ export default function Reports() {
             <TableContainer>
               <Table size="small">
                 <TableHead>
-                  <TableRow sx={{ bgcolor: '#f8fafc' }}>
+                  <TableRow sx={{ bgcolor: 'background.neutral' }}>
                     <TableCell sx={headCellSx}>Stage Name</TableCell>
                     <TableCell align="center" sx={headCellSx}>Won</TableCell>
                     <TableCell align="center" sx={headCellSx}>Lost</TableCell>
