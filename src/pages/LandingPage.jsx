@@ -207,7 +207,7 @@ export default function LandingPage() {
   useEffect(() => {
     const origin = window.location.origin;
     const prevTitle = document.title;
-    document.title = "Sarth CRM — CRM for Solar Companies | Leads, Sales & Inventory";
+    document.title = "Sarth CRM — All-in-One CRM | Leads, Sales, Inventory & Solar";
 
     const upsert = (selector, tag, attrs) => {
       let el = document.head.querySelector(selector);
@@ -222,20 +222,20 @@ export default function LandingPage() {
       upsert(`meta[${attr}="${key}"]`, "meta", { [attr]: key, content });
 
     const desc =
-      "Sarth is the solar CRM for solar EPCs, dealers & installers — capture solar leads from WhatsApp, Google Sheets & webhooks, manage follow-ups, quotations, payments and multi-warehouse inventory in one workspace.";
+      "Sarth is an all-in-one CRM for growing businesses — leads, follow-ups, quotations, payments & inventory, with solar CRM workflows for EPCs, dealers & installers.";
 
     meta("name", "description", desc);
     meta("name", "keywords",
-      "solar CRM, CRM for solar companies, solar lead management, solar sales CRM, solar EPC software, rooftop solar CRM, solar dealer management, solar business software, solar CRM India, solar lead capture, solar quotation software, solar inventory management, lead management CRM, follow-up management");
+      "CRM software, all-in-one CRM, small business CRM, lead management software, sales CRM, inventory management software, quotation software, follow-up management, solar CRM, CRM for solar companies, solar lead management, solar EPC software, solar dealer management, solar business software, CRM India");
     meta("name", "robots", "index, follow");
     meta("property", "og:type", "website");
     meta("property", "og:site_name", "Sarth CRM");
-    meta("property", "og:title", "Sarth CRM — Turn solar leads into revenue");
+    meta("property", "og:title", "Sarth CRM — Turn leads into revenue");
     meta("property", "og:description", desc);
     meta("property", "og:url", origin + "/");
     meta("property", "og:image", origin + "/sarth-logo.png");
     meta("name", "twitter:card", "summary_large_image");
-    meta("name", "twitter:title", "Sarth Solar CRM — Turn solar leads into revenue");
+    meta("name", "twitter:title", "Sarth CRM — Turn leads into revenue");
     meta("name", "twitter:description", desc);
     meta("name", "twitter:image", origin + "/sarth-logo.png");
     upsert('link[rel="canonical"]', "link", { rel: "canonical", href: origin + "/" });
@@ -252,7 +252,7 @@ export default function LandingPage() {
       {
         "@context": "https://schema.org",
         "@type": "SoftwareApplication",
-        name: "Sarth Solar CRM",
+        name: "Sarth CRM",
         applicationCategory: "BusinessApplication",
         operatingSystem: "Web",
         description: desc,
@@ -395,18 +395,17 @@ export default function LandingPage() {
         <div className="landing-container hero-inner">
           <div className="hero-copy">
             <span className="hero-badge">
-              <i className="fa-solid fa-sparkles"></i> All-in-one Solar CRM & Inventory
+              <i className="fa-solid fa-sparkles"></i> All-in-one CRM & Inventory
             </span>
             <h1>
-              Turn solar leads into revenue.
+              Turn leads into revenue.
               <br />
               <span className="grad-text">Grow Business</span> — faster.
             </h1>
             <p>
-              Sarth is the solar CRM that brings your leads, follow-ups,
-              quotations, payments and inventory into one clean workspace — built
-              for solar EPCs, dealers and installers, so your team spends less
-              time managing tools and more time closing deals.
+              Sarth brings your leads, follow-ups, quotations, payments and
+              inventory into one clean workspace — built for every business, with
+              solar-ready workflows for EPCs, dealers and installers.
             </p>
             <div className="hero-cta">
               <Link to="/register" className="btn btn-primary btn-lg">
