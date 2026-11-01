@@ -157,6 +157,29 @@ const TESTIMONIALS = [
   },
 ];
 
+// Drop member photos in public/team/ and set `photo` below.
+// If the file is missing, the initials avatar shows automatically.
+const TEAM = [
+  {
+    name: "Parth Maru",
+    role: "Founder & CEO",
+    initials: "PM",
+    photo: "/team/member-1.jpg",
+  },
+  {
+    name: "Sneha Desai",
+    role: "Director",
+    initials: "SD",
+    photo: "/team/member-2.jpg",
+  },
+  {
+    name: "Vishal Patel",
+    role: "Director",
+    initials: "VP",
+    photo: "/team/member-3.jpg",
+  },
+];
+
 export default function LandingPage() {
   const [scrolled, setScrolled] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -607,6 +630,39 @@ export default function LandingPage() {
                     <strong>{t.name}</strong>
                     <span>{t.role}</span>
                   </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ================= TEAM ================= */}
+      <section className="section section-alt" id="team">
+        <div className="landing-container">
+          <div className="section-head">
+            <span className="eyebrow">Our Team</span>
+            <h2>Meet the people <span className="grad-text">behind Sarth</span></h2>
+            <p>A small team obsessed with making business software simple.</p>
+          </div>
+
+          <div className="team-grid">
+            {TEAM.map((m) => (
+              <div className="team-card" key={m.name}>
+                <div className="team-photo">
+                  <span className="team-initials">{m.initials}</span>
+                  {m.photo && (
+                    <img
+                      src={m.photo}
+                      alt={m.name}
+                      loading="lazy"
+                      onError={(e) => { e.currentTarget.style.display = "none"; }}
+                    />
+                  )}
+                </div>
+                <div className="team-body">
+                  <strong>{m.name}</strong>
+                  <span className="team-role">{m.role}</span>
                 </div>
               </div>
             ))}
