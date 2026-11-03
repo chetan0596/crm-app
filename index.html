@@ -15,7 +15,8 @@
       // Canonical host: fold www (and http) into https://sarthcrm.com
       (function () {
         var host = location.hostname;
-        if (host === 'www.sarthcrm.com' || location.protocol === 'http:') {
+        var isLocal = host === 'localhost' || host === '127.0.0.1' || host === '[::1]';
+        if (!isLocal && (host === 'www.sarthcrm.com' || location.protocol === 'http:')) {
           location.replace('https://sarthcrm.com' + location.pathname + location.search + location.hash);
         }
       })();

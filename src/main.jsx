@@ -3,6 +3,7 @@ import App from './App.jsx'
 import { BrowserRouter } from "react-router-dom"
 import { ToastContainer } from "react-toastify";
 import { ThemeProvider } from './theme';
+import DevtoolsGuard from './components/devtools-guard';
 
 // Fonts
 import '@fontsource-variable/dm-sans';
@@ -21,8 +22,10 @@ import './index.css'
 ReactDOM.createRoot(document.getElementById('root')).render(
   <ThemeProvider>
     <BrowserRouter>
-      <App />
-      <ToastContainer position="top-right" />
+      <DevtoolsGuard>
+        <App />
+        <ToastContainer position="top-right" />
+      </DevtoolsGuard>
     </BrowserRouter>
   </ThemeProvider>
 )
