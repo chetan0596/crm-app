@@ -46,8 +46,8 @@ const SHORTCUT_BLOCK = (e) => {
 const CONTEXTMENU_BLOCK = (e) => e.preventDefault();
 
 export default function DevtoolsGuard({ children }) {
-  const [blocked, setBlocked] = useState(false);
-  const hitsRef = useRef(0);
+  const [blocked, setBlocked] = useState(() => window.__DEVTOOLS_BLOCKED__ === true);
+  const hitsRef = useRef(window.__DEVTOOLS_BLOCKED__ === true ? 2 : 0);
   const enabled = import.meta.env.PROD;
   // const enabled = true;
 
