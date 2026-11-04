@@ -22,12 +22,6 @@ function isDevtoolsDocked() {
   );
 }
 
-function isDevtoolsUndocked() {
-  const start = performance.now();
-  // eslint-disable-next-line no-debugger
-  debugger;
-  return performance.now() - start > 500;
-}
 
 const SHORTCUT_BLOCK = (e) => {
   const key = e.key.toUpperCase();
@@ -55,7 +49,7 @@ export default function DevtoolsGuard({ children }) {
     if (!enabled) return undefined;
 
     const check = () => {
-      hitsRef.current = isDevtoolsDocked() || isDevtoolsUndocked() ? hitsRef.current + 1 : 0;
+      hitsRef.current = isDevtoolsDocked() ? hitsRef.current + 1 : 0;
       setBlocked(hitsRef.current >= 2);
     };
     const timer = setInterval(check, 1000);

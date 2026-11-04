@@ -23,14 +23,11 @@
     </script>
     <script>
       // Early DevTools check — runs before the React bundle so the app never
-      // mounts while DevTools is open. The runtime guard re-checks continuously.
+      // mounts while docked DevTools is open. The runtime guard keeps checking.
       (function () {
         var isTouch = (window.matchMedia && window.matchMedia('(pointer: coarse)').matches) || navigator.maxTouchPoints > 0;
         var docked = !isTouch && (window.outerWidth - window.innerWidth > 160 || window.outerHeight - window.innerHeight > 160);
-        var t = performance.now();
-        debugger;
-        var undocked = performance.now() - t > 500;
-        if (docked || undocked) window.__DEVTOOLS_BLOCKED__ = true;
+        if (docked) window.__DEVTOOLS_BLOCKED__ = true;
       })();
     </script>
     <meta name="apple-mobile-web-app-capable" content="yes" />
