@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import PropTypes from "prop-types";
 import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
@@ -7,7 +7,15 @@ import { Logo } from "../logo";
 
 const DOCK_THRESHOLD = 160;
 
+// Mobile/tablet browsers have no dockable DevTools — the outer/inner size
+// difference there just reflects browser chrome (URL bar, tab bar), so the
+// docked-size check must be skipped on touch devices to avoid false positives.
+const IS_TOUCH_DEVICE =
+  (typeof window !== "undefined" && window.matchMedia?.("(pointer: coarse)").matches) ||
+  (typeof navigator !== "undefined" && navigator.maxTouchPoints > 0);
+
 function isDevtoolsDocked() {
+  if (IS_TOUCH_DEVICE) return false;
   return (
     window.outerWidth - window.innerWidth > DOCK_THRESHOLD ||
     window.outerHeight - window.innerHeight > DOCK_THRESHOLD
@@ -18,7 +26,7 @@ function isDevtoolsUndocked() {
   const start = performance.now();
   // eslint-disable-next-line no-debugger
   debugger;
-  return performance.now() - start > 100;
+  return performance.now() - start > 500;
 }
 
 const SHORTCUT_BLOCK = (e) => {
@@ -39,17 +47,24 @@ const CONTEXTMENU_BLOCK = (e) => e.preventDefault();
 
 export default function DevtoolsGuard({ children }) {
   const [blocked, setBlocked] = useState(false);
+  const hitsRef = useRef(0);
   const enabled = import.meta.env.PROD;
   // const enabled = true;
 
   useEffect(() => {
     if (!enabled) return undefined;
-    const check = () => setBlocked(isDevtoolsDocked() || isDevtoolsUndocked());
+
+    const check = () => {
+      hitsRef.current = isDevtoolsDocked() || isDevtoolsUndocked() ? hitsRef.current + 1 : 0;
+      setBlocked(hitsRef.current >= 2);
+    };
     const timer = setInterval(check, 1000);
     check();
 
     window.addEventListener("keydown", SHORTCUT_BLOCK, true);
-    window.addEventListener("contextmenu", CONTEXTMENU_BLOCK, true);
+    if (!IS_TOUCH_DEVICE) {
+      window.addEventListener("contextmenu", CONTEXTMENU_BLOCK, true);
+    }
 
     return () => {
       clearInterval(timer);
